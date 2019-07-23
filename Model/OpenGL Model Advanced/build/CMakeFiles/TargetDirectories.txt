@@ -1,2 +1,0 @@
-D:/Documents/Development/OpenGL/Model/OpenGL Model Advanced/build/CMakeFiles/PBR.dir
-D:/Documents/Development/OpenGL/Model/OpenGL Model Advanced/build/CMakeFiles/ALL_BUILD.dir
