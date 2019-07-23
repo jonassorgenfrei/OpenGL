@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\imageLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Bibliotheken\glad\gladcoreccppogl44\src\glad.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\filesystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\light.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\material.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\model.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\root_directory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\shader_m.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D:\Documents\Development\OpenGL\Shadows\OpenGL Shadow Mapping\OpenGL Shadow Mapping\src\stb_image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{E5B5DB7E-9234-333E-9BB9-4D11A9BE7A9E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{66D319EF-B317-37B8-912E-05839EEE2FD3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

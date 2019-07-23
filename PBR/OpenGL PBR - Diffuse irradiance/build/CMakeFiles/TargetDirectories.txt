@@ -1,0 +1,2 @@
+D:/Documents/Development/OpenGL/PBR/OpenGL PBR - Diffuse irradiance/build/CMakeFiles/PBR_DIFFUSE_IRRADIANCE.dir
+D:/Documents/Development/OpenGL/PBR/OpenGL PBR - Diffuse irradiance/build/CMakeFiles/ALL_BUILD.dir

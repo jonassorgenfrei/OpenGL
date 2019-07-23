@@ -1,0 +1,43 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 16
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CMakePredefinedTargets", "CMakePredefinedTargets", "{4D06DEC7-C198-3BC8-9999-12B7958247DB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PBR", "PBR.vcxproj", "{45C1026A-65F0-35A3-821A-3F63DAD34CFA}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ALL_BUILD", "ALL_BUILD.vcxproj", "{EB61630E-B1C7-38A2-82E4-8E6D55DEEAC1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{45C1026A-65F0-35A3-821A-3F63DAD34CFA} = {45C1026A-65F0-35A3-821A-3F63DAD34CFA}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+		MinSizeRel|x64 = MinSizeRel|x64
+		RelWithDebInfo|x64 = RelWithDebInfo|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{45C1026A-65F0-35A3-821A-3F63DAD34CFA}.Debug|x64.ActiveCfg = Debug|x64
+		{45C1026A-65F0-35A3-821A-3F63DAD34CFA}.Debug|x64.Build.0 = Debug|x64
+		{45C1026A-65F0-35A3-821A-3F63DAD34CFA}.Release|x64.ActiveCfg = Release|x64
+		{45C1026A-65F0-35A3-821A-3F63DAD34CFA}.Release|x64.Build.0 = Release|x64
+		{45C1026A-65F0-35A3-821A-3F63DAD34CFA}.MinSizeRel|x64.ActiveCfg = MinSizeRel|x64
+		{45C1026A-65F0-35A3-821A-3F63DAD34CFA}.MinSizeRel|x64.Build.0 = MinSizeRel|x64
+		{45C1026A-65F0-35A3-821A-3F63DAD34CFA}.RelWithDebInfo|x64.ActiveCfg = RelWithDebInfo|x64
+		{45C1026A-65F0-35A3-821A-3F63DAD34CFA}.RelWithDebInfo|x64.Build.0 = RelWithDebInfo|x64
+		{EB61630E-B1C7-38A2-82E4-8E6D55DEEAC1}.Debug|x64.ActiveCfg = Debug|x64
+		{EB61630E-B1C7-38A2-82E4-8E6D55DEEAC1}.Release|x64.ActiveCfg = Release|x64
+		{EB61630E-B1C7-38A2-82E4-8E6D55DEEAC1}.MinSizeRel|x64.ActiveCfg = MinSizeRel|x64
+		{EB61630E-B1C7-38A2-82E4-8E6D55DEEAC1}.RelWithDebInfo|x64.ActiveCfg = RelWithDebInfo|x64
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{EB61630E-B1C7-38A2-82E4-8E6D55DEEAC1} = {4D06DEC7-C198-3BC8-9999-12B7958247DB}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D190FABF-9AAA-3195-99EF-72F2265718F3}
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal
