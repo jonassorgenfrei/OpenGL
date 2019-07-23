@@ -1,2 +1,0 @@
-D:/Documents/Development/OpenGL/Shadows/OpenGL Point Shadows/OpenGL Point Shadows/build/CMakeFiles/Shadow_Mapping.dir
-D:/Documents/Development/OpenGL/Shadows/OpenGL Point Shadows/OpenGL Point Shadows/build/CMakeFiles/ALL_BUILD.dir
