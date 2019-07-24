@@ -41,7 +41,6 @@ set (${PROJECT_NAME}_VERSION_MINOR 0)
 
 # find the required packages
 find_package(GLM REQUIRED)					# GLM
-set( GLM_INCLUDE_DIR "${GLM_DIR}/../")
 message(STATUS "GLM included at ${GLM_INCLUDE_DIR}")
 find_package(GLFW3 REQUIRED)					# GLFW3
 FIND_PATH(GLFW3_INCLUDE_DIR "GLFW/glfw3.h" PATHS ${GLFW3_DIR}/../../../include )
@@ -52,7 +51,7 @@ message(STATUS "Found ASSIMP in ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES}")
 
 # setzten der Include Directories
 include_directories( ${OPENGL_INCLUDE_DIR} 
-					${GLM_INCLUDE_DIR}
+					${GLM_INCLUDE_DIRS}
 					${GLFW3_INCLUDE_DIR}
 					${ASSIMP_INCLUDE_DIRS}
 					$ENV{glad_DIR}/include 
