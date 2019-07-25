@@ -161,7 +161,7 @@ int main()
 	// ---------------------------------
 	stbi_set_flip_vertically_on_load(true);
 	int width, height, nrComponents;
-	float* data = stbi_loadf(FileSystem::getPath("images/newport_loft.hdr").c_str(), &width, &height, &nrComponents, 0);
+	float* data = stbi_loadf(FileSystem::getPath("../../content/images/newport_loft.hdr").c_str(), &width, &height, &nrComponents, 0);
 	unsigned int hdrTexture;
 	if (data)
 	{

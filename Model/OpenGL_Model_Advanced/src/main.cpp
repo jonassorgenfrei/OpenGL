@@ -120,7 +120,7 @@ int main()
 
 	// load models 
 	// -----------
-	Model ourModel(FileSystem::getPath("models/nanosuit/nanosuit.obj").c_str());
+	Model ourModel(FileSystem::getPath("../../content/models/nanosuit/nanosuit.obj").c_str());
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// Position (x,y,z) | Color (r,g,b) | Texturcoordinate (x,y) | Normal (x,y,z)
@@ -454,12 +454,12 @@ int main()
 	// cubmap 
 	vector<std::string> faces
 	{
-		FileSystem::getPath("images/skybox/right.jpg").c_str(),
-		FileSystem::getPath("images/skybox/left.jpg").c_str(),
-		FileSystem::getPath("images/skybox/top.jpg").c_str(),
-		FileSystem::getPath("images/skybox/bottom.jpg").c_str(),
-		FileSystem::getPath("images/skybox/front.jpg").c_str(),
-		FileSystem::getPath("images/skybox/back.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/right.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/left.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/top.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/bottom.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/front.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/back.jpg").c_str(),
 	};
 
 	unsigned int cubemapTexture = loadCubemap(faces, GL_CLAMP_TO_EDGE);

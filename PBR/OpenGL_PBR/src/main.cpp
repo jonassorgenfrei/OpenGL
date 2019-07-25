@@ -5,7 +5,7 @@
  *  SHADED_STATE 1 - texture shaded
  */
 
-#define SHADED_STATE 0
+#define SHADED_STATE 1
 #if SHADED_STATE == 1
 	/*
 	 * 0 - rustedIron
@@ -143,15 +143,15 @@ int main()
 	// --------
 #if SHADED_STATE == 1
 #if TEXTURE == 0
-	std::string texturesFolder = "images/rustedIron/";
+	std::string texturesFolder = "../../content/images/rustedIron/";
 #elif TEXTURE == 1
-	std::string texturesFolder = "images/gold/";
+	std::string texturesFolder = "../../content/images/gold/";
 #elif TEXTURE == 2
-	std::string texturesFolder = "images/grass/";
+	std::string texturesFolder = "../../content/images/grass/";
 #elif TEXTURE == 3
-	std::string texturesFolder = "images/plastic/";
+	std::string texturesFolder = "../../content/images/plastic/";
 #elif TEXTURE == 4
-	std::string texturesFolder = "images/wall/";
+	std::string texturesFolder = "../../content/images/wall/";
 #endif
 	std::string albedoPath = texturesFolder+"albedo.png";
 	std::string normalPath = texturesFolder + "normal.png";

@@ -157,8 +157,8 @@ int main()
 
 	// load models 
 	// -----------
-	Model ourModel(FileSystem::getPath("models/MineCart/Part2[minecart].obj").c_str());
-	//Model rabbit(FileSystem::getPath("models/rabbit/bunny.obj").c_str());
+	Model ourModel(FileSystem::getPath("../../content/models/MineCart/Part2[minecart].obj").c_str());
+	//Model rabbit(FileSystem::getPath("../../content/models/rabbit/bunny.obj").c_str());
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// Position (x,y,z) | Color (r,g,b) | Texturcoordinate (x,y) | Normal (x,y,z)
@@ -474,11 +474,11 @@ int main()
 	// load and create a texture 
 	// -------------------------
 
-	//unsigned int container = loadTexture(FileSystem::getPath("images/container.png").c_str());
-	unsigned int diffuseMap = loadTexture(FileSystem::getPath("images/container2.png").c_str());
-	unsigned int specularMap = loadTexture(FileSystem::getPath("images/container2_specular.png").c_str());
-	unsigned int emissionMap= loadTexture(FileSystem::getPath("images/smoke.jpg").c_str());
-	//unsigned int face = loadTexture(FileSystem::getPath("images/awesomeface.png").c_str());
+	//unsigned int container = loadTexture(FileSystem::getPath("../../content/images/container.png").c_str());
+	unsigned int diffuseMap = loadTexture(FileSystem::getPath("../../content/images/container2.png").c_str());
+	unsigned int specularMap = loadTexture(FileSystem::getPath("../../content/images/container2_specular.png").c_str());
+	unsigned int emissionMap= loadTexture(FileSystem::getPath("../../content/images/smoke.jpg").c_str());
+	//unsigned int face = loadTexture(FileSystem::getPath("../../content/images/awesomeface.png").c_str());
 
 	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------

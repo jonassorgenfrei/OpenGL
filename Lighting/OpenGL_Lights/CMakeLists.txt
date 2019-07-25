@@ -32,7 +32,6 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 # Optimierung 
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 # Versionsnummer
@@ -40,28 +39,50 @@ set (${PROJECT_NAME}_VERSION_MAJOR 1)
 set (${PROJECT_NAME}_VERSION_MINOR 0)
 
 # find the required packages
-find_package(GLM REQUIRED)					# GLM
-set( GLM_INCLUDE_DIR "${GLM_DIR}/../")
+
+# GLM
+find_package(GLM REQUIRED)
 message(STATUS "GLM included at ${GLM_INCLUDE_DIR}")
-find_package(GLFW3 REQUIRED)					# GLFW3
-FIND_PATH(GLFW3_INCLUDE_DIR "GLFW/glfw3.h" PATHS ${GLFW3_DIR}/../../../include )
-FIND_LIBRARY(GLFW3_LIBRARY NAMES glfw3 glfw PATHS ${GLFW3_DIR}/../../ )
+
+# GLFW3
+find_package(GLFW3 REQUIRED)					
+FIND_PATH(GLFW3_INCLUDE_DIRS "GLFW/glfw3.h" PATHS ${GLFW3_DIR}/../../../include )
+FIND_LIBRARY(GLFW3_LIBRARY_DIRS NAMES glfw3 glfw PATHS ${GLFW3_DIR}/../../ )
 message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIR}")
-find_package(ASSIMP REQUIRED)					# ASSIMP
+
+# ASSIMP
+find_package(ASSIMP REQUIRED)					
 message(STATUS "Found ASSIMP in ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES}")
+
+# GLAD
+IF(DEFINED ENV{glad_DIR}) 
+	set(GLAD_SRC_DIRS $ENV{glad_DIR})
+	set(GLAD_INCLUDE_DIRS ${GLAD_SRC_DIRS}/include )
+	message(STATUS "Found GLAD in ${GLAD_SRC_DIRS}")
+ELSE()
+	message(FATAL_ERROR "GLAD ENVIRONMENT VARIABLE NOT SET")
+ENDIF()
+
+# STB
+IF(DEFINED ENV{stb_DIR}) 
+	set(STB_INCLUDE_DIRS $ENV{stb_DIR})
+	message(STATUS "Found STB in $ENV{stb_DIR}")
+ELSE()
+	message(FATAL_ERROR "STB ENVIRONMENT VARIABLE NOT SET")
+ENDIF()
 
 # setzten der Include Directories
 include_directories( ${OPENGL_INCLUDE_DIR} 
-					${GLM_INCLUDE_DIR}
-					${GLFW3_INCLUDE_DIR}
-					${ASSIMP_INCLUDE_DIRS}
-					$ENV{glad_DIR}/include 
-					$ENV{stb_DIR}
-					${CMAKE_CURRENT_SOURCE_DIR}/include)
+		     ${GLM_INCLUDE_DIRS}
+		     ${GLFW3_INCLUDE_DIRS}
+		     ${ASSIMP_INCLUDE_DIRS}
+		     ${GLAD_INCLUDE_DIRS}
+		     ${STB_INCLUDE_DIRS}
+		     ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # WINDOWS SYSTEM
 if(WIN32)
-	set(LIBS ${GLFW3_LIBRARY} opengl32 ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES})
+	set(LIBS ${GLFW3_LIBRARY_DIRS} opengl32 ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES})
 
 	# nicht ZERO_CHECK bauen
 	set(CMAKE_SUPPRESS_REGENERATION true)

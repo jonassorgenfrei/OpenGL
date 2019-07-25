@@ -11,6 +11,7 @@
 
 #include "light.h"
 #include "material.h"
+#include "filesystem.h"
 
 #include <iostream>
 
@@ -86,8 +87,8 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader ourShader(".\\shader\\cube.vs", ".\\shader\\cube.fs"); 
-	Shader lightShader(".\\shader\\light.vs", ".\\shader\\light.fs");
+	Shader ourShader(FileSystem::getPath("shader/cube.vs").c_str(), FileSystem::getPath("shader/cube.fs").c_str());
+	Shader lightShader(FileSystem::getPath("shader/light.vs").c_str(), FileSystem::getPath("shader/light.fs").c_str());
 	
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// Position (x,y,z) | Color (r,g,b) | Texturcoordinate (x,y) | Normal (x,y,z)
@@ -416,11 +417,11 @@ int main()
 	// load and create a texture 
 	// -------------------------
 
-	//unsigned int container = loadTexture(".\\images\\container.png");
-	unsigned int diffuseMap = loadTexture(".\\images\\container2.png");
-	unsigned int specularMap = loadTexture(".\\images\\container2_specular.png");
-	unsigned int emissionMap= loadTexture(".\\images\\smoke.jpg");
-	//unsigned int face = loadTexture(".\\images\\awesomeface.png");
+	//unsigned int container = loadTexture(FileSystem::getPath("../../content/images/container.png").c_str());
+	unsigned int diffuseMap = loadTexture(FileSystem::getPath("../../content/images/container2.png").c_str());
+	unsigned int specularMap = loadTexture(FileSystem::getPath("../../content/images/container2_specular.png").c_str());
+	unsigned int emissionMap= loadTexture(FileSystem::getPath("../../content/images/smoke.jpg").c_str());
+	//unsigned int face = loadTexture(FileSystem::getPath("../../content/images/awesomeface.png").c_str());
 
 	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------

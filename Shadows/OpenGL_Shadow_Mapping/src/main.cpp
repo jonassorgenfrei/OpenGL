@@ -145,7 +145,7 @@ int main()
 
 	// load textures
 	// -------------
-	unsigned int woodTexture = loadTexture(FileSystem::getPath("images/wood.png").c_str(), GL_FALSE);
+	unsigned int woodTexture = loadTexture(FileSystem::getPath("../../content/images/wood.png").c_str(), GL_FALSE);
 
 	/* the depth map */
 	const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
