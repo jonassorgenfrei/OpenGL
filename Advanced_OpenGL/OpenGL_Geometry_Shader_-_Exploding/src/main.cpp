@@ -14,6 +14,8 @@
 #include "camera.h"
 #include "model.h"
 #include "stb_image.h"
+#include "filesystem.h"
+
 
 #include "light.h"
 #include "material.h"
@@ -97,14 +99,14 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader shader(".\\shader\\geometry_shader.vs", ".\\shader\\geometry_shader.fs", ".\\shader\\geometry_shader.gs");
-	Shader normalDisplayShader(".\\shader\\normalShader.vs", ".\\shader\\normalShader.fs", ".\\shader\\normalShader.gs");
+	Shader shader(FileSystem::getPath("shader/geometry_shader.vs").c_str(), FileSystem::getPath("shader/geometry_shader.fs").c_str(), FileSystem::getPath("shader/geometry_shader.gs").c_str());
+	Shader normalDisplayShader(FileSystem::getPath("shader/normalShader.vs").c_str(), FileSystem::getPath("shader/normalShader.fs").c_str(), FileSystem::getPath("shader/normalShader.gs").c_str());
 
 
 	// load models
 	// -----------
-	Model nanosuit(".\\models\\nanosuit\\nanosuit.obj");
-	//Model nanosuit(".\\models\\rabbit\\bunny.obj");
+	Model nanosuit(FileSystem::getPath("../../content/models/nanosuit/nanosuit.obj").c_str());
+	//Model nanosuit(FileSystem::getPath("../../content/models/rabbit/bunny.obj").c_str());
 	float timeToExpl = glfwGetTime();
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 

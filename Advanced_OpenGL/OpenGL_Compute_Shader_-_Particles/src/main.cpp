@@ -14,11 +14,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <time.h>
+
 #include "shader_m.h"
 #include "camera.h"
 #include "model.h"
 #include "stb_image.h"
 #include "gBuffer.h"
+#include "filesystem.h"
 
 #include <iostream>
 
@@ -143,17 +146,17 @@ int main()
 	glBindBuffer(GL_ARRAY_BUFFER, particleVelocityBuffer);
 	glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * sizeof(glm::vec2), NULL, GL_STREAM_DRAW);
 	GLvoid * pointer2 = glMapBuffer(GL_ARRAY_BUFFER, GL_READ_WRITE);
-
+	srand((unsigned)time(NULL));
 	for (int i = 0; i < NUM_PARTICLES; ++i) {
-		glm::vec2 pos = glm::vec2(randomFloat()*win_width, randomFloat()*win_height);
+		glm::vec2 pos = glm::vec2(i / NUM_PARTICLES * randomFloat()*(float)win_width/*i/NUM_PARTICLES*win_width*/, i / NUM_PARTICLES * randomFloat()* (float)win_height /*i / NUM_PARTICLES * win_width*/);
 		memcpy((glm::vec2*)pointer2 + i, &pos, sizeof(glm::vec2));
 	}
+
 	glUnmapBuffer(GL_ARRAY_BUFFER);
 
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)(intptr_t)0);
-
-
+	
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	// 1D-Lookup Tabelle erstellen
 	GLuint colorLookup;
@@ -175,9 +178,9 @@ int main()
 
 	// build and compile shader program(s)
 	// ------------------------------------
-	Shader renderParticleShader(".\\shader\\renderparticle.vert", ".\\shader\\renderparticle.frag");
+	Shader renderParticleShader(FileSystem::getPath("shader/renderparticle.vert").c_str(), FileSystem::getPath("shader/renderparticle.frag").c_str());
 	const GLuint renderParticlesProgram_ProjectionMatrix = 0;
-	Shader simulateParticleShader(".\\shader\\simulateparticle.comp");
+	Shader simulateParticleShader(FileSystem::getPath("shader/simulateparticle.comp").c_str());
 	const GLuint simulateParticlesProgram_Dt = 0;
 	const GLuint simulateParticlesProgram_FramebufferSize = 1;
 	const GLuint simulateParticlesProgram_Attractor = 2;

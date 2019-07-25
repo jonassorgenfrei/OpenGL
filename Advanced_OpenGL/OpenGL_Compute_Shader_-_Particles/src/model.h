@@ -77,7 +77,7 @@ class Model
 				return;
 			}
 			// retrieve the directory path of the filepath
-			directory = path.substr(0, path.find_last_of('\\'));
+			directory = path.substr(0, path.find_last_of('/'));
 			// process ASSIMP's root node recursively
 			processNode(scene->mRootNode, scene);
 		};
