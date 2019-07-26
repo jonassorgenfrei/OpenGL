@@ -1,11 +1,37 @@
 /* 
- *	Diffuse Irradiance
- *
- *
+ *	Specular IBL
+ *		using the Epic Games' split sum approximation
  */
+
+/**
+ * Renders PBR WITH MATERIALS
+ */
+#define RENDER_MATERIALS 1
+
+/**
+ * Renders the BRDF MAP to SCREEN 
+ */
+#define RENDER_BRDF_MAP 0
+
+ /**
+  * Use Cube Map As Environment MAP
+  * 0 - DEFAULT HDR
+  * 1 - IRRADIANCE MAP
+  * 2 - PREFILTER (Spec IBL) MAP
+  */
+#define RENDER_ENV_MAP 0
+
+/**
+ * Mipmap level to sample from cubemap 
+ */
+#if RENDER_ENV_MAP == 2
+	#define RENDER_ENV_PREFILTER_MIPMAP 1.2
+#endif // !RENDER_ENV_MAP == 2
+
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <stb_image.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -14,8 +40,6 @@
 #include "shader_m.h"
 #include "camera.h"
 #include "model.h"
-#include "stb_image.h"
-
 #include "light.h"
 #include "material.h"
 #include "filesystem.h"
@@ -32,8 +56,9 @@ void processInput(GLFWwindow *window);
 unsigned int loadTexture(const char *path, bool gammaCorrection);
 
 /* Geometery Forward Declarations */
-void renderCube();
 void renderSphere();
+void renderCube();
+void renderQuad();
 
 void icon(GLFWwindow* window);
 
@@ -50,7 +75,6 @@ bool firstMouse = true;
 // timing 
 float deltaTime = 0.0f; // time between current frame and last frame
 float lastFrame = 0.0f; // time of last frame
-
 
 int nrRows = 7;
 int nrColumns = 7;
@@ -73,7 +97,7 @@ int main()
 
 	// glfw window creation
 	// --------------------
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "PBR GL", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "PBR IBL GL", NULL, NULL);
 	/* creates and configures default framebuffer */
 	
 	if (window == NULL)
@@ -107,33 +131,88 @@ int main()
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-
+	// enable seamless cubemap sampling for lower mip levels in the pre-filter map.
+	//		--> linear interpolation across cubemap faces
+	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
 	// build and compile our shader program
 	// ------------------------------------
 	Shader pbrShader(FileSystem::getPath("shader/pbr.vert").c_str(), FileSystem::getPath("shader/pbr.frag").c_str());
+	Shader pbrTexShader(FileSystem::getPath("shader/pbrTex.vert").c_str(), FileSystem::getPath("shader/pbrTex.frag").c_str());
 	Shader equirectangulatToCubemapShader(FileSystem::getPath("shader/cubemap.vert").c_str(), FileSystem::getPath("shader/equirectangular_to_cubemap.frag").c_str());
 	Shader irradianceShader(FileSystem::getPath("shader/cubemap.vert").c_str(), FileSystem::getPath("shader/irradiance_convolution.frag").c_str());
+	Shader prefilterShader(FileSystem::getPath("shader/cubemap.vert").c_str(), FileSystem::getPath("shader/prefilter.frag").c_str());
+	Shader brdfShader(FileSystem::getPath("shader/brdf.vert").c_str(), FileSystem::getPath("shader/brdf.frag").c_str());
 	Shader backgroundShader(FileSystem::getPath("shader/background.vert").c_str(), FileSystem::getPath("shader/background.frag").c_str());
-
-	pbrShader.use();
-	pbrShader.setInt("irrandianceMap", 0);
-	pbrShader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
-	pbrShader.setFloat("ao", 1.0f);
-
-	backgroundShader.use();
-	backgroundShader.setInt("environmentMap", 0);
 
 	// textures 
 	// --------
+	pbrShader.use();
+	pbrShader.setInt("irrandianceMap", 0);
+	pbrShader.setInt("prefilterMap", 1);
+	pbrShader.setInt("brdfLUT", 2);
+	pbrShader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
+	pbrShader.setFloat("ao", 1.0f);
+
+#if RENDER_MATERIALS == 1
+	pbrTexShader.use();
+	pbrTexShader.setInt("irradianceMap", 0);
+	pbrTexShader.setInt("prefilterMap", 1);
+	pbrTexShader.setInt("brdfLUT", 2);
+	pbrTexShader.setInt("albedoMap", 3);
+	pbrTexShader.setInt("normalMap", 4);
+	pbrTexShader.setInt("metallicMap", 5);
+	pbrTexShader.setInt("roughnessMap", 6);
+	pbrTexShader.setInt("aoMap", 7);
+#endif //! RENDER_MATERIALS
+
+	// load PBR material textures
+	// --------------------------
+	// rusted iron
+	unsigned int ironAlbedoMap = loadTexture(FileSystem::getPath("../../content/images/rustedIron/albedo.png").c_str(), false);
+	unsigned int ironNormalMap = loadTexture(FileSystem::getPath("../../content/images/rustedIron/normal.png").c_str(), false);
+	unsigned int ironMetallicMap = loadTexture(FileSystem::getPath("../../content/images/rustedIron/metallic.png").c_str(), false);
+	unsigned int ironRoughnessMap = loadTexture(FileSystem::getPath("../../content/images/rustedIron/roughness.png").c_str(), false);
+	unsigned int ironAOMap = loadTexture(FileSystem::getPath("../../content/images/rustedIron/ao.png").c_str(), false);
+
+	// gold
+	unsigned int goldAlbedoMap = loadTexture(FileSystem::getPath("../../content/images/gold/albedo.png").c_str(), false);
+	unsigned int goldNormalMap = loadTexture(FileSystem::getPath("../../content/images/gold/normal.png").c_str(), false);
+	unsigned int goldMetallicMap = loadTexture(FileSystem::getPath("../../content/images/gold/metallic.png").c_str(), false);
+	unsigned int goldRoughnessMap = loadTexture(FileSystem::getPath("../../content/images/gold/roughness.png").c_str(), false);
+	unsigned int goldAOMap = loadTexture(FileSystem::getPath("../../content/images/gold/ao.png").c_str(), false);
+
+	// grass
+	unsigned int grassAlbedoMap = loadTexture(FileSystem::getPath("../../content/images/grass/albedo.png").c_str(), false);
+	unsigned int grassNormalMap = loadTexture(FileSystem::getPath("../../content/images/grass/normal.png").c_str(), false);
+	unsigned int grassMetallicMap = loadTexture(FileSystem::getPath("../../content/images/grass/metallic.png").c_str(), false);
+	unsigned int grassRoughnessMap = loadTexture(FileSystem::getPath("../../content/images/grass/roughness.png").c_str(), false);
+	unsigned int grassAOMap = loadTexture(FileSystem::getPath("../../content/images/grass/ao.png").c_str(), false);
+
+	// plastic
+	unsigned int plasticAlbedoMap = loadTexture(FileSystem::getPath("../../content/images/plastic/albedo.png").c_str(), false);
+	unsigned int plasticNormalMap = loadTexture(FileSystem::getPath("../../content/images/plastic/normal.png").c_str(), false);
+	unsigned int plasticMetallicMap = loadTexture(FileSystem::getPath("../../content/images/plastic/metallic.png").c_str(), false);
+	unsigned int plasticRoughnessMap = loadTexture(FileSystem::getPath("../../content/images/plastic/roughness.png").c_str(), false);
+	unsigned int plasticAOMap = loadTexture(FileSystem::getPath("../../content/images/plastic/ao.png").c_str(), false);
+
+	// wall
+	unsigned int wallAlbedoMap = loadTexture(FileSystem::getPath("../../content/images/wall/albedo.png").c_str(), false);
+	unsigned int wallNormalMap = loadTexture(FileSystem::getPath("../../content/images/wall/normal.png").c_str(), false);
+	unsigned int wallMetallicMap = loadTexture(FileSystem::getPath("../../content/images/wall/metallic.png").c_str(), false);
+	unsigned int wallRoughnessMap = loadTexture(FileSystem::getPath("../../content/images/wall/roughness.png").c_str(), false);
+	unsigned int wallAOMap = loadTexture(FileSystem::getPath("../../content/images/wall/ao.png").c_str(), false);
+
+	backgroundShader.use();
+	backgroundShader.setInt("environmentMap", 0);
 
 	// lights
 	// ------
 	glm::vec3 lightPositions[] = {
 		glm::vec3(-10.0f,  10.0f, 10.0f),
-		glm::vec3(10.0f,  10.0f, 10.0f),
+		glm::vec3( 10.0f,  10.0f, 10.0f),
 		glm::vec3(-10.0f, -10.0f, 10.0f),
-		glm::vec3(10.0f, -10.0f, 10.0f),
+		glm::vec3 (10.0f, -10.0f, 10.0f),
 	};
 	glm::vec3 lightColors[] = {
 		glm::vec3(300.0f, 300.0f, 300.0f),
@@ -141,8 +220,6 @@ int main()
 		glm::vec3(300.0f, 300.0f, 300.0f),
 		glm::vec3(300.0f, 300.0f, 300.0f)
 	};
-
-	float spacing = 2.5;
 
 	// pbr: setup framebuffer
 	// ----------------------
@@ -193,7 +270,7 @@ int main()
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); // enable (trilinear filter) pre-filter mipmap sampling (combatting visible dots artifact)
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	// pbr: set up projection and view matrices for capturing data onto the 6 cubemap face directions
@@ -201,12 +278,12 @@ int main()
 	glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);	// using persp. Matrix with 90 degree FOV
 	glm::mat4 captureViews[] =
 	{
-		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
 		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
 	};	// setting up 6 different view matrices facing ech side of the cube
 
 	// pbr: convert HDR equirectangular environment map to cubemap equivalent
@@ -228,6 +305,10 @@ int main()
 		renderCube();	// render unit cube
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// then let OpenGL generate mipmaps from first mip face (combatting visible dots artifact)
+	glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
 	// pbr: create an irradiance cubemap, and re-scale capture FBO to irradiance scale.
 	// --------------------------------------------------------------------------------
@@ -258,7 +339,6 @@ int main()
 	glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);	// bind converted cubemap
 
 	glViewport(0, 0, 32, 32);	// don't forget to configure the viewport to the capture dimensions; note dimension fits the irradiance map
-
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	for (unsigned int i = 0; i < 6; ++i)	// convolute the environment map for each side of the new cube 
 	{
@@ -270,12 +350,98 @@ int main()
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	// pbr: create a pre-filter cubemap, and re-scale capture FBO to pre-filter scale.
+	// --------------------------------------------------------------------------------
+	unsigned int prefilterMap;
+	glGenTextures(1, &prefilterMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+	for (unsigned int i = 0; i < 6; ++i)
+	{
+		// NOTE: resolution of 128x128; may increase witha  larger number of smooth materials
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 128, 128, 0, GL_RGB, GL_FLOAT, nullptr);
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); // be sure to set minifcation filter to mip_linear 
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// generate mipmaps for the cubemap so OpenGL automatically allocates the required memory.
+	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
+	// pbr: run a quasi monte-carlo simulation on the environment lighting to create a prefilter (cube)map.
+	// ----------------------------------------------------------------------------------------------------
+	prefilterShader.use();
+	prefilterShader.setInt("environmentMap", 0);
+	prefilterShader.setMat4("projection", captureProjection);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO); // frame buffer 
+	unsigned int maxMipLevels = 5;
+	for (unsigned int mip = 0; mip < maxMipLevels; ++mip)
+	{
+		// NOTE: each allocated mipmap level must have a consistent size, relative
+		// to the one before it.
+		// The width/height/depth of a mipmap level is the width/height/depth of the base level/2^k. (= level*0.5^k)
+		// where k is the mimap level. (k=0 -> base level)
+		// reisze framebuffer according to mip-level size.
+		unsigned int mipWidth = 128 * std::pow(0.5, mip);
+		unsigned int mipHeight = 128 * std::pow(0.5, mip);
+		glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipWidth, mipHeight); // allocate 
+		glViewport(0, 0, mipWidth, mipHeight); // set viewport accordingly
+
+		float roughness = (float)mip / (float)(maxMipLevels - 1);	// vary roughness over multiple mipmap levels
+		prefilterShader.setFloat("roughness", roughness);			// pass roughness in
+		for (unsigned int i = 0; i < 6; ++i)						// render for all sides of the cubemap
+		{
+			prefilterShader.setMat4("view", captureViews[i]);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterMap, mip);
+			// bind texture to framebuffer, last parameter specifies the mimap level
+
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// clear color and frambuffer 
+			renderCube();
+		}
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// pbr: generate a 2D LUT from the BRDF equations used.
+	// ----------------------------------------------------
+	unsigned int brdfLUTTexture;
+	glGenTextures(1, &brdfLUTTexture);
+
+	// pre-allocate enough memory for the LUT texture.
+	glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, 512, 512, 0, GL_RG, GL_FLOAT, 0); // generate 2D (only red and green channel) texture of a 512x512 resolution with 16-bit floating format precision
+	// be sure to set wrapping mode to GL_CLAMP_TO_EDGE
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Note CLAMP TO EDGE! prevent edge sampling artifacts
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Note CLAMP TO EDGE! prevent edge sampling artifacts
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	// then re-configure capture framebuffer object and render screen-space quad with BRDF shader.
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);	// reuse FBO
+	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLUTTexture, 0);
+
+	glViewport(0, 0, 512, 512);
+	brdfShader.use();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	renderQuad();	// run over a NDC screen-space quad
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 
 	// initialize static shader uniforms before rendering
 	// --------------------------------------------------
 	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 	pbrShader.use();
 	pbrShader.setMat4("projection", projection);
+
+	pbrTexShader.use();
+	pbrTexShader.setMat4("projection", projection);
+
 	backgroundShader.use();
 	backgroundShader.setMat4("projection", projection);
 
@@ -298,22 +464,119 @@ int main()
 
 		// render
 		// ------
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// render scene, supplying the convoluted irradiance map to the final shader.
 		// ------------------------------------------------------------------------------------------
-		pbrShader.use();
 		glm::mat4 view = camera.GetViewMatrix();
+
+		pbrShader.use();
 		pbrShader.setMat4("view", view);
 		pbrShader.setVec3("camPos", camera.Position);
+
+		pbrTexShader.use();
+		pbrTexShader.setMat4("view", view);
+		pbrTexShader.setVec3("camPos", camera.Position);
 
 		// bind pre-computed IBL data
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
 
-		// render rows*column number of spheres with material properties defined by textures (they all have the same material properties)
 		glm::mat4 model = glm::mat4(1.0f);
+#if RENDER_MATERIALS == 1
+		pbrTexShader.use();
+		// rusted iron
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, ironAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, ironNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, ironMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, ironRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, ironAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(-5.0, 0.0, 2.0));
+		pbrTexShader.setMat4("model", model);
+		renderSphere();
+
+		// gold
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, goldAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, goldNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, goldMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, goldRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, goldAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(-3.0, 0.0, 2.0));
+		pbrTexShader.setMat4("model", model);
+		renderSphere();
+
+		// grass
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, grassAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, grassNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, grassMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, grassRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, grassAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(-1.0, 0.0, 2.0));
+		pbrShader.setMat4("model", model);
+		renderSphere();
+
+		// plastic
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, plasticAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, plasticNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, plasticMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, plasticRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, plasticAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(1.0, 0.0, 2.0));
+		pbrTexShader.setMat4("model", model);
+		renderSphere();
+
+		// wall
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, wallAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, wallNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, wallMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, wallRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, wallAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(3.0, 0.0, 2.0));
+		pbrTexShader.setMat4("model", model);
+		renderSphere();
+#elif RENDER_MATERIALS == 0
+		pbrShader.use();
+		// render rows*column number of spheres with material properties defined by textures (they all have the same material properties)
 		for (int row = 0; row < nrRows; ++row)
 		{
 			pbrShader.setFloat("metallic", (float)row / (float)nrRows);
@@ -333,12 +596,17 @@ int main()
 				renderSphere();
 			}
 		}
+#endif // ! RENDER_MATERIALS
+
+		pbrShader.use();
 
 		// render light source (simply re-render sphere at light positions)
 		// this looks a bit off as we use the same shader, but it'll make their positions obvious and 
 		// keeps the codeprint small.
 		for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
 		{
+			pbrShader.setFloat("metallic", 0.0f);
+			pbrShader.setFloat("roughness", 1.0f);
 			glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
 			newPos = lightPositions[i];
 			pbrShader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
@@ -354,10 +622,23 @@ int main()
 		// render skybox (render as last to prevent overdraw)
 		backgroundShader.use();
 		backgroundShader.setMat4("view", view);
+
 		glActiveTexture(GL_TEXTURE0);
+#if	RENDER_ENV_MAP == 0
 		glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
-		//glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap); // display irradiance map
+#elif RENDER_ENV_MAP == 1
+		glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap); // display irradiance map
+#elif RENDER_ENV_MAP == 2
+		backgroundShader.setMat4("mipmap", RENDER_ENV_PREFILTER_MIPMAP);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap); // display prefilter map
+#endif // !RENDER_ENV_MAP == 1
 		renderCube();
+
+		// render BRDF map to screen
+#if RENDER_BRDF_MAP == 1
+		brdfShader.use();
+		renderQuad();
+#endif // !RENDER_BRDF_MAP == 1
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
@@ -365,14 +646,16 @@ int main()
 		glfwPollEvents();
 	}
 
-	// optional: de-allocate all resources once they've outlived their purpose:
-	// ------------------------------------------------------------------------
-	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
 	glfwTerminate();
 	return 0;
 }
+
+
+// optional: de-allocate all resources once they've outlived their purpose:
+// ------------------------------------------------------------------------
+
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
@@ -769,5 +1052,36 @@ void renderCube()
 	// render Cube
 	glBindVertexArray(cubeVAO);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
+	glBindVertexArray(0);
+}
+
+// renderQuad() renders a 1x1 XY quad in NDC
+// -----------------------------------------
+unsigned int quadVAO = 0;
+unsigned int quadVBO;
+void renderQuad()
+{
+	if (quadVAO == 0)
+	{
+		float quadVertices[] = {
+			// positions        // texture Coords
+			-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+			-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+			 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+			 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		};
+		// setup plane VAO
+		glGenVertexArrays(1, &quadVAO);
+		glGenBuffers(1, &quadVBO);
+		glBindVertexArray(quadVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	}
+	glBindVertexArray(quadVAO);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glBindVertexArray(0);
 }

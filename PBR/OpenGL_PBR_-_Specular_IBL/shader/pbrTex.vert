@@ -19,4 +19,3 @@ void main()
 
     gl_Position =  projection * view * vec4(WorldPos, 1.0);
 }
-

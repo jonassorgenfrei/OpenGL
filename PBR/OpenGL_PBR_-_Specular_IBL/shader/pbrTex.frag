@@ -5,10 +5,11 @@ in vec3 WorldPos;
 in vec3 Normal;
 
 // material parameters
-uniform vec3 albedo;
-uniform float metallic;
-uniform float roughness;
-uniform float ao;
+uniform sampler2D albedoMap;
+uniform sampler2D normalMap;
+uniform sampler2D metallicMap;
+uniform sampler2D roughnessMap;
+uniform sampler2D aoMap;
 
 // IBL
 uniform samplerCube irradianceMap;
@@ -22,6 +23,27 @@ uniform vec3 lightColors[4];
 uniform vec3 camPos;
 
 const float PI = 3.14159265359;
+// ----------------------------------------------------------------------------
+// Easy trick to get tangent-normals to world-space to keep PBR code simplified.
+// Don't worry if you don't get what's going on; you generally want to do normal 
+// mapping the usual way for performance anways; I do plan make a note of this 
+// technique somewhere later in the normal mapping tutorial.
+vec3 getNormalFromMap()
+{
+    vec3 tangentNormal = texture(normalMap, TexCoords).xyz * 2.0 - 1.0;
+
+    vec3 Q1  = dFdx(WorldPos);
+    vec3 Q2  = dFdy(WorldPos);
+    vec2 st1 = dFdx(TexCoords);
+    vec2 st2 = dFdy(TexCoords);
+
+    vec3 N   = normalize(Normal);
+    vec3 T  = normalize(Q1*st2.t - Q2*st1.t);
+    vec3 B  = -normalize(cross(N, T));
+    mat3 TBN = mat3(T, B, N);
+
+    return normalize(TBN * tangentNormal);
+}
 // ----------------------------------------------------------------------------
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
@@ -70,9 +92,16 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 // ----------------------------------------------------------------------------
 void main()
 {		
-    vec3 N = Normal;
+    // material properties
+    vec3 albedo = pow(texture(albedoMap, TexCoords).rgb, vec3(2.2));
+    float metallic = texture(metallicMap, TexCoords).r;
+    float roughness = texture(roughnessMap, TexCoords).r;
+    float ao = texture(aoMap, TexCoords).r;
+       
+    // input lighting data
+    vec3 N = getNormalFromMap();
     vec3 V = normalize(camPos - WorldPos);
-    vec3 R = reflect(-V, N); // reflection vector
+    vec3 R = reflect(-V, N); 
 
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
     // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
@@ -118,7 +147,7 @@ void main()
     }   
     
     // ambient lighting (we now use IBL as the ambient term)
-    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness); // indirect Fresnel result
+    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
     
     vec3 kS = F;
     vec3 kD = 1.0 - kS;
@@ -128,14 +157,10 @@ void main()
     vec3 diffuse      = irradiance * albedo;
     
     // sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
-    const float MAX_REFLECTION_LOD = 4.0; // corresponding to the mip levels
-	// get indirect specular reflections of the surface; sample appropriate mip level based on the surface roughness
-    vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb;
-    // sample from the BRDF lookup texture given the material"s roughness and the angle between the normal and view vector
-	vec2 brdf  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg; 
-	// brdf.x scale, brdf.y bias    to F0; Combine complete IBL reflectance equation
-    vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);	
-	// NOTE: no multiplication with ks as the Fresnel multiplication is already in there
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb;    
+    vec2 brdf  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
     vec3 ambient = (kD * diffuse + specular) * ao;
     
@@ -148,4 +173,3 @@ void main()
 
     FragColor = vec4(color , 1.0);
 }
-
