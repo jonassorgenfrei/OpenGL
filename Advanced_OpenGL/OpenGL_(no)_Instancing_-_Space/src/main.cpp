@@ -16,6 +16,7 @@
 
 #include "light.h"
 #include "material.h"
+#include "filesystem.h"
 
 #include <iostream>
 
@@ -94,13 +95,13 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader shader(".\\shader\\notInstancedShader.vs", ".\\shader\\notInstancedShader.fs");
+	Shader shader(FileSystem::getPath("shader/notInstancedShader.vs").c_str(), FileSystem::getPath("shader/notInstancedShader.fs").c_str());
 	
 
 	// load models
 	// -----------
-	Model rock(".\\models\\rock\\rock.obj");
-	Model planet(".\\models\\planet\\planet.obj");
+	Model rock(FileSystem::getPath("../../content/models/rock/rock.obj").c_str());
+	Model planet(FileSystem::getPath("../../content/models/planet/planet.obj").c_str());
 
 
 	// generate a large list of semi-random model transformation matrices

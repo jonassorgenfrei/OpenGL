@@ -16,6 +16,7 @@
 #include "camera.h"
 #include "model.h"
 #include "stb_image.h"
+#include "filesystem.h"
 
 #include "light.h"
 #include "material.h"
@@ -277,12 +278,12 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader shader(".\\shader\\shader.vs", ".\\shader\\shader.fs");
-	Shader shaderSingleColor(".\\shader\\shader.vs", ".\\shader\\shaderSingleColor.fs");
-	Shader screenShader(".\\shader\\framebufferShader.vs", ".\\shader\\framebufferShader.fs");
-	Shader skyboxShader(".\\shader\\skyShader.vs", ".\\shader\\skyShader.fs");
-	Shader reflectionShader(".\\shader\\reflection.vs", ".\\shader\\reflection.fs");
-	Shader refractionShader(".\\shader\\refraction.vs", ".\\shader\\refraction.fs");
+	Shader shader(FileSystem::getPath("shader/shader.vs").c_str(), FileSystem::getPath("shader/shader.fs").c_str());
+	Shader shaderSingleColor(FileSystem::getPath("shader/shader.vs").c_str(), FileSystem::getPath("shader/shaderSingleColor.fs").c_str());
+	Shader screenShader(FileSystem::getPath("shader/framebufferShader.vs").c_str(), FileSystem::getPath("shader/framebufferShader.fs").c_str());
+	Shader skyboxShader(FileSystem::getPath("shader/skyShader.vs").c_str(), FileSystem::getPath("shader/skyShader.fs").c_str());
+	Shader reflectionShader(FileSystem::getPath("shader/reflection.vs").c_str(), FileSystem::getPath("shader/reflection.fs").c_str());
+	Shader refractionShader(FileSystem::getPath("shader/refraction.vs").c_str(), FileSystem::getPath("shader/refraction.fs").c_str());
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
@@ -478,22 +479,22 @@ int main()
 
 	// load and create a texture 
 	// -------------------------
-	unsigned int cubeTexture = loadTexture(".\\images\\container.jpg", GL_REPEAT);
-	unsigned int floorTexture = loadTexture(".\\images\\metal.png", GL_REPEAT);
+	unsigned int cubeTexture = loadTexture(FileSystem::getPath("../../content/images/container.jpg").c_str(), GL_REPEAT);
+	unsigned int floorTexture = loadTexture(FileSystem::getPath("../../content/images/metal.png").c_str(), GL_REPEAT);
 	// repeat, interpolates the border values with the next repeated value
-	unsigned int grassTexture = loadTexture(".\\images\\grass.png", GL_CLAMP_TO_EDGE);
+	unsigned int grassTexture = loadTexture(FileSystem::getPath("../../content/images/grass.png").c_str(), GL_CLAMP_TO_EDGE);
 	// set Clamp to edge whenever using alpha textures, 
-	unsigned int transparentTexture = loadTexture(".\\images\\blending_transparent_window.png", GL_CLAMP_TO_EDGE);
+	unsigned int transparentTexture = loadTexture(FileSystem::getPath("../../content/images/blending_transparent_window.png").c_str(), GL_CLAMP_TO_EDGE);
 
 	// cubmap 
 	vector<std::string> faces
 	{
-		".\\images\\skybox\\right.jpg",
-		".\\images\\skybox\\left.jpg",
-		".\\images\\skybox\\top.jpg",
-		".\\images\\skybox\\bottom.jpg",
-		".\\images\\skybox\\front.jpg",
-		".\\images\\skybox\\back.jpg",
+		FileSystem::getPath("../../content/images/skybox/right.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/left.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/top.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/bottom.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/front.jpg").c_str(),
+		FileSystem::getPath("../../content/images/skybox/back.jpg").c_str(),
 	};
 
 	unsigned int cubemapTexture = loadCubemap(faces, GL_CLAMP_TO_EDGE);

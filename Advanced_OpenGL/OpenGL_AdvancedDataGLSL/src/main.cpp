@@ -16,6 +16,7 @@
 #include "camera.h"
 #include "model.h"
 #include "stb_image.h"
+#include "filesystem.h"
 
 #include "light.h"
 #include "material.h"
@@ -99,11 +100,11 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	//Shader shaderVariables(".\\shader\\shaderVariables.vs", ".\\shader\\shaderVariables.fs");
-	Shader shaderRed(".\\shader\\advancedglsl.vs", ".\\shader\\red.fs");
-	Shader shaderGreen(".\\shader\\advancedglsl.vs", ".\\shader\\green.fs");
-	Shader shaderBlue(".\\shader\\advancedglsl.vs", ".\\shader\\blue.fs");
-	Shader shaderYellow(".\\shader\\advancedglsl.vs", ".\\shader\\yellow.fs");
+	//Shader shaderVariables(FileSystem::getPath("shader/shaderVariables.vs").c_str(), FileSystem::getPath("shader/shaderVariables.fs").c_str());
+	Shader shaderRed(FileSystem::getPath("shader/advancedglsl.vs").c_str(), FileSystem::getPath("shader/red.fs").c_str());
+	Shader shaderGreen(FileSystem::getPath("shader/advancedglsl.vs").c_str(), FileSystem::getPath("shader/green.fs").c_str());
+	Shader shaderBlue(FileSystem::getPath("shader/advancedglsl.vs").c_str(), FileSystem::getPath("shader/blue.fs").c_str());
+	Shader shaderYellow(FileSystem::getPath("shader/advancedglsl.vs").c_str(), FileSystem::getPath("shader/yellow.fs").c_str());
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
@@ -263,8 +264,8 @@ int main()
 
 	// load and create a texture 
 	// -------------------------
-	/*unsigned int frontTexture = loadTexture(".\\images\\container.jpg", GL_REPEAT);
-	unsigned int backTexture = loadTexture(".\\images\\wall.jpg", GL_REPEAT);*/
+	/*unsigned int frontTexture = loadTexture(FileSystem::getPath("../../content/images/container.jpg").c_str(), GL_REPEAT);
+	unsigned int backTexture = loadTexture(FileSystem::getPath("../../content/images/wall.jpg").c_str(), GL_REPEAT);*/
 
 	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------

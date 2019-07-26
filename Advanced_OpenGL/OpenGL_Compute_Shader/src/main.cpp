@@ -17,9 +17,12 @@
 #include "camera.h"
 #include "model.h"
 #include "stb_image.h"
+#include "filesystem.h"
+
 #include "light.h"
 #include "material.h"
 #include "gBuffer.h"
+
 
 #include "water.h"
 #include "ground.h"
@@ -187,7 +190,7 @@ int main()
 	// build and compile our shader program & save Uniform Shader Locations
 	// ------------------------------------
 	// GBuffer
-	Shader gBufferProgram(".\\shader\\gBuffer\\gBuffer.vert", ".\\shader\\gBuffer\\gBuffer.frag");
+	Shader gBufferProgram(FileSystem::getPath("shader/gBuffer/gBuffer.vert").c_str(), FileSystem::getPath("shader/gBuffer/gBuffer.frag").c_str());
 	
 	gbufferProgram_ObjectMaterial_color = gBufferProgram.getLocation("ObjectMaterial.color");
 	gbufferProgram_ObjectMaterial_ambientReflection = gBufferProgram.getLocation("ObjectMaterial.ambientReflection");
@@ -197,7 +200,7 @@ int main()
 	gbufferProgram_ObjectMaterial_hasTexture = gBufferProgram.getLocation("ObjectMaterial.hasTexture");
 	
 	// Light
-	Shader lightProgram(".\\shader\\light\\light.vert", ".\\shader\\light\\light.frag");
+	Shader lightProgram(FileSystem::getPath("shader/light/light.vert").c_str(), FileSystem::getPath("shader/light/light.frag").c_str());
 	lightProgram_Sun_Direction = lightProgram.getLocation("Sun.direction");
 	lightProgram_Sun_AmbientColor = lightProgram.getLocation("Sun.ambientColor");
 	lightProgram_Sun_DiffuseColor = lightProgram.getLocation("Sun.diffuseColor");
@@ -205,7 +208,7 @@ int main()
 	lightProgram_Sun_Shininess = lightProgram.getLocation("Sun.shininess");
 
 	// Water Program
-	Shader waterProgram(".\\shader\\water\\water.vert", ".\\shader\\water\\water.frag");
+	Shader waterProgram(FileSystem::getPath("shader/water/water.vert").c_str(), FileSystem::getPath("shader/water/water.frag").c_str());
 	waterProgram_Sun_Direction = waterProgram.getLocation("Sun.direction");
 	waterProgram_Sun_AmbientColor = waterProgram.getLocation("Sun.ambientColor");
 	waterProgram_Sun_DiffuseColor = waterProgram.getLocation("Sun.diffuseColor");
@@ -213,7 +216,7 @@ int main()
 	waterProgram_Sun_Shininess = waterProgram.getLocation("Sun.shininess");
 
 	// Sky
-	Shader skyProgram(".\\shader\\sky\\sky.vert", ".\\shader\\sky\\sky.frag");
+	Shader skyProgram(FileSystem::getPath("shader/sky/sky.vert").c_str(), FileSystem::getPath("shader/sky/sky.frag").c_str());
 	
 	// G-Buffer
 	// --------
@@ -232,8 +235,8 @@ int main()
 	// -------
 
 	// Environment Map
-	GLuint environmentMap = loadTexture(".\\images\\environment.jpg", GL_REPEAT);
-	GLuint sandTexture = loadTexture(".\\images\\sand.png", GL_REPEAT);
+	GLuint environmentMap = loadTexture(FileSystem::getPath("../../content/images/environment.jpg").c_str(), GL_REPEAT);
+	GLuint sandTexture = loadTexture(FileSystem::getPath("../../content/images/sand.png").c_str(), GL_REPEAT);
 
 	// configure global opengl state
 	// -----------------------------

@@ -16,6 +16,7 @@
 #include "camera.h"
 #include "model.h"
 #include "stb_image.h"
+#include "filesystem.h"
 
 #include "light.h"
 #include "material.h"
@@ -97,7 +98,7 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader shader(".\\shader\\geometry_shader.vs", ".\\shader\\geometry_shader.fs", ".\\shader\\geometry_shader.gs");
+	Shader shader(FileSystem::getPath("shader/geometry_shader.vs").c_str(), FileSystem::getPath("shader/geometry_shader.fs").c_str(), FileSystem::getPath("shader/geometry_shader.gs").c_str());
 	
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes

@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "model.h"
 #include "stb_image.h"
+#include "filesystem.h"
 
 #include "light.h"
 #include "material.h"
@@ -94,13 +95,13 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader asteroidShader(".\\shader\\asteroids.vs", ".\\shader\\asteroids.fs");
-	Shader planetShader(".\\shader\\planet.vs", ".\\shader\\planet.fs");
+	Shader asteroidShader(FileSystem::getPath("shader/asteroids.vs").c_str(), FileSystem::getPath("shader/asteroids.fs").c_str());
+	Shader planetShader(FileSystem::getPath("shader/planet.vs").c_str(), FileSystem::getPath("shader/planet.fs").c_str());
 	
 	// load models
 	// -----------
-	Model rock(".\\models\\rock\\rock.obj");
-	Model planet(".\\models\\planet\\planet.obj");
+	Model rock(FileSystem::getPath("../../content/models/rock/rock.obj").c_str());
+	Model planet(FileSystem::getPath("../../content/models/planet/planet.obj").c_str());
 
 	// generate a large list of semi-random model transformation matrices
 	// ------------------------------------------------------------------

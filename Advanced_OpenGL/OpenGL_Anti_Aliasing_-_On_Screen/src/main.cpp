@@ -20,6 +20,7 @@
 #include "camera.h"
 #include "model.h"
 #include "stb_image.h"
+#include "filesystem.h"
 
 #include "light.h"
 #include "material.h"
@@ -113,7 +114,7 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader shader(".\\shader\\antiAliasing.vs", ".\\shader\\antiAliasing.fs");
+	Shader shader(FileSystem::getPath("shader/antiAliasing.vs").c_str(), FileSystem::getPath("shader/antiAliasing.fs").c_str());
 	
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes

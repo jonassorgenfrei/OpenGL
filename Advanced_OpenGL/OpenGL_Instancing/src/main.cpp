@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "model.h"
 #include "stb_image.h"
+#include "filesystem.h"
 
 #include "light.h"
 #include "material.h"
@@ -94,7 +95,7 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader shader(".\\shader\\instance_shader.vs", ".\\shader\\instance_shader.fs");
+	Shader shader(FileSystem::getPath("shader/instance_shader.vs").c_str(), FileSystem::getPath("shader/instance_shader.fs").c_str());
 	
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
