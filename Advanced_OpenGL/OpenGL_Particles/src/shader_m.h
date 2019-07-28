@@ -13,22 +13,27 @@ class Shader
 {
 public:
     unsigned int ID;
-
     // constructor generates the shader on the fly
     // ------------------------------------------------------------------------
-	Shader(const char* vertexPath, const char* fragmentPath, const char* geometryPath = nullptr)
+	Shader(const char* vertexPath, const char* fragmentPath, const char* geometryPath = nullptr, const char* tessellationControlPath = nullptr, const char* tessellatioEvaluationPath = nullptr)
     {
-		// 1. retrieve the vertex/fragment source code from filePath
+		// 1. retrieve the vertex/fragment/geometry/tessellation source code from filePath
 		std::string vertexCode;
 		std::string fragmentCode;
 		std::string geometryCode;
+		std::string tessContCode;
+		std::string tessEvalCode;
 		std::ifstream vShaderFile;
 		std::ifstream fShaderFile;
 		std::ifstream gShaderFile;
+		std::ifstream tcShaderFile;
+		std::ifstream teShaderFile;
 		// ensure ifstream objects can throw exceptions:
 		vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 		fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 		gShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+		tcShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+		teShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
         try 
         {
 			// open files
@@ -53,6 +58,24 @@ public:
 				gShaderFile.close();
 				geometryCode = gShaderStream.str();
 			}
+			// if tessellations Control shader path is present also load a tessellation control shader 
+			if (tessellationControlPath != nullptr)
+			{
+				tcShaderFile.open(tessellationControlPath);
+				std::stringstream tcShaderStream;
+				tcShaderStream << tcShaderFile.rdbuf();
+				tcShaderFile.close();
+				tessContCode = tcShaderStream.str();
+			}
+			// if tessellations Control shader path is present also load a tessellation control shader 
+			if (tessellatioEvaluationPath != nullptr)
+			{
+				teShaderFile.open(tessellatioEvaluationPath);
+				std::stringstream teShaderStream;
+				teShaderStream << teShaderFile.rdbuf();
+				teShaderFile.close();
+				tessEvalCode = teShaderStream.str();
+			}
         }
         catch (std::ifstream::failure e)
         {
@@ -74,6 +97,26 @@ public:
         glShaderSource(fragment, 1, &fShaderCode, NULL);
         glCompileShader(fragment);
         checkCompileErrors(fragment, "FRAGMENT");
+		// tessellations Shader
+		unsigned int tessCont, tessEval;
+			//Tessellation Control Shader (TCS)
+		if (tessellationControlPath != nullptr)
+		{
+			const char * tcShaderCode = tessContCode.c_str();
+			tessCont = glCreateShader(GL_TESS_CONTROL_SHADER);
+			glShaderSource(tessCont, 1, &tcShaderCode, NULL);
+			glCompileShader(tessCont);
+			checkCompileErrors(tessCont, "TESSELLATION CONTROL");
+		}
+			//Tessellation Evaluation Shader (TES)
+		if (tessellatioEvaluationPath != nullptr)
+		{
+			const char * teShaderCode = tessEvalCode.c_str();
+			tessEval = glCreateShader(GL_TESS_EVALUATION_SHADER);
+			glShaderSource(tessEval,1,&teShaderCode, NULL);
+			glCompileShader(tessEval);
+			checkCompileErrors(tessEval, "TESSELLATION EVALUATION");
+		}
 		// if geometry shader is given, compile geometry shader
 		unsigned int geometry;
 		if (geometryPath != nullptr)
@@ -88,6 +131,10 @@ public:
         ID = glCreateProgram();
         glAttachShader(ID, vertex);
         glAttachShader(ID, fragment);
+		if(tessellationControlPath != nullptr)
+			glAttachShader(ID, tessCont);
+		if(tessellatioEvaluationPath != nullptr)
+			glAttachShader(ID, tessEval);
 		if (geometryPath != nullptr)
 			glAttachShader(ID, geometry);
         glLinkProgram(ID);
@@ -95,9 +142,14 @@ public:
         // delete the shaders as they're linked into our program now and no longer necessary
         glDeleteShader(vertex);
         glDeleteShader(fragment);
+		if (tessellationControlPath != nullptr)
+			glDeleteShader(tessCont);
+		if (tessellatioEvaluationPath != nullptr)
+			glDeleteShader(tessEval);
 		if (geometryPath != nullptr)
 			glDeleteShader(geometry);
     }
+
     // activate the shader
     // ------------------------------------------------------------------------
     void use() 
@@ -188,11 +240,5 @@ private:
             }
         }
     }
-	/*
-	std::string getexepath()
-	{
-		char result[MAX_PATH];
-		return std::string(result, GetModuleFileName(NULL, result, MAX_PATH));
-	} */
 };
 #endif
