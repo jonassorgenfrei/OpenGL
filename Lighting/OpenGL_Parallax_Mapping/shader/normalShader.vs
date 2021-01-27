@@ -19,6 +19,8 @@ out VS_OUT {
 	vec3 TangentFragPos;
 } vs_out;
 
+out mat3 tbn;
+
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
@@ -53,7 +55,7 @@ void main() {
 
 	//vec3 B = normalize(vec3(model*vec4(aBitangent, 0.0)));		// transform to coord. System to work in (WORLD SPACE) 
 	mat3 TBN = transpose(mat3(T,B,N)); // same like inverse, cause orthogonal matrix: transpose == inverse. Calc transpose is faster
-	
+	tbn = TBN;
 	vs_out.TangentLightPos = TBN * lightPos; // for parallax mapping important to be in tangent space
 	vs_out.TangentViewPos = TBN * viewPos; // for parallax mapping important to be in tangent space
 	vs_out.TangentFragPos = TBN * vec3(model * vec4(aPos, 0.0));

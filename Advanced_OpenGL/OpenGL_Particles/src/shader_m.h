@@ -84,7 +84,7 @@ public:
         const char* vShaderCode = vertexCode.c_str();
         const char * fShaderCode = fragmentCode.c_str();
         // 2. compile shaders
-        unsigned int vertex, fragment;
+        
         int success;
         char infoLog[512];
         // vertex shader
@@ -98,7 +98,7 @@ public:
         glCompileShader(fragment);
         checkCompileErrors(fragment, "FRAGMENT");
 		// tessellations Shader
-		unsigned int tessCont, tessEval;
+		
 			//Tessellation Control Shader (TCS)
 		if (tessellationControlPath != nullptr)
 		{
@@ -118,7 +118,7 @@ public:
 			checkCompileErrors(tessEval, "TESSELLATION EVALUATION");
 		}
 		// if geometry shader is given, compile geometry shader
-		unsigned int geometry;
+		
 		if (geometryPath != nullptr)
 		{
 			const char * gShaderCode = geometryCode.c_str();
@@ -137,18 +137,24 @@ public:
 			glAttachShader(ID, tessEval);
 		if (geometryPath != nullptr)
 			glAttachShader(ID, geometry);
-        glLinkProgram(ID);
-        checkCompileErrors(ID, "PROGRAM");
-        // delete the shaders as they're linked into our program now and no longer necessary
-        glDeleteShader(vertex);
-        glDeleteShader(fragment);
-		if (tessellationControlPath != nullptr)
-			glDeleteShader(tessCont);
-		if (tessellatioEvaluationPath != nullptr)
-			glDeleteShader(tessEval);
-		if (geometryPath != nullptr)
-			glDeleteShader(geometry);
+
+
     }
+	
+	void link() {
+
+		glLinkProgram(ID);
+		checkCompileErrors(ID, "PROGRAM");
+		// delete the shaders as they're linked into our program now and no longer necessary
+		glDeleteShader(vertex);
+		glDeleteShader(fragment);
+		if (tessCont != -1)
+			glDeleteShader(tessCont);
+		if (tessEval != -1)
+			glDeleteShader(tessEval);
+		if (geometry != -1)
+			glDeleteShader(geometry);
+	}
 
     // activate the shader
     // ------------------------------------------------------------------------
@@ -215,6 +221,9 @@ public:
 		glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 	}
 private:
+	unsigned int vertex=-1, fragment = -1;
+	unsigned int tessCont = -1, tessEval = -1;
+	unsigned int geometry = -1;
     // utility function for checking shader compilation/linking errors.
     // ------------------------------------------------------------------------
     void checkCompileErrors(unsigned int shader, std::string type)

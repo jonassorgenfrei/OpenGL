@@ -10,6 +10,8 @@ in VS_OUT {
 	vec3 TangentFragPos;
 } fs_in;
 
+in mat3 tbn;
+
 uniform sampler2D diffuseMap;
 /*
  * Normal vectors in normal map are expressed in tangent space 
@@ -173,5 +175,5 @@ void main()
 	vec3 blinnPhong = BlinnPhong(normal, fs_in.FragPos, lightPos, color, fs_in.TangentViewPos);
 	
 	FragColor = vec4(ambient + blinnPhong, 1.0);
-
+	FragColor = vec4(tbn*normal,1);
 }

@@ -18,9 +18,9 @@ if(MSVC)
   # Setzten des Warnunglevels auf (W4) unter Windows
   # behandeln der Warnungen als Fehler (WX) auﬂer 4996
   if(CMAKE_C_FLAGS MATCHES "/W[0-4]")
-    string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX /wd4996")
+    string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4996")
   else()
-    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /W4 /WX /wd4996")
+    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /wd4996")
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 	if(APPLE) 
@@ -51,8 +51,8 @@ FIND_LIBRARY(GLFW3_LIBRARY_DIRS NAMES glfw3 glfw PATHS ${GLFW3_DIR}/../../ )
 message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIR}")
 
 # ASSIMP
-find_package(ASSIMP REQUIRED)					
-message(STATUS "Found ASSIMP in ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES}")
+#find_package(ASSIMP REQUIRED)					
+#message(STATUS "Found ASSIMP in ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES}")
 
 # GLAD
 IF(DEFINED ENV{glad_DIR}) 
@@ -82,7 +82,7 @@ include_directories( ${OPENGL_INCLUDE_DIR}
 
 # WINDOWS SYSTEM
 if(WIN32)
-	set(LIBS ${GLFW3_LIBRARY_DIRS} opengl32 ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES})
+	set(LIBS ${GLFW3_LIBRARY_DIRS} opengl32 ) # ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES})
 
 	# nicht ZERO_CHECK bauen
 	set(CMAKE_SUPPRESS_REGENERATION true)

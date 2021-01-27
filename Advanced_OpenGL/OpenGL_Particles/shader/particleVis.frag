@@ -14,4 +14,6 @@ void main()
 	} else {
 		color = ParticleColor;
 	}
+
+	color = vec4(1);
 }

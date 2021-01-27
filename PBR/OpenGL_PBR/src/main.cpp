@@ -205,6 +205,7 @@ int main()
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		// Set frame time
 		GLfloat currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
@@ -614,8 +615,8 @@ void renderSphere()
 		std::vector<glm::vec3> normals;
 		std::vector<unsigned int> indices;
 
-		const unsigned int X_SEGMENTS = 64;
-		const unsigned int Y_SEGMENTS = 64;
+		const unsigned int X_SEGMENTS = 4;
+		const unsigned int Y_SEGMENTS = 4;
 		const float PI = 3.14159265359;
 		for (unsigned int y = 0; y <= Y_SEGMENTS; ++y)
 		{

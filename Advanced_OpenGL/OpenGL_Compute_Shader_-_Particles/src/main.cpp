@@ -44,7 +44,6 @@ void icon(GLFWwindow* window);
 glm::vec2 attractor;		// point of attraction
 float attractorForce;		// Multiplicator for velocity to attractor
 
-
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;

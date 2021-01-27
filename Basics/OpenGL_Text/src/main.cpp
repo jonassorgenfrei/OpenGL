@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * Text Rendering 
  */
 
@@ -79,7 +79,7 @@ int main()
 	// initialize Text Renderer 
 	// -----------------------------
     Text = new TextRenderer(SCR_WIDTH, SCR_HEIGHT);
-	Text->Load(FileSystem::getPath("../../content/fonts/arial.ttf"), 24);
+	Text->Load(FileSystem::getPath("../../content/fonts/GO-Regular.ttf"), 24);
 
 	// set shader uniforms
 	// -------------------
@@ -98,7 +98,7 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
 		
 		Text->RenderText("Text Rendering", 0.0f, 0.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
-		Text->RenderText("Auch äöü und ß", curr_width/2-10, curr_height/2, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
+		Text->RenderText("Auch Ã¤Ã¶Ã¼ und ÃŸ", curr_width/2-10, curr_height/2, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
 		Text->RenderText("In OpenGL mit Freetype", curr_width / 2, curr_height -30, 0.5f, glm::vec3(0.3, 0.7f, 0.9f));
 		
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)

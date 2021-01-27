@@ -3,39 +3,7 @@
 
 #include <GLFW/glfw3.h>
 #include <vector>
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-/**
- * Particles Modul
- */
-struct Particle {
-	glm::vec3 P,	// Position
-				v;	// Velocity
-	glm::vec4 Cd;	// Color
-	GLfloat plife;	// life
-	GLfloat age;	// age
-	GLfloat psize;	// particle Size
-
-	Particle() : P(0.0f), v(0.0f), Cd(1.0f), age(0.0f), plife(1.0f), psize(1.0)
-	{}
-
-	Particle(glm::vec3 position,
-		glm::vec3 velocity = glm::vec3(0),
-		glm::vec4 color = glm::vec4(1),
-		GLfloat life = 1.0f,
-		GLfloat size = 1.0f
-		) : age(0.0f)
-	{
-		P = position;
-		v = velocity;
-		Cd = color;
-		psize = size;
-		plife = life;
-	}
-};
+#include "particle.h"
 
 /// <summary>
 /// 
@@ -52,7 +20,7 @@ private:
 	{
 		// Search from last used particle, this will usually return almost instantly
 		for (GLuint i = lastUsedParticle; i < particles.size(); ++i) {
-			if (particles[i].plife <= 0.0f) {
+			if (particles[i].LifetimeMillis <= 0.0f) {
 				lastUsedParticle = i;
 				return i;
 			}
@@ -60,7 +28,7 @@ private:
 
 		// Otherwise, do a linear search
 		for (GLuint i = 0; i < lastUsedParticle; ++i) {
-			if (particles[i].plife <= 0.0f) {
+			if (particles[i].LifetimeMillis <= 0.0f) {
 				lastUsedParticle = i;
 				return i;
 			}
@@ -86,15 +54,13 @@ private:
 		GLfloat random = ((rand()  % 100)-50) / 10.0f;
 		GLfloat rColor = 0.5 + (rand() % 100) / 100;
 		particle.P = glm::vec3(0) + random;
-		particle.Cd = glm::vec4(rColor, rColor, rColor, 1.0f);
-		particle.plife = 1;	
-		particle.age = 0;
+		particle.LifetimeMillis = 1;
 		particle.v = glm::vec3(0,1,0) * 0.1f;	// initial vertical velocity
 	}
 
 public:
-	ParticleSystem(GLuint nr_particles)
-	{
+	ParticleSystem(GLuint nr_particles, glm::vec3 pos)
+	{	// todo use pos
 		for(GLuint i = 0; i < nr_particles; ++i)
 			particles.push_back(Particle());
 
@@ -135,13 +101,13 @@ public:
 		for (GLuint i = 0; i < particles.size(); ++i)
 		{
 			Particle& p = particles[i];
-			p.plife -= dt; // reduce life
-			if (p.plife > 0.0f)
+			p.LifetimeMillis -= dt; // reduce life
+			if (p.LifetimeMillis > 0.0f)
 			{
-				p.age += dt;
+
 				// particle is alive, thus update
 				p.P -= p.v * dt;
-				p.Cd.a -= dt * 2.5;	// decrease alpha, slowly disapear over time
+				// p.Cd.a -= dt * 2.5;	// decrease alpha, slowly disapear over time
 			}
 		}
 
@@ -152,10 +118,10 @@ public:
 		shader->use();
 		
 		for (Particle particle : particles) {
-			if (particle.plife > 0.0f)
+			if (particle.LifetimeMillis > 0.0f)
 			{
 				shader->setVec3("offset", particle.P);
-				shader->setVec4("color", particle.Cd);
+				//shader->setVec4("color", particle.Cd);
 				glBindVertexArray(particleVAO);
 				glDrawArrays(GL_TRIANGLES, 0, 6);
 				glBindVertexArray(0);

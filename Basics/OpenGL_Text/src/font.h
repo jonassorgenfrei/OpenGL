@@ -129,8 +129,6 @@ public:
 		FT_Done_FreeType(ft);
 	};
 
-
-
 	/// <summary>
 	/// Renders the text.
 	/// </summary>
@@ -153,6 +151,7 @@ public:
 		std::string::const_iterator c;
 		for (c = text.begin(); c != text.end(); c++)
 		{
+
 			Character ch = Characters[*c];	// extract the characer
 
 			// calculate the quad's dimensions using the character's metrics

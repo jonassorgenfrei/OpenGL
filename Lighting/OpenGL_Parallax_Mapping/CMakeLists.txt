@@ -18,9 +18,9 @@ if(MSVC)
   # Setzten des Warnunglevels auf (W4) unter Windows
   # behandeln der Warnungen als Fehler (WX) auﬂer 4996
   if(CMAKE_C_FLAGS MATCHES "/W[0-4]")
-    string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX /wd4996")
+    string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4996")
   else()
-    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /W4 /WX /wd4996")
+    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS}  /wd4996")
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 	if(APPLE) 

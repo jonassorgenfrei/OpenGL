@@ -2,7 +2,6 @@
  *	Particles 
  *
  */
-
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
@@ -13,13 +12,14 @@
 
 #include "shader_m.h"
 #include "camera.h"
-#include "model.h"
+//#include "model.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#include "filesystem.h"
+
 #include "particles.h"
 #include "particlesTransformFeedback.h"
+#include "filesystem.h"
 
 #include "light.h"
 #include "material.h"
@@ -32,7 +32,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // current Mouse position 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
-void drawPlane(void);
+
 /* load texture */
 unsigned int loadTexture(const char *path, bool gammaCorrection);
 
@@ -41,12 +41,13 @@ void icon(GLFWwindow* window);
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
+
 float heightScale = 1.0;
 bool Wpressed = false;
 bool wireframe = false;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(0.05f, 0.20f, 0.8f));
 float lastX = SCR_WIDTH / 2.0;
 float lastY = SCR_HEIGHT / 2.0;
 bool firstMouse = true;
@@ -105,22 +106,27 @@ int main()
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
 
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
 	// build and compile shader program(s)
 	// ------------------------------------
-	Shader particlesVis(FileSystem::getPath("shader/particleVis.vert").c_str(), FileSystem::getPath("shader/particleVis.frag").c_str());
-	
+	//Shader particlesVis(FileSystem::getPath("shader/particleVis.vert").c_str(), FileSystem::getPath("shader/particleVis.frag").c_str());
+	// handles the update of the particles
+	Shader particlesVis(FileSystem::getPath("shader/particleBillboard.vert").c_str(), FileSystem::getPath("shader/particleBillboard.frag").c_str(), FileSystem::getPath("shader/particleBillboard.geom").c_str());
+	particlesVis.link();
 	// load textures
 	// -------------
-	GLuint particleTex = loadTexture(FileSystem::getPath("../../content/images/particle.png").c_str(), false);
+	//GLuint particleTex = loadTexture(FileSystem::getPath("../../content/images/particle.png").c_str(), false);
+	GLuint particleTex = loadTexture(FileSystem::getPath("../../content/images/fireworks_red.jpg").c_str(), false);
 	
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
 	
-
 	// create Particle System
 	// ----------------------
-	ParticleSystem ps(500);
+	//ParticleSystem ps(500, glm::vec3(0));
+	ParticleSystemTF ps(500, glm::vec3(0,0,0));
 
 	// shader configuration
 	// --------------------
@@ -128,16 +134,14 @@ int main()
 
 	// lighting info
 	// -------------
-	glm::vec3 lightPos(0.5f, 1.0f, 0.3f);
-
+	GLuint vao = 0;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
 	// render loop
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
 		glPolygonMode(GL_FRONT_AND_BACK, (wireframe) ? GL_LINE : GL_FILL);
-
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
 
 		// Set frame time
 		GLfloat currentFrame = glfwGetTime();
@@ -146,9 +150,8 @@ int main()
 
 		// Check and call events
 		processInput(window);
-
 		ps.update(deltaTime);
-
+	
 		// render
 		// ------
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -157,17 +160,15 @@ int main()
 		particlesVis.use();
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (GLfloat)SCR_WIDTH / (GLfloat)SCR_HEIGHT, 0.1f, 100.0f);
 		particlesVis.setMat4("projection", projection);
-		particlesVis.setMat4("view", camera.GetViewMatrix());
 
+		particlesVis.setMat4("view", camera.GetViewMatrix());
+		particlesVis.setVec3("gCameraPos", camera.Position);
+		
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, particleTex);
-		particlesVis.setInt("sprite", 0);
-		particlesVis.setInt("useSprite", 1);
+		particlesVis.setInt("gColorMap", 0);
 
-		glm::mat4 model(1.0);
-		particlesVis.setMat4("model", model);
 		ps.draw(&particlesVis);
-
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
 		glfwSwapBuffers(window);
@@ -203,6 +204,9 @@ void processInput(GLFWwindow *window)
 
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
 		Wpressed = true;
+
+		std::cout << camera.Position.x << camera.Position.y << camera.Position.z << std::endl;
+		std::cout << camera.Yaw<< camera.Pitch << std::endl;
 	}
 
 	if (Wpressed && glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) {

@@ -107,17 +107,18 @@ int main()
 	
 	// load textures
 	// -------------
-	/* Bricks
+	/* Bricks */
 	unsigned int diffuseMap = loadTexture(FileSystem::getPath("../../content/images/bricks2.jpg").c_str(),false);
 	unsigned int depthMap = loadTexture(FileSystem::getPath("../../content/images/bricks2_disp.jpg").c_str(), false); // DepthMap => inverse of the heightmap (easier to fake depth instead of height)
 	unsigned int normalMap = loadTexture(FileSystem::getPath("../../content/images/bricks2_normal.jpg").c_str(), false);
-	*/
+	
 
 	/* Bricks */
+	/*
 	unsigned int diffuseMap = loadTexture(FileSystem::getPath("../../content/images/wood.png").c_str(),false);
 	unsigned int depthMap = loadTexture(FileSystem::getPath("../../content/images/toy_box_disp.png").c_str(), false); // DepthMap => inverse of the heightmap (easier to fake depth instead of height)
 	unsigned int normalMap = loadTexture(FileSystem::getPath("../../content/images/toy_box_normal.png").c_str(), false);
-
+	*/
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
 	float planeVertices[] = {
@@ -185,6 +186,7 @@ int main()
 
 		glm::mat4 model(1.0);
 		//model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+		model = glm::rotate(model, glm::radians((float)-90), glm::vec3(-1.0, 0.0, 0.0));
 		shader.setMat4("model", model);
 		// set Eye 
 		shader.setVec3("viewPos", camera.Position);
@@ -202,6 +204,7 @@ int main()
 
 		// render light source (simply re-renders a smaller plane at the light's position for debugging/visualization)
 		model = glm::mat4(1.0);
+		
 		model = glm::translate(model, lightPos);
 		model = glm::scale(model, glm::vec3(0.1f));
 		shader.setMat4("model", model);

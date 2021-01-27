@@ -12,7 +12,7 @@
 
 #include "shader_m.h"
 #include "camera.h"
-#include "model.h"
+//#include "model.h"
 #include "stb_image.h"
 #include "filesystem.h"
 
