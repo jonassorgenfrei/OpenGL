@@ -16,7 +16,7 @@ list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
 # Compiler Flags
 if(MSVC)
   # Setzten des Warnunglevels auf (W4) unter Windows
-  # behandeln der Warnungen als Fehler (WX) außer 4996
+  # behandeln der Warnungen als Fehler (WX) auï¿½er 4996
   if(CMAKE_C_FLAGS MATCHES "/W[0-4]")
     string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX /wd4996")
   else()
@@ -52,7 +52,7 @@ message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIR}")
 
 # ASSIMP
 find_package(ASSIMP REQUIRED)					
-message(STATUS "Found ASSIMP in ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES}")
+message(STATUS "Found ASSIMP in ${ASSIMP_ROOT_DIR}")
 
 # GLAD
 IF(DEFINED ENV{glad_DIR}) 
@@ -82,7 +82,7 @@ include_directories( ${OPENGL_INCLUDE_DIR}
 
 # WINDOWS SYSTEM
 if(WIN32)
-	set(LIBS ${GLFW3_LIBRARY_DIRS} opengl32 ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES})
+	set(LIBS ${GLFW3_LIBRARY_DIRS} opengl32 ${ASSIMP_LIBRARIES})
 
 	# nicht ZERO_CHECK bauen
 	set(CMAKE_SUPPRESS_REGENERATION true)
@@ -120,13 +120,13 @@ endif(WIN32)
 configure_file(configuration/root_directory.h.in configuration/root_directory.h)
 include_directories(${CMAKE_BINARY_DIR}/configuration)
 
-# hinzufügen aller files im src Folder
+# hinzufï¿½gen aller files im src Folder
 file(GLOB src_files
 	"src/*.h"
 	"src/*.cpp"
 )
 
-# hinzufügen aller files im external Folder (rekursive)
+# hinzufï¿½gen aller files im external Folder (rekursive)
 file(GLOB_RECURSE SHADERS
 	"shader/*"
 )

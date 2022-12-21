@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Compute Shader</title>
+    <link rel="stylesheet" type="text/css" href="layout.css">
+</head>
+<body>
+	<h1>Compute Shader - Particle Simulations (Part 1)</h1>
+
+	<warning>
+		In order to complete this chapter, you will need to be able to create an OpenGL 4.3+ context.
+		The compute shaders to be discussed are only available starting in OpenGL 4.3.
+		Using OpenGL 3.3 or earlier will result in errors. 
+		The sample shader code will use OpenGL 4.3.
+	</warning>
+
+	<p>
+		This chapter explains how to build a particle simulation using the compute shader and rendering
+		the particle buffer with the OpenGL renderpipeline.
+		We will build up on the concepts of the compute shader explained in the
+		<a target="_blank" href="https://learnopengl.com/Guest-Articles/2022/Compute-Shaders/Introduction">
+		Compute Shader - Introduction</a> chapter.
+		If you want to know how to create a particle system on the CPU and render it with OpenGL using
+		<a target="_blank" href="https://learnopengl.com/In-Practice/2D-Game/Rendering-Sprites">Sprites</a>
+		checkout the <a target="_blank" href="https://learnopengl.com/In-Practice/2D-Game/Particles">Particles</a>
+		Chapter in the In-Practice Section.
+	</p>
+
+	<p>
+		To pass our data from and to the compute shader we will be using buffers. They are structures which enable 
+		us to store the attributes of the particles such as positions and velocities.
+		To get an introduction of what buffers in the OpenGL context are check out 
+		<a target="_blank" href="https://learnopengl.com/Advanced-OpenGL/Advanced-Data">Chapter Advanced Data</a>
+		and <a target="_blank" href="https://learnopengl.com/Advanced-OpenGL/Advanced-GLSL">Advanced GLSL</a> in 
+		the Advanced OpenGL Section.
+	</p>    
+
+	<img src="img\guest\2022\compute_shader_particles\gpu_processing_particles.png" width="400px" class="clean" alt="Particle System Example"/>
+	<p>
+		Our program will include the particle numbers/indices as the input stream which we will loop over using the 
+		compute shader (green circle) and query the particle data from a buffer. 
+		As we will create a particle simulation with a constant amount of particles with infinit life we just need 
+		two attributes for the particles namely
+		<def>velocity</def> and <def>position</def>.
+	</p>
+
+	<h2>Particle Simulations</h2>
+	<p>
+		Particle Systems are used in computer graphics to animate/simulate a larg amount of objects. They can for example be used to
+		simulate fire, smoke, water, sparks, debris or other phenomena and abstract effects.
+		Basically particle systems are a set of points (particles) with individual attributes that control the behaviour of each particle.
+		Typical attributes for the particles can be:
+	</p>
+	<ul>
+		<li> 
+			<b>position</b> a point in space, always necessary
+		</li>
+		<li>
+			<b>velocity</b> the speed and direction of the particle
+		</li>
+		<li>
+			<b>age</b> the time since the emission of the particles
+		</li>
+		<li>
+			<b>life</b> the maximal age until the particles dies
+		</li>
+		<li>
+			<b>mass</b> the weight of a particle
+		</li>
+	</ul>
+	<p>
+		The behaviour of particle systems can be controlled with forces and other parameters.
+		
+	</p>
+	<p>
+		Typically a particle simulation contains the following three stages:
+	</p>
+
+	<ul>
+		<li>
+			<b>emission stage</b> one or multiple new particles will be created based on an spawning rate at one or individual locations. 
+			Each of the particle's attributes is initialized (e.g. initial velocity).
+			This stage can be run only once or mutliple times (e.g. every frame).
+		</li>
+		<li>
+			<b>simulation stage</b> during the simulation stage the particle attributes will be updated based on the simulation algorithm.
+			If the particles have an age and life attribute at each update all existing particle will be checked if it has exceeded its lifetime,
+			in which case it will be removed from the simulation.
+			Besides the calculation of the movement using physical simulations (translation of the current position) the simulation often includes 
+			collision detection and handling of particles with their environment (other 3D objects)
+		</li>
+		<li>
+			<b>rendering stage</b> rendering the particle on to the screen.
+			Using shading and rendering technics (such as 
+			<a target="_blank" href="https://learnopengl.com/In-Practice/2D-Game/Rendering-Sprites">Sprites/textured billboards</a>)
+			it's possible to render phenomena such as smoke or explosions.
+			Often particles will as well just be rendered as small pixels/points.
+			It's also possible to use instancing to draw a more complex object per particle e.g. small debris pieces.
+		</li>
+	</ul>
+
+	<p>
+		Particle systems can also be used as base for hair or cloth simulation by connecting the particles with constraints keeping a 
+		topologic structure.
+	</p>
+
+	<h2>Physics</h2>
+	<p>
+		To simulate the movement and behaviour of particles we can make use of the underlaying physics.
+		A particle with a non-zero initial velocity tends to keep moving with that velocity (<def>Newton's first law</def>).
+		The change of motion for particles can be mathematically represented by <def>Newton's Second law</def>, which says that the motion 
+		changes whenever unbalanced external forces are applied to the particle (body).
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\force.png" width="200px" class="clean" alt="Force calculation"/>
+	<p>
+		The <def>force</def> f acting on a body (particle) equals the <def>mass</def> m of the body times the <def>acceleration</def> a.
+		For example the (constant) acceleration acting on every object with mass on earth is the gravity (~ 9.81 m/s^2) pulling everything
+		to the center of the earth.
+	</p>
+	<p>
+		Besides gravity there might be other forces acting on the particle. For example a particles system that simulates water requires 
+		aswell internal forces for incompressibility and advection. A particle system or dust requires air currents and wind as external 
+		forces.
+		Forces can be constant like gravity, time dependent like wind forces, position dependent like force fields or velocity/attribute dependent
+		like drag (the faster the velocity the larger the drag e.g. viscous fluids) and friction.
+	</p>
+	<p>
+		To describe the motion itself we can use <def>velocity</def> as description of the change of position (displacement) of 
+		one particle. <def>Velocity</def> describes the (displacement) distance per time interval.
+		<def>Velocity</def> can be represented as a vector (dimension is depending on the coordinate system used) and it includes the speed (magnitude / length)
+		of the <def>velocity</def> vector and the direction of the vector. 
+		The <def>velocity</def> can be influenced by <def>forces</def> and <def>accelerations</def>.
+		The speed can be uniform which means the magnitude of the <def>velocity</def> vector is constant and does not change over time. 
+		If a <def>force</def> is acting on an object the <def>velocity</def> might become non uniform and differs over time.
+		While uniform speed is easily to simulate and calculate for changing speed it's not that trivial and theoretically
+		we would need to calculate it for every single infinitiv small time step which is not possible in our computer programm.
+		But we can use a mathematicall method called <def>integration</def> to handle this problem which can help us calculate 
+		the change of position for a non uniform speed.
+	</p>
+
+
+	<h2>Integration</h2>
+	<p>
+		Given a function of changing <def>velocity</def> <i>f(x)</i> one can use a methode called <def>integration</def> to calculate the area 
+		under the curve which represents the traveled distance <i>s</i> in the time interval from point <i>a</i> to point <i>b</i>.
+		In the image below the y axis represents the <def>velocity</def> and the x axis the time. 
+		We won't go into detail how to calculate the integral at this point, if you aren't sure how to integrate make sure
+		to revisit this subject in an algebra article (e.g. khanacademy).
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\integral.png" width="200px" class="clean" alt="Integral"/>
+
+	<p>
+		Imagine a car driving with constant speed which means the way it traveles is increasing over time (left graph).
+		We can calcute the <def>velocity</def> at a point in time by checking the slope at that time. 
+		By calculate the derivation of the traveled distance function (left graph) we can calculate the <def>velocity</def> function
+		(right graph). As derivation is the counter operation to integration we could use the integration of the 
+		<def>velocity</def> as described above to calculate the traveled distance for a time interval (right graph green area).
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\constantSpeed.png" width="400px" class="clean" alt="Constant Speed Derivation"/>
+	<p>
+		The image below shows this description mathematically while the green graph is the traveled distance which is proportional
+		the blue graph is it's derivation (the <def>velocity</def> graph) which is constant as the slope is uniform.
+		Calculating the integral of the blue graph in the interval 0 to 4 results in a value of 8 which is exactly the traveled 
+		distance (green graph) at t=4. 
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\derivation-integration.png" width="800px" class="clean" alt="Constant Speed Derivation"/>
+	
+	<p>
+		When we check the slope of the <def>velocity</def> graph we can see that it results in a value of zero as it is constant.
+		The derivation will result in a function <i>f''(x) = 0</i> which shows that the <def>velocity</def> is not being changed
+		meaning we don't have any <def>acceleration</def> influencing the speed of the object.
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\acceleration.png" width="200px" class="clean" alt="Constant Speed Derivation"/>
+	<p>
+		With this being said we can see that we can calculate the speed as the derivation of the displacement and 
+		the <def>acceleration</def> as the derivation of the <def>velocity</def>. We can use this fact to create our simulation in the step below.
+	</p>
+
+	<h3>Euler Integration</h3>
+	<p>
+		Using a methode called (explicit) <def>Euler Integration</def> we can simulation the motion of particles using a <def>numerical method</def>.
+		With <def>numerical method</def> we get an approximation of the solution, NOT the exact solution and the calculation of the solution is 
+		incrementally, <b>step by step</b>.
+	</p>
+	<p>
+		Given the initial position, velocity and force acting on e.g. a particle the euler method gives the approximation for 
+		the solution of the differential equations presented above.
+		As the motion of particles is not always easily representable by a simple equations and in general is more chaotic (like a noise)
+		it's (in general) not possible to calculate the motion of particles analytically. 
+		The Euler method uses successive time steps (Δt) to approximate the position change of the particles.
+		The graph below shows the change in velocity and as presented above the area under the graph shows the displacement.
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\timeSteps.png" width="400px" class="clean" alt="Time Steps"/>
+	<p>
+		Focusing on one time step we can see that the area under the graph (which represents the displacement of the particle)
+		can be approximated by the sum of a rectangular area (blue) and a triangular area (green).
+		To calculate the rectangular (blue) area we can simply multiple the <def>velocity</def> at this moment (e.g. v0) by the size 
+		of the time step (Δt).
+		To calculate the triangle on top we need to calculate the slope of the <def>velocity</def> at that point, which can be calculated using the
+		derivate of the <def>velocity</def>, the <def>acceleration</def>. 
+		Using the the Euler's Method we are assuming the <def>acceleration</def> (the 2nd derivate of the displacement) is constant during the timestep we can integrate the <def>acceleration</def> which is a constant value. 
+		(Remember the <def>acceleration</def> acting on a particle is the sum of the <def>forces</def> which influce the particle divided by the mass of
+		it).
+		Integrating the constant acceleration  by the time step (Δt) we get the change ratio of the velocity to the next time step (=a*Δt | yellow line).
+		Mutliplying this value by the the time step (Δt) and dividing it by 2 we get the area of the green triangle. Which is the displacement due to 
+		the change of velocity during the time step. 
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\timeStep1.png" width="400px" class="clean" alt="Time Steps"/>
+	<p>
+		The following equation shows the calculation of the displacement described in the previous paragraph.
+		The first part of the sum represents the rectangular area and the second term the triangular area.
+		The whole sum approximates the area under the graph (the integral) for the specific time step.
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\displacementEquation.png" width="250px" class="clean" alt="Displacement Equation"/>
+	<p>
+		Because the Euler integration is explicit, which means that the state of a system at a later step is calculated from the state of the system at
+		the current step we can simply use the old Position (P0) and add the calculated displacement to get the next Position (P1).
+
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\positionIntegrationEquation.png" width="250px" class="clean" alt="Position Integration Equation"/>
+	<p>
+		Repeating this step we can calculate the ongoing motion of our individual particles.
+		Additionally we have to calculate the velocity for the next step too. Which can be calculated by adding the change ratio of velocity (which we get by integrating
+		the (constant) acceleration) to the current velocity.
+	</p>
+	<img src="img\guest\2022\compute_shader_particles\velocityIntegration.png" width="150px" class="clean" alt="Position Integration Equation"/>
+	<p>
+		Unfortunatly the downsides of the Euler's Method is that it's inaccurate based on the size of the timesteps and goes therefore 
+		often unstable.
+		Espacially when choosing the time step too big. If the time step is to small the simulation get computationally heavy as more operations 
+		have to being executed.
+	</p>
+		
+	<p>
+		In the next section we will bring this into practice by building our particle simulation on the compute shader.
+	</p>
+	
+	<h2>Create the Particle Simulation</h2>
+	<p>
+	In this section we will put everything into practice and create our OpenGL Particle Simulation.
+	</p>
+
+	<p>
+		We start by creating a few constansts which we will later refer to in our implementation. 
+		We start with a constant which contains the amount of particles to create and a second constant to 
+	</p>
+
+	<h3>Create the Compute Shader</h3>
+	<p>
+
+	</p>
+
+	<h2>Final Words</h2>
+	<p>
+		In this chapter we learned how we can use uniform buffers to store arbitrary data (in this case particle data) and created a simulation using the compute shader.
+		Having the data already on the GPU we were able to reuse the uniform buffer to directly render the simulated particles using the default OpenGL Graphics pipeline.
+	</p>
+
+	<p>
+		This implementation only allows us to create a constant amount of particles with infinit life. In Part 2 of Compute Shader Particles Simulation we will have a look on how to create more complex particle simulations with aging which 
+		requires us on doing some more complicated memory management on our buffers to have particles die and new particles to be spawned.
+	</p>
+
+	<h2>Exercises</h2>
+	<p>
+		<li></li>
+	</p>
+
+
+	<h2>References</h2>
+	<ul>
+		<li>
+			<a target="_blank" href="LINK">LINK</a>
+		</li>
+		<li>
+			<a target="_blank" href="LINK">LINK</a>
+		</li>
+	</ul>
+
+	<author>
+		<strong>Article by:</strong>
+		Jonas Sorgenfrei
+      <br/>
+		<strong>Contact:</strong>
+		<a target="_blank" href="mailto:jonas_sorgenfrei@yahoo.de">mail</a>
+	</author>
+
+</body>
+</html>

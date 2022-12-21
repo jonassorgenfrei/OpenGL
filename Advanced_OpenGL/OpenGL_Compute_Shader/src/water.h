@@ -63,7 +63,7 @@ public:
 		water[1] = makeWaterSimulationBuffers(WATER_RESOLUTION, WATER_SIZE);
 
 		// Water Compute Shader 
-		waterSimulationProgram = new Shader(".\\shader\\watersimulation\\watersimulation.comp");
+		waterSimulationProgram = new Shader(FileSystem::getPath("shader/watersimulation/watersimulation.comp").c_str());
 		
 		// Make Indices
 		int numQuads = WATER_RESOLUTION * WATER_RESOLUTION;

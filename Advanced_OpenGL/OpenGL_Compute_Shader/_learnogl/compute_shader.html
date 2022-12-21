@@ -1,0 +1,584 @@
+	<h2>GPU Computing</h2>
+	<p>
+		In this chapter, we will have a look on the compute shader and try to understand how it works and how we can create and run a compute shader.
+		While traditionally the graphics card (GPU) has been a rendering co-processor which is handling graphics, it got more and more common to use graphics cards for other (not necessarily graphics related) computational tasks (General Purpose Computing on Graphics Processing Units; short: <def>GPGPU-Programming</def>).
+		The reason for this purpose change is performance, as GPUs perform floating-point calculations much faster than today's CPUs.
+		However, this performance boost comes with a hurdle in programming algorithms. 
+		Since the GPU is not a serial but a <def>stream processor</def> it's not trivial to program the same algorithms which were designed for the CPU to run on the GPU as well.
+	</p>
+	
+		<img src="\img\guest\2022\compute_shader\gpu_processing.png" width="400px" class="clean" alt="Model of a Stream Program on the GPU"/>
+
+<p>
+		A stream processor uses a function/<def>kernel</def> (e.g. a fragment Shader) to run over a set of input records/<def>stream</def> (e.g. fragments)
+		to produce a set of output records (pixels for the final image) in parallel.
+		Due to the <def>parallel execution</def>, each element is processed independently, without any dependencies between elements.
+	</p>
+
+	<p>
+		As stated above the most important (mandatory) aspect of programs running on GPUs is that they must be parallelizable. Sharing of memory is not easily possible and very limited for <def>kernels</def> running on the graphics card, this means that calculations that the <def>kernel</def> performs must be computed independently of each other. For example, it's easy to implement a program that multiplies each element in one stream with the corresponding element (e.g. by index) in a second stream while it's more complicated (or not completely possible in parallel) to accumulate the values of one stream to one single sum value as it always needs the result of the executions before.
+</p>
+
+<p>
+		(Even though this operation can be enhanced by the GPU using a kernel that accumulates sub-stream data in parallel and reducing the amount of serial accumulations for bigger streams. The results of the sub-stream data has to be combined in the host program afterwards).
+	</p>
+
+	<p>
+		It is important to keep this mandatory parallelism in mind when writing GPU <def>kernels</def> as the GPU is not suitable for all problems due to its stream programming model.
+      </p>
+      
+      <warning>
+		In order to complete this chapter, you will need to be able to create an OpenGL 4.3+ context.
+		The compute shaders to be discussed are only available starting in OpenGL 4.3.
+		Using OpenGL 3.3 or earlier will result in errors. 
+		The sample shader code will use OpenGL 4.3.
+	</warning>
+      
+      <p>
+		To summarize, compute shaders work great for many small parallel batches. Check out: <a target="_blank" href="https://www.youtube.com/watch?v=-P28LKWTzrI">Mythbusters Demo GPU versus CPU</a>
+	</p>
+
+	<h2>Compute Shader Stage</h2>	
+	<p>
+		To make GPU computing easier accessible especially for graphics applications while sharing common memory mappings, the OpenGL standard introduced the <def>compute shader</def> in OpenGL version 4.3 as a shader stage for computing arbitrary information. While other GPGPU APIs like <def>OpenCL</def> and <def>CUDA</def> offer more features as they are aimed for heavyweight GPGPU projects, the OpenGL compute shader is intentionally designed to incorporate with other OpenGL functionality and uses GLSL to make it easier to integrate with the existing OpenGL graphics pipeline/application. Using the compute shader in OpenGL graphics applications makes it possible to avoid complicated interfacing, as it would be needed with <def>OpenCL</def> or <def>CUDA</def>.
+	</p>
+
+	<img src="\img\guest\2022\compute_shader\opengl4_3_with_computeShaders.jpg" width="400px" class="clean" alt="Model of a Stream Program on the GPU"/>
+
+	<p>
+		Compute shaders are <def>general-purpose shaders</def> and in contrast to the other shader stages, they operate differently as they are not part of the graphics pipeline. (see OpenGL 4.3 with Computer Shaders). The compute shader itself defines the data "space" it operates on. An OpenGL function can be used to define the amount of executions that also initiates the execution of the compute operation. The computer shader does not have user-defined inputs or any outputs as known from the other shaders.
+</p>
+
+<p>
+		To pass data to the compute shader, the shader needs to fetch the data for example via <def>texture access</def>, <def>image loads</def> or <def>shader storage block access</def>, which has to be used as target to explicitly write the computed data to an image or shader storage block as well.
+</p>
+
+<p>
+		The following table shows the data any shader stage operates on. As shown below, the compute shaders works on an "abstract work item".
+	</p>
+
+	<table>
+		<tr>
+			<th>Stage</th><th>Data Element</th>
+		</tr>
+		<tr>
+			<td>Vertex Shader</td><td>per vertex</td>
+		</tr>
+		<tr>
+			<td>Tessellation Control Shader</td><td>per vertex (in a patch)</td>
+		</tr>
+		<tr>
+			<td>Tessellation Evaluation Shader</td><td>per vertex (in a patch)</td>
+		</tr>
+		<tr>
+			<td>Geometry Shader</td><td>per primitive</td>
+		</tr>
+		<tr>
+			<td>Fragment Shader</td><td>per fragment</td>
+		</tr>
+		<tr>
+			<td>Compute Shader</td><td>per (abstract) "work item"</td>
+		</tr>
+	</table>
+
+	<h3>Compute space</h3>
+	<p>
+		The user can use a concept called <def>work groups</def> to define the space the compute shader is operating on. <def>Work Groups</def> are the smallest amount of compute operations that the user can execute (from the host application). Wile the space of the <def>work groups</def> is a three-dimensional space ("X", "Y", "Z") the user can set any of the dimension to 1 to perform the computation in one- or two-dimensional space. In the image below every green cube is one <def>work group</def>.
+</p>
+
+		<img src="\img\guest\2022\compute_shader/global_work_groups.png" width="600px" class="clean" alt="Global Work Groups"/>
+
+<p>
+
+		During execution of the <def>work groups</def> the order might vary arbitrarily and the program should not rely on the order in which individual groups are processed.
+</p>
+
+<p>		
+		The <def>work group</def> may contain many compute shader <def>invocations</def>.
+		The amount of <def>invocations</def> of the shader is defined by the <def>local size</def> of the <def>work group</def>, which is again three-dimensional.	
+</p>
+
+<p>
+		The image below shows how every <def>work group</def> is splitted in its local space <def>invocations</def> represented by the red cubes.
+</p>
+
+		<img src="\img\guest\2022\compute_shader/local_space.png" width="600px" class="clean" alt="Local Space"/>
+
+	<p>
+      	<i>An example</i>:<br/>
+		Given the <def>local size</def> of a computer shader of (128, 1, 1) and
+		executing the shader with a <def>work group</def> count of (16, 8, 64). The shader will be 1,048,576 times invoked separately. This is the product of <def>work group</def> dimensions times the product of the <def>local size</def> of the compute shader: (128 * 1 * 1 * 16 * 8 * 64 = 1,048,576). 		Each <def>invocation</def> can be uniquely identified by a unique set of inputs.
+	</p>
+	
+	<p>
+		While it is possible to communicate using <def>shared variables</def> and special functions between different <def>invocations</def> in a specific <def>work group</def>, it is not effectively possible to communicate between different <def>work groups</def> without potentially deadlocking the system.
+	</p>
+
+	<h2>Create your first compute shader</h2>
+	<p>
+		Now that we have a broad overview about compute shaders let's put it into practice by creating a "Hello-World" program. The program should write (color) data to the pixels of an image/texture object in the compute shader. After finishing the compute shader execution it will display the texture on the screen using a second shader program which uses a vertex shader to draw a simple screen filling quad and a fragment shader.
+	</p>
+
+	<p>
+		Since compute shaders are introduced in OpenGL 4.3 we need to adjust the context version first:
+	</p>
+
+<pre><code>glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+</code></pre>
+	
+	
+<h3>Compile the Compute Shader</h3>
+<p>
+		To being able to compile a compute shader program we need to create a new shader class.	We create a new <var>ComputeShader</var> class, that is almost identically to the normal <var>Shader</var> class, but as we want to use it in combination to the normal shader stage we have to give it a new unique class name.
+	</p>
+		
+<pre><code>class ComputeShader
+{
+     public:
+          unsigned int ID;
+		
+          ComputeShader(const char* computePath)
+          {
+               ...
+          }
+}
+</code></pre>
+
+	<p>
+		Note: we could as well add a second constructor in the <var>Shader</var> class, which only has one parameter where we would assume that this is a compute shader but in the sake of clarity, we split them in two different classes.Additionally it is not possible to bake compute shaders into an OpenGL program object alongside other shaders.
+	</p>
+
+	<p>
+		The code to create and compile the shader is as well almost identically to the one for other shaders. But as the compute shader is not bound to the rest of the render pipeline we attach the shader solely to the new program using the shader type <var>GL_COMPUTE_SHADER</var> after creating the program itself.
+	</p>
+
+<pre><code>unsigned int compute;
+// compute shader
+compute = glCreateShader(GL_COMPUTE_SHADER);
+glShaderSource(compute, 1, &cShaderCode, NULL);
+glCompileShader(compute);
+checkCompileErrors(compute, "COMPUTE");
+
+// shader Program
+ID = glCreateProgram();
+glAttachShader(ID, compute);
+glLinkProgram(ID);
+checkCompileErrors(ID, "PROGRAM");
+</code></pre>
+	
+	<p>
+		Check out the chapter  <a target="_blank" href="https://learnopengl.com/Getting-started/Shaders">Getting Started - Shaders</a> to get more information about the <var>Shader</var> class.
+	</p>
+
+<h3>Create the Compute Shader</h3>
+	<p>
+		With the shader class updated, we can now write our compute shader. As always, we start by defining the version on top of the shader as well as defining the size of the local <def>invocations</def> per dimension in the compute shader.
+</p>
+
+<p>
+		This can be done using the special <var>layout</var> input declaration in the code below. By default, the local sizes are 1 so if you only want a 1D or 2D <def>work group</def> space, you can specify just the <var>local_size_x</var> or the <var>local_size_x</var> and <var>local_size_y</var> component. For the sake of completeness, we will explicitly set all components as shown below.
+	</p>
+
+<pre><code>#version 430 core
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+</code></pre>
+
+<p>
+		Since we will execute our shader for every pixel of an image, we will keep our local size at 1 in every dimension  (1 pixel per <def>work group</def>). We will alter this value later. OpenGL will handle this <def>local size</def> in the background. The values must be an integral constant expression of a value greater than 0 and it must abide by limitations shown in the warning paragraph below.
+	</p>
+
+<warning>
+  <p>
+     There is a limitation of <def>work groups</def> that can be dispatched in a single compute shader dispatch call. This limit is defined by <var>GL_MAX_COMPUTE_WORK_GROUP_COUNT</var>, which must/can be queried using the function <fun>glGetIntegeri_v</fun> where the indices <i>0</i>, <i>1</i> and <i>2</i> corresponds to the <i>X</i>, <i>Y</i> and <i>Z</i> dimensions, respectively.
+  </p>
+  
+  <p>
+		There is as well a limitation on the <def>local size</def> which can be queried with <var>GL_MAX_COMPUTE_WORK_GROUP_SIZE</var> and another limitation of the total number of <def>invocations</def> within a <def>work group</def>, which is that the product of the X, Y and Z components of the <def>local size</def> must be less than <var>GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS</var>.
+  </p>
+  
+	<p>
+		As we define and divide the tasks and the compute shader groups sizes ourselves, we have to keep these limitations in mind.
+  </p>
+	</warning>
+
+	<p>
+		We will bind the a 2d image in our shader as the object to write our data onto. The internal format (here <var>rgba32f</var>) needs to be the same as the format of the texture in the host program.
+	</p>
+
+<pre><code>layout(rgba32f, binding = 0) uniform image2D imgOutput;
+</code></pre>
+
+	<p>
+		We have to use <var>image2d</var> as this represents a single image from a texture. While <var>sampler</var> variables use the entire texture including mipmap levels  and array layers, images only have a single image from a texture. <i>Note</i> while most texture sampling functions use normalized texture coordinates [0,1], for images we need the absolute integer <def>texel</def> coordinates. Images and <var>samplers</var> are completely separated including their bindings. While <var>samplers</var> can only read data from textures, image variables can read and/or write data.
+      </p>
+      
+      <p>
+		With this set up, we can now write our main function in the shader where we fill the <var>imgOutput</var> with color values. To determine on which pixel we are currently operating in our shader execution we can use the following GLSL Built-in variables shown in the table below:
+	</p>
+
+	<table>
+		<tr>
+			<th>Type</th><th>Built-in name</th><th></th>
+		</tr>
+		<tr>
+			<td>uvec3</td><td>gl_NumWorkGroups</td><td>number of <def>work groups</def> that have been dispatched<br/>set by <fun>glDispatchCompute()</fun></td>
+		</tr>
+		<tr>
+			<td>uvec3</td><td>gl_WorkGroupSize</td><td>size of the <def>work group</def> (<def>local size</def>) operated on<br/>defined with <var>layout</var></td>
+		</tr>
+		<tr>
+			<td>uvec3</td><td>gl_WorkGroupID</td><td>index of the <def>work group</def> currently being operated on</td>
+		</tr>
+		<tr>
+			<td>uvec3</td><td>gl_LocalInvocationID</td><td>index of the current work item in the <def>work group</def></td>
+		</tr>
+		<tr>
+          <td>uvec3</td><td>gl_GlobalInvocationID</td><td>global index of the current work item<br/><br/>
+			<i>(gl_WorkGroupID * gl_WorkGroupSize + gl_LocalInvocationID)</i></td>
+		</tr>
+      
+		<tr>
+			<td>uint</td><td>gl_LocalInvocationIndex</td><td>1d index representation of gl_LocalInvocationID<br/><br/>
+				<i>(gl_LocalInvocationID.z * gl_WorkGroupSize.x * gl_WorkGroupSize.y + gl_LocalInvocationID.y * gl_WorkGroupSize.x + gl_LocalInvocationID.x)</i></td>
+		</tr>
+	</table>
+
+	<p>
+		Using the built-in variables from the table above we will create a simple color gradient (st-map) on our image.
+	</p>
+
+<pre><code>void main() {
+    vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+	
+    value.x = float(texelCoord.x)/(gl_NumWorkGroups.x);
+    value.y = float(texelCoord.y)/(gl_NumWorkGroups.y);
+	
+    imageStore(imgOutput, texelCoord, value);
+}
+</code></pre>
+
+	<p>
+		We will setup the execution of the compute shader that every <def>invocation</def> corresponds to one pixel, though the global x and y size will be equal to the image's x and y dimension. Therefore, the <var>gl_GlobalInvocationID</var> gives us the absolute coordinate of the current pixel.Remember that we only have one single <def>invocation</def> per <def>work group</def> as we set all local dimensions to 1. Using the <var>gl_NumWorkGroups</var> variable, we can calculate the relative coordinate of the image in the range [0, 1] per dimension.
+	</p>
+
+	<p>	
+		We can then write our calculated pixel data to the image using the <fun>imageStore</fun> function. The <fun>imageStore</fun> function takes the image unit to write to as first argument, the <b>absolute</b> <def>texel</def> coordinate as second argument and the data value to store at this <def>texel</def> as third.
+	</p>
+
+	<h3>Create the Image Objecte</h3>
+	<p>
+		In the host program, we can now create the actual image to write onto. We will create a 512x512 pixel texture.
+	</p>
+	
+<pre><code>// texture size
+const unsigned int TEXTURE_WIDTH = 512, TEXTURE_HEIGHT = 512;
+...
+unsigned int texture;
+
+glGenTextures(1, &texture);
+glActiveTexture(GL_TEXTURE0);
+glBindTexture(GL_TEXTURE_2D, texture);
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, 
+             GL_FLOAT, NULL);
+
+glBindImageTexture(0, texture, 0, GL_FALSE, 0, GL_READ, GL_RGBA32F);
+</code></pre>
+
+	<p>
+		To find a deeper explanation of the functions used to setup a texture check out the <a target="_blank" href="https://learnopengl.com/Getting-started/Textures">Getting Started - Textures</a> chapter. Here the <fun>glBindImageTexture</fun> function is used to bind a specific level of a texture to an image unit. Since we use <fun>image2D</fun> we need to use this function instead of the <fun>glBindTexture</fun> function. <i>Note</i> that we use <var>GL_RGBA32F</var> as internal format corresponding to the layout format used in the compute shader.
+	</p>
+
+<h3>Executing the Compute Shader</h3>
+<p>
+    With everything set up we can now finally execute our compute shader. In the drawing loop we can use/bind our compute shader and execute it using the <fun>glDispatchCompute</fun> function.
+</p>
+
+<pre><code>// render loop
+// -----------
+
+computeShader.use();
+glDispatchCompute((unsigned int)TEXTURE_WIDTH, (unsigned int)TEXTURE_HEIGHT, 1);
+
+// make sure writing to image has finished before read
+glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+</code></pre>
+
+	<p>
+		We first bind our shader using the <fun>use()</fun> function of the <var>ComputeShader</var>. The <fun>glDispatchCompute</fun> function launches one or more compute <def>work groups</def> based on the given 3 dimensions as arguments. Here we launch the execution two-dimensional corresponding to the image size and leave the third component to 1. While the individual shader <def>invocations</def> within the <def>work group</def> are executed as a unit, <def>work groups</def> are executed completely independent and in unspecific order.
+	</p>
+
+	<p>
+		Before accessing the image data after the compute shader execution we need to define a barrier to make sure the data writing is completly finished. The <fun>glMemoryBarrier</fun> defines such a barrier which orders memory transactions. The <var>GLbitfield</var> parameter <var>barriers</var> specifies the barriers to insert. They must be a bit wise combination of any GL barrier_bit constants (see: <a target="_blank" href="https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glMemoryBarrier.xhtml">glMemoryBarrier - Khronos</a>). In this case, we only need the <var>GL_SHADER_IMAGE_ACCESS_BARRIER_BIT</var> which assures access using the image functions will reflect data written by shaders prior to the barrier.
+	</p>
+
+	<note>
+		It is also possible to use the <var>GL_ALL_BARRIER_BITS</var> variable to have a generic barrier for all types of writing.
+	</note>
+
+	<warning>
+		The <fun>glMemoryBarrier</fun> function will stop the execution of the host program at this point though it makes sense to insert this function right before accessing the barrier's data.
+	</warning>
+
+	<h3>Rendering the image</h3>
+	<p>
+		Lastly, we will render a rectangle and apply the texture in the fragment shader.
+	</p>	
+
+<pre><code>// render image to quad
+glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+screenQuad.use();
+screenQuad.setInt("tex", 0);
+glActiveTexture(GL_TEXTURE0);
+glBindTexture(GL_TEXTURE_2D, texture);
+renderQuad();
+</code></pre>
+
+	<p>
+		We will bind our texture now as <var>sampler2D</var> and use the texture coordinates of the rectangle to sample it. 
+</p>
+
+<p>
+		The vertex and fragment shader are very simple as seen below.
+	</p>
+
+<h5>Vertex Shader</h5>
+<pre><code>#version 430 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec2 aTexCoords;
+	
+out vec2 TexCoords;
+	
+void main()
+{
+    TexCoords = aTexCoords;
+    gl_Position = vec4(aPos, 1.0);
+}
+</code></pre>
+
+<h5>Fragment Shader</h5>
+<pre><code>#version 430 core
+out vec4 FragColor;
+	
+in vec2 TexCoords;
+	
+uniform sampler2D tex;
+	
+void main()
+{             
+    vec3 texCol = texture(tex, TexCoords).rgb;      
+    FragColor = vec4(texCol, 1.0);
+}
+</code></pre>
+
+<h5>Image Output</h5>
+<img src="\img\guest\2022\compute_shader\outputColor.jpg" width="400px" class="clean" alt="Rendered Image"/>
+	
+
+<h3>Adding Time Variable and Speed Measuring</h3>
+<p>
+		We will now add time to the program for performance measuring to test which settings (<def>work group</def> amount/<def>local size</def>) work best for us.
+</p>
+
+<pre><code>// timing 
+float deltaTime = 0.0f; // time between current frame and last frame
+float lastFrame = 0.0f; // time of last frame
+int fCounter = 0;
+
+// render loop
+// -----------
+...
+// Set frame time
+float currentFrame = glfwGetTime();
+deltaTime = currentFrame - lastFrame;
+lastFrame = currentFrame;
+if(fCounter &gt; 500) {
+        std::cout &lt;&lt; "FPS: " &lt;&lt; 1 / deltaTime &lt;&lt; std::endl;
+        fCounter = 0;
+} else {
+    fCounter++;
+}		
+</code></pre>
+
+	<p>
+		The code above prints the frames per second limited to one print every 500 frames as too 
+		frequent printing slows the program down. When running our program with this "stopwatch" we will see that it will never get over 60 frames per second as glfw locks the refresh rate by default to 60fps. 
+</p>
+
+<p>
+		To bypass this lock we can set the swap interval for the current OpenGL Context to 0 to get a bigger refresh rate than 60 fps. We can use the function <fun>glfwSwapInterval</fun> function for this when initializing the glfw context:
+	</p>
+
+<pre><code>glfwMakeContextCurrent(window);
+glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+glfwSwapInterval(0);
+</code></pre>
+
+    <p>
+		Now we can get much more frames per seconds rendered/calculated. To be fair this example/hello world program is very easy and actually doesnt have any complex calculations so the calcuation times are very low.
+	</p>
+
+	<p>
+		We can now make our texture animated (moving from left to write) using the time variable. First, we change our computeShader to be animated:
+	</p>
+
+<pre><code>#version 430 core
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+	
+// images 
+layout(rgba32f, binding = 0) uniform image2D imgOutput;
+
+// variables
+layout (location = 0) uniform float t;                 /** Time */
+	
+void main() {
+    vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    float speed = 100;
+	// the width of the texture
+	float width = 1000;
+
+    value.x = mod(float(texelCoord.x) + t * speed, width) / (gl_NumWorkGroups.x);
+    value.y = float(texelCoord.y)/(gl_NumWorkGroups.y);
+    imageStore(imgOutput, texelCoord, value);
+}
+</code></pre>
+
+	<p>
+		We create a uniform variable <var>t</var>, which will hold the current time. To animate a repeating rolling of the texture from left to right we can use
+		the module operation <fun>%</fun>. We animate the texture using the time variable <var>t</var> multiplied by the a speed value as offset for the x coordinate.
+		Having the offseted x coordinate we can use the width of the texture (which in this case is hard-codeded) as divisor to get the rest which will be the new coordinate.
+		We divide this value by the by the Workgroup size in x to get the ratio value between 0 and 1 we do the same for the y value, where we just simply divide the texel 
+		coordinate by the number of workgroups in the y dimension.
+	</p>
+
+<p>
+		In the host program, we can assign the variable value the same way as we assign them for any other shader using <fun>glUniform</fun> functions, which is wrapped in the <fun>setFloat</fun> function of the <var>ComputeShader</var> class. We use <fun>setFloat</fun> to set the value of the variable <var>t</var>.
+	</p>
+	
+<pre><code>computeShader.use();
+computeShader.setFloat("t", currentFrame);
+</code></pre>
+
+	<p>
+		Hence <var>currentFrame</var> is an altering value, we have to do the assignment in the render loop for every iteration.
+	</p>
+
+	<note>
+      <p>
+		The <var>layout (location = 0)</var> definition in front of the float variable is in general not necessary as the shader implementation queries the location of every variable on each uniform assignment. This might slow down the program execution speed if executed for multiple variables every render loop.
+      </p>
+      
+        <p>
+          <fun>glUniform1f(glGetUniformLocation(ID, name.c_str()), value);</fun><br/>
+		If you know that the location won't change and you want to increase the performance of the program as much as possible you can either query the location just once before the render loop and save it in the host program or hardcode it in the host program.
+      </p>
+	</note>
+
+	<h3>Altering local size</h3>
+	<p>
+		Lastly, we can make use of the <def>local size</def>. As it can be seen in the image below the total amount of n dimensional executions is the product of the amount of <def>work groups</def> times <def>local</def> <def>invocations</def>. (compare the calculation in the compute space section above). Currently one pixel corresponds to one <def>work group</def> as we set the <def>local size</def> to 1 in all dimensions (dark gray boxes).
+</p>
+
+<p>
+		In this last section, we are going to add some local <def>invocations</def> (small light grey boxes) per <def>work group</def>. In other words, we will split the image in batches of a specific size and run over each of these batches per <def>work group</def>. So we have to alter our shader a little bit to calculate and write to the right <def>texel</def>. You could imagine the final image as an overlay over the <def>work group</def> sheet below where each invocation will then be one pixel of the image:
+	</p>
+
+	<img src="\img\guest\2022\compute_shader\computeShaderLogicalStructure.png" width="400px" class="clean" alt="Model of a Stream Program on the GPU"/>
+
+	<p>
+		For simplicity, we increase the resolution of our texture to get a number that can be divided by 10 without a rest. Here we will have 1,000,000 pixels though need 1 million shader <def>invocations</def>.
+	</p>
+
+<pre><code>// texture size
+const unsigned int TEXTURE_WIDTH = 1000, TEXTURE_HEIGHT = 1000;
+</code></pre>
+
+	<p>
+		We can now lower the amount of <def>work groups</def> dispatches by the ratio of 10 for each dimension. This means we will execute 10,000 <def>work groups</def>.
+	</p>
+
+<pre><code>glDispatchCompute((unsigned int)TEXTURE_WIDTH/10, (unsigned int)TEXTURE_HEIGHT/10, 1);
+</code></pre>
+
+	<p>
+		If we run the program without altering the shader we will see that only 1/100 of the image will be calculated.
+	</p>
+
+	<img src="\img\guest\2022\compute_shader\outputColorAlteringDispatch.jpg" width="400px" class="clean" alt="Rendered image altered global workgroups"/>
+
+	<p>
+		To calculate the whole image again we have to adjust the <var>local_size</var> of the compute shader accordingly. Here we distribute the <def>invocations</def> as well only in 2 dimensions (X and Y). 
+	</p>	
+
+<pre><code>#version 430 core
+layout (local_size_x = 10, local_size_y = 10, local_size_z = 1) in;
+
+layout(rgba32f, binding = 0) uniform image2D imgOutput;
+
+layout (location = 0) uniform float t;                 /** Time */
+
+void main() {
+    vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    
+	float speed = 100;
+	// the width of the texture
+	float width = 1000;
+
+    value.x = mod(float(texelCoord.x) + t * speed, width) / (gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+    value.y = float(texelCoord.y)/(gl_NumWorkGroups.y*gl_WorkGroupSize.y);
+    imageStore(imgOutput, texelCoord, value);
+}
+</code></pre>
+
+	<p>
+		As seen above we have to adjust the ratio for the relative <def>texel</def> coordinate calculation. The <var>gl_NumWorkGroups</var> variable gives us the amount of the <def>local size</def> per <def>work group</def>. This makes it obvious that the amount of dimensions is the product of the amount of <def>work groups</def> times the amount of local invocations as stated in the introduction.
+	</p>
+
+<p>
+You can find the full source code for this demo <a href="/code_viewer_gh.php?code=src/8.guest/2022/5.computeshader_helloworld/computer_shader_hello_world.cpp" target="_blank">here</a>.</p>
+
+<h2>Final Words</h2>
+<p>
+		The above introduction is meant as a very simple overview of the compute shader and how to make it work. As it is not part of the render pipeline, it can get even more complicated to debug non-working shaders/programs. This implementation only shows one of the ways to manipulate data with the compute shader using <def>image access</def>. Using <def>Uniform Buffers</def> or <def>Shader Storage Buffers</def> is a more common way to manipulate geometry itself like particle or cloth simulations.
+</p>
+
+<p>
+		In upcoming following articles we will go into creating a particle simulation and deal with buffer objects to work on input data and output data after manipulation. As well as having a look on <def>Shared Memory</def> and <def>atomic operations</def>. The upcoming articles will build on these basics and go more into details of the compute shader and more complex calculations like simulations or image manipulations.
+	</p>
+
+	<h2>Exercises</h2>
+	<p>
+		<li>Check <a target="_blank" href="https://thebookofshaders.com/">The book of shaders</a> and try to apply some of the 
+		generative designs in the compute shader to get more complex calculations. Compare different ratios between
+		<def>work groups</def> and <def>local sizes</def> and see how the FPS differ.</li>
+		<li>Try to add noise/pattern parameters as uniform variables for the implementation in the first excersise.</li>
+		<li>In a later article we will go over blurring with compute shaders and compare it with the fragment shader implementations. Feel free to go ahead and try it on your own. Check the GLSL function <fun>imageLoad(image, texelCoordinate)</fun></li>
+	</p>
+
+
+	<h2>References</h2>
+	<ul>
+		<li>
+			<a target="_blank" href="https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-37-toolkit-computation-gpus" target="_blank">GPU Gems - A Toolkit for Computation on GPUs</a>
+		</li>
+		<li>
+			<a target="_blank" href="https://antongerdelan.net/opengl/compute.html">Simple Raytracer with Compute Shaders</a>
+		</li>
+	</ul>
+
+	<author>
+		<strong>Article by:</strong>
+		Jonas Sorgenfrei
+      <br/>
+		<strong>Contact:</strong>
+		<a target="_blank" href="mailto:jonas_sorgenfrei@yahoo.de">mail</a>
+	</author>
