@@ -65,21 +65,14 @@
     float EyeToVertexDistance1 = distance(viewPos, tcs_out[1].positionW);
     float EyeToVertexDistance2 = distance(viewPos, tcs_out[2].positionW);
 
-
-	// Calculate the tessellation levels
-    gl_TessLevelOuter[0] = GetTessLevel(EyeToVertexDistance1, EyeToVertexDistance2);
-    gl_TessLevelOuter[1] = GetTessLevel(EyeToVertexDistance2, EyeToVertexDistance0);
-    gl_TessLevelOuter[2] = GetTessLevel(EyeToVertexDistance0, EyeToVertexDistance1);
-    gl_TessLevelInner[0] = gl_TessLevelOuter[2];
-
-
 	// Die Tessellation Level müssen nur einem pro Patch definiert werden
-	//if(gl_InvocationID == 0){
-	//	gl_TessLevelInner[0] = TessLevelInner;
-	//	gl_TessLevelOuter[0] = TessLevelOuter;
-	//	gl_TessLevelOuter[1] = TessLevelOuter;
-	//	gl_TessLevelOuter[2] = TessLevelOuter;
-	//}
+	// Calculate the tessellation levels
+	if(gl_InvocationID == 0){
+		gl_TessLevelOuter[0] = GetTessLevel(EyeToVertexDistance1, EyeToVertexDistance2);
+		gl_TessLevelOuter[1] = GetTessLevel(EyeToVertexDistance2, EyeToVertexDistance0);
+		gl_TessLevelOuter[2] = GetTessLevel(EyeToVertexDistance0, EyeToVertexDistance1);
+		gl_TessLevelInner[0] = gl_TessLevelOuter[2];
+	}
  }
 
 /* Anmerkungen */
@@ -116,7 +109,7 @@
 
 /*
 * Bei Lines:
-* Verwendung: 4 äußeren und 2 inneren Tessellation Level
+* Verwendung: 2 äußeren und keine inneren Tessellation Level
 */
 
 

@@ -119,7 +119,7 @@ int main()
 
 	// build and compile shader program(s)
 	// ------------------------------------
-	Shader shader(FileSystem::getPath("shader/vertexShader.vs").c_str(), FileSystem::getPath("shader/fragmentShader.fs").c_str(), nullptr, FileSystem::getPath("shader/tessellationShader.tesc").c_str(), FileSystem::getPath("shader/tessellationShader.tese").c_str());
+	Shader shader(FileSystem::getPath("shader/vertexShader.vert").c_str(), FileSystem::getPath("shader/fragmentShader.frag").c_str(), nullptr, FileSystem::getPath("shader/tessellationShader.tesc").c_str(), FileSystem::getPath("shader/tessellationShader.tese").c_str());
 	
 	// load textures
 	// -------------

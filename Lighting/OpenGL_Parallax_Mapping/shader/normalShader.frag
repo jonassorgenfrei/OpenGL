@@ -56,7 +56,10 @@ vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir){
 	// depth of current layerDepth
 	float currentLayerDepth = 0.0;
 	// the amount to shift the texture coordinates per layer (from vector p)
-	vec2 P = viewDir.xy * height_scale;
+	//vec2 P = viewDir.xy * height_scale;
+
+	vec2 P = viewDir.xy / viewDir.z * height_scale;
+
 	vec2 deltaTexCoords = P / numLayers;
 
 	// get initial values 
@@ -91,7 +94,7 @@ vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir){
 	float afterDepth = currentDepthMapValue - currentLayerDepth;
 	float beforeDepth = texture(depthMap, prevTexCoords).r - currentLayerDepth + layerDepth;
 
-	// interpolation of texture coordinates
+	// interpolation of texture coordinates (Parallax Occlusion Mapping)
 	float weight = afterDepth / (afterDepth - beforeDepth);
 	vec2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
 	currentTexCoords = finalTexCoords;
@@ -165,15 +168,14 @@ void main()
 
 	// obtain normal from normal map in range [0,1]
 	vec3 normal = texture(normalMap, texCoords).rgb;
-
-    // ambient
-    vec3 ambient = 0.1 * color;
-
 	// transform normal vector to range [-1, 1]
 	normal = normalize(normal * 2.0 - 1.0);
+	
+    // ambient
+    vec3 ambient = 0.1 * color;
 
 	vec3 blinnPhong = BlinnPhong(normal, fs_in.FragPos, lightPos, color, fs_in.TangentViewPos);
 	
 	FragColor = vec4(ambient + blinnPhong, 1.0);
-	FragColor = vec4(tbn*normal,1);
+	//FragColor = vec4(tbn*normal,1);
 }

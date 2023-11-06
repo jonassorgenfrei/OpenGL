@@ -1,9 +1,27 @@
 /* 
- *	Parallax Mapping
- *		Belongs to the family of displacement mapping
- *		Displace or offset vertices based on geometrical information (stored inside a texture)
- *		Parallax Mapping -> in Tangent Space
+ *	Tesselation
+ *		Vertex-basiertes Displacement Mapping
+ *		2 Shader und eine Fixed-Function Stufe => unterteilung von Patches
+ *		Es muss mind. der Tessellation Evaluation Shader implementiert werden.
+ *		=> dynamische Erzeugung von Geometrien (nur Zusammenhangend)
+ *		Ausgabe lasst sich nicht auf vers. Layer/Viewports umleiten
+ *		Erstellung auf Grund von Kontrollpunkten, die in Patches organisiert sind
+ *		TYPISCH: Betrachterabhangige Unterteilung von Dreiecken.
+ *
+ *		Datenfluss:
+ *			ohne TCS : Tessllationsstaerke durch Standardwerte bestimmt
+ *			mit TCS : TCS kann Tessllationsstraerke steuern Vertex - Anzahlen muessen nicht uebereinstimmen(Spline Flachen)
+ *
+ *		Tessellation Primitive Generation Stufe 
+ *			Fixed-Function Stuffe - kann Menge von Primitiven nach einem vorgegebenen Muster erzeugen 
+ *			Arbeitet auf abstraketem Path
+ *
+ *		Die St‰rke der Tessellation kann innerhalb und an den Auﬂenkanten des Patches seperat gesteuert werden.
  */
+
+// USE TESSELLATION SHADER
+#define USE_TESSELLATION 1
+
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -23,30 +41,40 @@
 
 #include <iostream>
 
+
 // callbacks
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // current Mouse position 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
-void drawPlane(void);
+
 /* load texture */
 unsigned int loadTexture(const char *path, bool gammaCorrection);
-
+Mesh createTerrain(int width, int height, int nrChannels, stbi_us* data);
 void icon(GLFWwindow* window);
+
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
-float heightScale = 0.1;
+
+#if USE_TESSELLATION
+const unsigned int NUM_PATCH_PTS = 4;
+#endif
+
 bool Wpressed = false;
+bool Fpressed = false;
 bool wireframe = false;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(67.0f, 627.5f, 169.9f),
+	glm::vec3(0.0f, 1.0f, 0.0f),
+	-128.1f, -42.4f);
 float lastX = SCR_WIDTH / 2.0;
 float lastY = SCR_HEIGHT / 2.0;
 bool firstMouse = true;
+bool printFPS = false;
 
 // timing 
 float deltaTime = 0.0f; // time between current frame and last frame
@@ -57,7 +85,7 @@ int main()
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
@@ -96,84 +124,156 @@ int main()
 	}
 
 	icon(window);
+#if USE_TESSELLATION
+	GLint maxTessLevel;
+	glGetIntegerv(GL_MAX_TESS_GEN_LEVEL, &maxTessLevel);
+	std::cout << "Max available tess level: " << maxTessLevel << std::endl;
+#endif
 
 	// configure global opengl state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
 
-
 	// build and compile shader program(s)
 	// ------------------------------------
-	Shader shader(FileSystem::getPath("shader/normalShader.vert").c_str(), FileSystem::getPath("shader/normalShader.frag").c_str());
-	
+#if USE_TESSELLATION
+	Shader shader(FileSystem::getPath("shader/tessellationShader.vert").c_str(), FileSystem::getPath("shader/tessellationShader.frag").c_str(), NULL, FileSystem::getPath("shader/tessellationShader.tesc").c_str(), FileSystem::getPath("shader/tessellationShader.tese").c_str());
+#else
+	Shader shader(FileSystem::getPath("shader/vertexShader.vert").c_str(), FileSystem::getPath("shader/fragmentShader.frag").c_str());
+#endif
 	// load textures
 	// -------------
-	/* Bricks */
-	unsigned int diffuseMap = loadTexture(FileSystem::getPath("../../content/images/bricks2.jpg").c_str(),false);
-	unsigned int depthMap = loadTexture(FileSystem::getPath("../../content/images/bricks2_disp.jpg").c_str(), false); // DepthMap => inverse of the heightmap (easier to fake depth instead of height)
-	unsigned int normalMap = loadTexture(FileSystem::getPath("../../content/images/bricks2_normal.jpg").c_str(), false);
-	
+	// read in height map data
+#if USE_TESSELLATION
+	unsigned int texture = loadTexture(FileSystem::getPath("../../content/images/iceland_heightmap.png").c_str(), false);
 
-	/* Bricks */
-	/*
-	unsigned int diffuseMap = loadTexture(FileSystem::getPath("../../content/images/wood.png").c_str(),false);
-	unsigned int depthMap = loadTexture(FileSystem::getPath("../../content/images/toy_box_disp.png").c_str(), false); // DepthMap => inverse of the heightmap (easier to fake depth instead of height)
-	unsigned int normalMap = loadTexture(FileSystem::getPath("../../content/images/toy_box_normal.png").c_str(), false);
-	*/
+	int width = 2624;
+	int height = 1756;
+
+	shader.use();
+	shader.setInt("heightMap", 0);
+	shader.setVec2("texelSize", glm::vec2(1.0f/width, 1.0f/height));
+
+#else
+	stbi_set_flip_vertically_on_load(true);
+	int width, height, nrChannels;
+	stbi_us* data = stbi_load_16(FileSystem::getPath("../../content/images/iceland_heightmap.png").c_str(), &width, &height, &nrChannels, 0);
+	if (data)
+	{
+		std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+#endif
+
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
-	float planeVertices[] = {
-		// positions            // normals         // texcoords
-		-1.0f, 1.0f,  0.0f,		0.0f, 0.0f, 1.0f,  0.0f,  1.0f,
-		-1.0f, -1.0f,  0.0f,	0.0f, 0.0f, 1.0f,  0.0f,  0.0f,
-		1.0f, -1.0f, 0.0f,		0.0f, 0.0f, 1.0f,  1.0f, 0.0f,
+#if USE_TESSELLATION
+	std::vector<float> vertices;
 
-		-1.0f, 1.0f, 0.0f,		0.0f, 0.0f, 1.0f,  0.0f,  1.0f,
-		1.0f, -1.0f, 0.0f,		0.0f, 0.0f, 1.0f,  1.0f,  0.0f,
-		1.0f, 1.0f, 0.0f,		0.0f, 0.0f, 1.0f,  1.0f, 1.0f
-	};
 
-	// Setup cube VAO
-	GLuint planeVAO, planeVBO;
-	glGenVertexArrays(1, &planeVAO);
-	glGenBuffers(1, &planeVBO);
-	glBindVertexArray(planeVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
+	// input rez of grid/terrain will be 
+	unsigned int rez = 20; // generating rez*rez patches
+
+	// reserve data
+	vertices.reserve(rez * rez * (3+2)*4);
+
+	for (unsigned int i = 0; i <= rez - 1; i++)
+	{
+		for (unsigned int j = 0; j <= rez - 1; j++)
+		{
+			vertices.push_back(-height / 2.0f + height * j / (float)rez); // v.x
+			vertices.push_back(0.0f); // v.y
+			vertices.push_back(-width / 2.0f + width * i / (float)rez); // v.z
+			vertices.push_back(i / (float)rez); // u
+			vertices.push_back(j / (float)rez); // v
+
+			vertices.push_back(-height / 2.0f + height * j / (float)rez); // v.x
+			vertices.push_back(0.0f); // v.y
+			vertices.push_back(-width / 2.0f + width * (i + 1) / (float)rez); // v.z
+			vertices.push_back((i + 1) / (float)rez); // u
+			vertices.push_back(j / (float)rez); // v
+
+			vertices.push_back(-height / 2.0f + height * (j + 1) / (float)rez); // v.x
+			vertices.push_back(0.0f); // v.y
+			vertices.push_back(-width / 2.0f + width * i / (float)rez); // v.z
+			vertices.push_back(i / (float)rez); // u
+			vertices.push_back((j + 1) / (float)rez); // v
+
+			vertices.push_back(-height / 2.0f + height * (j + 1) / (float)rez); // v.x
+			vertices.push_back(0.0f); // v.y
+			vertices.push_back(-width / 2.0f + width * (i + 1) / (float)rez); // v.z
+			vertices.push_back((i + 1) / (float)rez); // u
+			vertices.push_back((j + 1) / (float)rez); // v
+}
+	}
+	std::cout << "Loaded " << rez * rez << " patches of 4 control points each" << std::endl;
+	std::cout << "Processing " << rez * rez * 4 << " vertices in vertex shader" << std::endl;
+
+	// first, configure the cube's VAO (and terrainVBO)
+	unsigned int terrainVAO, terrainVBO;
+	glGenVertexArrays(1, &terrainVAO);
+	glBindVertexArray(terrainVAO);
+
+	glGenBuffers(1, &terrainVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, terrainVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+
+	// position attribute
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+	// texCoord attribute
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(sizeof(float) * 3));
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-	glBindVertexArray(0);
 
+	// specify number of vertices that make up each of the primitives 
+	// Patch --> abstract primitive compromised of a set of n vertices
+	glPatchParameteri(GL_PATCH_VERTICES, NUM_PATCH_PTS);
+#else
+	// create vertices matching width and height of the loaded texture
+	Mesh terrain = createTerrain(width, height, nrChannels, data);
 
-	// shader configuration
-	// --------------------
-	shader.use();
-	shader.setInt("diffuseMap", 0);
-	shader.setInt("normalMap", 1);
-	shader.setInt("depthMap", 2);
+	// release the image data
+	stbi_image_free(data);
 
-	// lighting info
-	// -------------
-	glm::vec3 lightPos(0.5f, 1.0f, 0.3f);
+	const int numStrips = (height - 1) ;
+	const int numTrisPerStrip = (width) * 2 - 2;
+#endif
 
+	int frameCount = 0;
+	double previousTime = glfwGetTime();
 	// render loop
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
+		// wireframe
 		glPolygonMode(GL_FRONT_AND_BACK, (wireframe) ? GL_LINE : GL_FILL);
 
-		//glEnable(GL_CULL_FACE);
-		//glCullFace(GL_BACK);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
 
 		// Set frame time
 		GLfloat currentFrame = glfwGetTime();
-		deltaTime = currentFrame - lastFrame;
+		deltaTime = currentFrame - lastFrame; // time per frame 
 		lastFrame = currentFrame;
+
+		// fps
+		if (printFPS) {
+			frameCount++;
+			// If a second has passed.
+			if (currentFrame - previousTime >= 1.0)
+			{
+				std::cout << "FPS:" << frameCount << std::endl;
+				frameCount = 0;
+				previousTime = currentFrame;
+			}
+		} else {
+			frameCount = 0;
+			previousTime = glfwGetTime();
+		}
 
 		// Check and call events
 		processInput(window);
@@ -184,45 +284,32 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		shader.use();
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (GLfloat)SCR_WIDTH / (GLfloat)SCR_HEIGHT, 0.1f, 100.0f);
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (GLfloat)SCR_WIDTH / (GLfloat)SCR_HEIGHT, 0.1f, 100000.0f);
 		shader.setMat4("projection", projection);
 		shader.setMat4("view", camera.GetViewMatrix());
 
 		glm::mat4 model(1.0f);
-		model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show parallax mapping from multiple directions
-		//model = glm::rotate(model, glm::radians((float)-90), glm::vec3(-1.0, 0.0, 0.0));
+		//model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
 		shader.setMat4("model", model);
-		// set Eye 
-		shader.setVec3("viewPos", camera.Position);
-		shader.setVec3("lightPos", lightPos);
-		shader.setFloat("height_scale", heightScale);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, diffuseMap);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, normalMap);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, depthMap);
-
-		drawPlane();
-
-		// render light source (simply re-renders a smaller plane at the light's position for debugging/visualization)
-		model = glm::mat4(1.0);
 		
-		model = glm::translate(model, lightPos);
-		model = glm::scale(model, glm::vec3(0.1f));
-		shader.setMat4("model", model);
-		drawPlane();
+		// render the terrain 
+#if USE_TESSELLATION
+		glBindVertexArray(terrainVAO);
+		// draw patches
+		// patches will be size of 4 and amount will be mutliplied by rez*rez 
+		glDrawArrays(GL_PATCHES, 0, NUM_PATCH_PTS* rez* rez);
+#else
+		glBindVertexArray(terrain.VAO);
 		
-		// Floor 
-		/*glBindVertexArray(planeVAO);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, diffuseMap);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, normalMap);
-		glDrawArrays(GL_TRIANGLES, 0, 6);*/
-
-
+		// height -1 draw calls
+		for (unsigned int strip = 0; strip < numStrips; strip++)
+		{
+			glDrawElements(GL_TRIANGLE_STRIP,   // primitive type
+				numTrisPerStrip + 2,   // number of indices to render
+				GL_UNSIGNED_INT,     // index data type
+				(void*)(sizeof(unsigned int) * (numTrisPerStrip + 2) * strip)); // offset to starting index
+		}
+#endif
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
 		glfwSwapBuffers(window);
@@ -231,8 +318,10 @@ int main()
 
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
-	glDeleteVertexArrays(1, &planeVAO);
-	glDeleteBuffers(1, &planeVBO);;
+#if USE_TESSELLATION
+	glDeleteVertexArrays(1, &terrainVAO);
+	glDeleteBuffers(1, &terrainVBO);
+#endif
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
@@ -240,122 +329,11 @@ int main()
 	return 0;
 }
 
-// renders a 1x1 quad in NDC with manually calculated tangent vectors
-// ------------------------------------------------------------------
-unsigned int quadVAO = 0;
-unsigned int quadVBO;
-void drawPlane() {
-	if (quadVAO == 0) {
-		// positions
-		glm::vec3 pos1(-1.0, 1.0, 0.0);
-		glm::vec3 pos2(-1.0, -1.0, 0.0);
-		glm::vec3 pos3(1.0, -1.0, 0.0);
-		glm::vec3 pos4(1.0, 1.0, 0.0);
-
-		// texture coordinates
-		glm::vec2 uv1(0.0, 1.0);
-		glm::vec2 uv2(0.0, 0.0);
-		glm::vec2 uv3(1.0, 0.0);
-		glm::vec2 uv4(1.0, 1.0);
-
-		// normal vector
-		glm::vec3 nm(0.0, 0.0, 1.0);
-
-		// calculate tangent/bitangent vectors of both triangles 
-		glm::vec3 tangent1, bitangent1;
-		glm::vec3 tangent2, bitangent2;
-
-		// triangle 1
-		// ----------
-		// calculating first triangle's edges and delta UV coordinates.
-		glm::vec3 edge1 = pos2 - pos1;
-		glm::vec3 edge2 = pos3 - pos1;
-		glm::vec2 deltaUV1 = uv2 - uv1;
-		glm::vec2 deltaUV2 = uv3 - uv1;
-
-		// calculating tangents and bitangents
-		//pre-calculate fractional part of the equation
-		float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-
-		tangent1.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-		tangent1.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-		tangent1.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-		tangent1 = glm::normalize(tangent1); // make sure it ends up as unit vector
-
-		bitangent1.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-		bitangent1.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-		bitangent1.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-		bitangent1 = glm::normalize(bitangent1); // make sure it ends up as unit vector
-
-		// triangle 2
-		// ----------
-		// calculating first triangle's edges and delta UV coordinates.
-		edge1 = pos3 - pos1;
-        edge2 = pos4 - pos1;
-        deltaUV1 = uv3 - uv1;
-        deltaUV2 = uv4 - uv1;
-
-		// calculating tangents and bitangents
-		//pre-calculate fractional part of the equation
-		f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-
-		tangent2.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-		tangent2.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-		tangent2.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-		tangent2 = glm::normalize(tangent2); // make sure it ends up as unit vector
-
-		bitangent2.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-		bitangent2.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-		bitangent2.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-		bitangent2 = glm::normalize(bitangent2); // make sure it ends up as unit vector
-
-		float quadVertices[] = {
-			// positions            // normal         // texcoords  // tangent                          // bitangent
-			pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-			pos2.x, pos2.y, pos2.z, nm.x, nm.y, nm.z, uv2.x, uv2.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-
-			pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-			pos4.x, pos4.y, pos4.z, nm.x, nm.y, nm.z, uv4.x, uv4.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z
-		};
-
-		// configure plane VAO
-		glGenVertexArrays(1, &quadVAO);
-		glGenBuffers(1, &quadVBO);
-		glBindVertexArray(quadVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE, 14*sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3*sizeof(float)));
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(8 * sizeof(float)));
-		glEnableVertexAttribArray(4);
-		glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(11 * sizeof(float)));
-	}
-	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
-
-}
-
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {	
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-		Wpressed = true;
-	}
-
-	if (Wpressed && glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) {
-		Wpressed = false;
-		wireframe = !wireframe;
-	}
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
@@ -368,21 +346,28 @@ void processInput(GLFWwindow *window)
 		glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
 	}
 
-	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-		if (heightScale > 0.0f) {
-			heightScale -= 0.0005f;
-		}
-		else {
-			heightScale = 0.0f;
-		}
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+		Wpressed = true;
 	}
-	else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-		if (heightScale < 1.0f) {
-			heightScale += 0.0005f;
-		} else {
-			heightScale = 1.0f;
-		}
+
+	if (Wpressed && glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) {
+		Wpressed = false;
+		wireframe = !wireframe;
 	}
+
+	if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
+		Fpressed = true;
+	}
+
+	if (Fpressed && glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
+		Fpressed = false;
+		if (!printFPS) {
+			std::cout << "PRINT FPS" << std::endl;
+		}
+
+		printFPS = !printFPS;
+	}
+
 }
 
 // glfw: whenever the mouse moves, this callback is called
@@ -476,6 +461,60 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	
 }
 
+Mesh createTerrain(int width, int height, int nrChannels, stbi_us* data) {
+
+	// time intensive O(n2) & memory intensive ~72mb 
+	// fixed resolution
+	std::vector<Vertex> vertices;
+	// reserve data
+	vertices.reserve(height * width*sizeof(Vertex));
+
+	float yScale = 64.0f / 256.0f, yShift = 16.0f;
+	unsigned int bytePerPixel = nrChannels;
+	for (int i = 0; i < height; i++)
+	{
+		for (int j = 0; j < width; j++)
+		{
+			stbi_us* texel = data + (j + width * i) * bytePerPixel;	// calculating the pointer offset
+			const stbi_us y = *texel; // derefernce the pointer to a value, use first channel, convert short to 
+
+			Vertex vertex;
+
+			vertex.Position.x = -width / 2.0f + j;   // vx
+			vertex.Position.y = (float)y*0.0025f * yScale - yShift;   // vy
+			vertex.Position.z = -height / 2.0f + i;   // vz
+
+			vertices.push_back(vertex);
+		}
+	}
+	std::cout << "Loaded " << vertices.size() / 3 << " vertices" << std::endl;
+
+	// create mesh as triangle stripes
+	std::vector<unsigned int> indices;
+	for (unsigned int i = 0; i < height - 1; i += 1)
+	{
+		for (unsigned int j = 0; j < width; j += 1)
+		{
+			for (unsigned int k = 0; k < 2; k++)
+			{
+				indices.push_back(j + width * (i + k));
+			}
+		}
+	}
+	std::cout << "Loaded " << indices.size() << " indices" << std::endl;
+
+	const int numStrips = (height - 1);
+	const int numTrisPerStrip = (width) * 2 - 2;
+	std::cout << "Created lattice of " << numStrips << " strips with " << numTrisPerStrip << " triangles each" << std::endl;
+	std::cout << "Created " << numStrips * numTrisPerStrip << " triangles total" << std::endl;
+
+	std::vector<Texture> tex = std::vector<Texture>();
+
+	return Mesh(vertices, indices, tex);
+}
+
+
+
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
@@ -503,7 +542,7 @@ unsigned int loadTexture(char const *path, bool gammaCorrection)
 	glGenTextures(1, &textureID);
 
 	int width, height, nrComponents;
-	unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+	stbi_us *data = stbi_load_16(path, &width, &height, &nrComponents, 0);
 	if (data)
 	{
 		GLenum internalFormat;
@@ -521,7 +560,8 @@ unsigned int loadTexture(char const *path, bool gammaCorrection)
 		}
 
 		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // support non-power-of-two heightmap textures
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_SHORT, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);

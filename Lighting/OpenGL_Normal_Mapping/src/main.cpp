@@ -106,7 +106,7 @@ int main()
 
 	// build and compile shader program(s)
 	// ------------------------------------
-	Shader shader(FileSystem::getPath("shader/normalShader.vs").c_str(), FileSystem::getPath("shader/normalShader.fs").c_str());
+	Shader shader(FileSystem::getPath("shader/normalShader.vert").c_str(), FileSystem::getPath("shader/normalShader.frag").c_str());
 	
 	// load textures
 	// -------------

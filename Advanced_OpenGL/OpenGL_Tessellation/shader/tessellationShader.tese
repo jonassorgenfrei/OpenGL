@@ -61,6 +61,18 @@
  }
  
  void main() {
+	/*
+	 * Bei Quads:
+	 * gl_TessCoord stellt eine 2D Koordinante zur bilinearen Interpolation bereit
+	 */
+
+	/*
+	 * Bei Lines:
+	 * gl_TessCoord stellt eine 2D Koordinante bereit (X definiert die Position auf der Linie und Y left die Linie Fest)
+	 */
+	// float u = gl_TessCoord.x; // Geht bayrizentrische Tessellierungs-Koordinaten (u,V)
+	// float v = gl_TessCoord.y;
+
 	// Interpolate the attributes of the output vertex using the barycentric coordinates
 	tes_out.texCoords = interpolate2D(tes_in[0].texCoords, tes_in[1].texCoords, tes_in[2].texCoords);
 	tes_out.normal = interpolate3D(tes_in[0].normal, tes_in[1].normal, tes_in[2].normal);
@@ -71,12 +83,13 @@
 	float Displacement = 1-texture(depthMap, tes_out.texCoords.xy).x;
 	tes_out.positionW += tes_out.normal * Displacement * gDispFactor;
 
-	gl_Position = projection * view * vec4(tes_out.positionW,1.0);
+	gl_Position = projection * view * vec4(tes_out.positionW,1.0); // gibt modifizierte Position aus; (Berechnung in Weltkoord.)
  }
 
  /*
 	//aus altern. Quelle
 	void main() {
+		
 		float u = gl_TessCoord.x; // Geht bayrizentrische Tessellierungs-Koordinaten (u,V)
 		float v = gl_TessCoord.y;
 
@@ -85,19 +98,11 @@
 
 		vec4 position = mix(tmp1, tmp2, v);
 		// modify position (extrude along normal ... )
-		gl_Position = projection * view * model * position;	// gibt modifizierte Position aus; (Berechnung in Weltkoord.)
+		gl_Position = projection * view * model * position;	
 	}
  */
 
 
-	/*
-	 * Bei Quads:
-	 * gl_TessCoord stellt eine 2D Koordinante zur bilinearen Interpolation bereit
-	 */
-
-	/*
-	 * Bei Lines:
-	 * gl_TessCoord stellt eine 2D Koordinante bereit (X definiert die Position auf der Linie und Y left die Linie Fest)
-	 */
+	
 	 
 

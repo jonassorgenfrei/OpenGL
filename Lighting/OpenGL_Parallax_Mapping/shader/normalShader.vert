@@ -46,19 +46,22 @@ void main() {
 	// re-orthogonalize T with respect to N
 	T = normalize(T - dot(T, N)*N);
 	vec3 B = cross(N,T);
+	
+	// vec3 B = normalize(vec3(model*vec4(aBitangent, 0.0)));			// transform to coord. System to work in (WORLD SPACE)
 
 	/* TBN must form a right handed orrd system
 	 * Some models have symetric UVs. Check and fixed
 	 */
-	if (dot(cross(N, T), B) < 0.0)
-                T = T * -1.0;
+	if (dot(cross(N, T), B) < 0.0) {
+		T = T * -1.0;
+	}
 
 	//vec3 B = normalize(vec3(model*vec4(aBitangent, 0.0)));		// transform to coord. System to work in (WORLD SPACE) 
 	mat3 TBN = transpose(mat3(T,B,N)); // same like inverse, cause orthogonal matrix: transpose == inverse. Calc transpose is faster
 	tbn = TBN;
 	vs_out.TangentLightPos = TBN * lightPos; // for parallax mapping important to be in tangent space
 	vs_out.TangentViewPos = TBN * viewPos; // for parallax mapping important to be in tangent space
-	vs_out.TangentFragPos = TBN * vec3(model * vec4(aPos, 0.0));
+	vs_out.TangentFragPos = TBN * vs_out.FragPos;
 
 	gl_Position = projection * view * model * vec4(aPos, 1.0);
 }
