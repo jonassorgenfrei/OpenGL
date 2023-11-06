@@ -3,7 +3,7 @@ OpenGL-Collection
 
 Sammmlung von OpenGL Implementation.
 
-CMAKE > 3.3 benoetigt
+CMAKE > 4.3 benoetigt
 
 Benoetigte Bibliotheken:
 
