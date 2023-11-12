@@ -1,6 +1,6 @@
 # CMake Test File GLFW
 # Minimum CMake Version
-cmake_minimum_required (VERSION 3.3)
+cmake_minimum_required (VERSION 3.15)
 # Project Name
 project(MODEL_ADVANCED)
 

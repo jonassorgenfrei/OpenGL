@@ -1,6 +1,6 @@
 # CMake Test File GLFW
 # Minimum CMake Version
-cmake_minimum_required (VERSION 3.3)
+cmake_minimum_required (VERSION 3.15)
 # Project Name
 project(NORMAL_MAPPING)
 
@@ -52,7 +52,7 @@ message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIR}")
 
 # ASSIMP
 find_package(ASSIMP REQUIRED)					
-message(STATUS "Found ASSIMP in ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES}")
+message(STATUS "Found ASSIMP in ${ASSIMP_ROOT_DIR}/${ASSIMP_LIBRARIES}")
 
 # GLAD
 IF(DEFINED ENV{glad_DIR}) 
@@ -82,7 +82,7 @@ include_directories( ${OPENGL_INCLUDE_DIR}
 
 # WINDOWS SYSTEM
 if(WIN32)
-	set(LIBS ${GLFW3_LIBRARY_DIRS} opengl32 ${ASSIMP_LIBRARY_DIRS}/${ASSIMP_LIBRARIES})
+	set(LIBS ${GLFW3_LIBRARY_DIRS} opengl32 ${ASSIMP_LIBRARIES})
 
 	# nicht ZERO_CHECK bauen
 	set(CMAKE_SUPPRESS_REGENERATION true)

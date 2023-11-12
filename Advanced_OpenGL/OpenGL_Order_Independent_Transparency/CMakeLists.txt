@@ -2,7 +2,7 @@
 # Minimum CMake Version
 cmake_minimum_required (VERSION 3.15)
 # Project Name
-project(Model)
+project(Order_Independent_Transparency)
 
 # Output Dir
 set(RuntimeOutputDir ${CMAKE_CURRENT_SOURCE_DIR}/build)
@@ -52,7 +52,7 @@ message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIR}")
 
 # ASSIMP
 find_package(ASSIMP REQUIRED)					
-message(STATUS "Found ASSIMP in ${ASSIMP_ROOT_DIR}/${ASSIMP_LIBRARIES}")
+message(STATUS "Found ASSIMP in ${ASSIMP_ROOT_DIR}")
 
 # GLAD
 IF(DEFINED ENV{glad_DIR}) 
