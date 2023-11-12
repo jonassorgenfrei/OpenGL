@@ -1,5 +1,7 @@
 /* 
 	Geometry Shader 
+	Using geometry shading leads to increased memory bandwidth. This reduces both performance and energy efficiency.
+
 	-> shapes dynamical generated on the ultra fast GPU
 	-> optimization for simple often repeating shapes
 	-> examples: cubes in voxel World/Grass leaves on a large outdoor field

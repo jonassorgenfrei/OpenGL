@@ -1,6 +1,27 @@
 /* 
- *	Order Independent Transparency
+ *	Tesselation
+ *		Vertex-basiertes Displacement Mapping
+ *		2 Shader und eine Fixed-Function Stufe => unterteilung von Patches
+ *		Es muss mind. der Tessellation Evaluation Shader implementiert werden.
+ *		=> dynamische Erzeugung von Geometrien (nur Zusammenhangend)
+ *		Ausgabe lasst sich nicht auf vers. Layer/Viewports umleiten
+ *		Erstellung auf Grund von Kontrollpunkten, die in Patches organisiert sind
+ *		TYPISCH: Betrachterabhangige Unterteilung von Dreiecken.
+ *
+ *		Datenfluss:
+ *			ohne TCS : Tessllationsstaerke durch Standardwerte bestimmt
+ *			mit TCS : TCS kann Tessllationsstraerke steuern Vertex - Anzahlen muessen nicht uebereinstimmen(Spline Flachen)
+ *
+ *		Tessellation Primitive Generation Stufe 
+ *			Fixed-Function Stuffe - kann Menge von Primitiven nach einem vorgegebenen Muster erzeugen 
+ *			Arbeitet auf abstraketem Path
+ *
+ *		Die St‰rke der Tessellation kann innerhalb und an den Auﬂenkanten des Patches seperat gesteuert werden.
  */
+
+// USE TESSELLATION SHADER
+#define USE_TESSELLATION 1
+
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -28,8 +49,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 
-glm::mat4 calculate_model_matrix(const glm::vec3& position, const glm::vec3& rotation = glm::vec3(0.0f), const glm::vec3& scale = glm::vec3(1.0f));
-
+/* load texture */
+unsigned int loadTexture(const char *path, bool gammaCorrection);
+Mesh createTerrain(int width, int height, int nrChannels, stbi_us* data);
 void icon(GLFWwindow* window);
 
 
@@ -37,10 +59,18 @@ void icon(GLFWwindow* window);
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
-int Fpressed = 0;
+#if USE_TESSELLATION
+const unsigned int NUM_PATCH_PTS = 4;
+#endif
+
+bool Wpressed = false;
+bool Fpressed = false;
+bool wireframe = false;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 5.0f));
+Camera camera(glm::vec3(67.0f, 627.5f, 169.9f),
+	glm::vec3(0.0f, 1.0f, 0.0f),
+	-128.1f, -42.4f);
 float lastX = SCR_WIDTH / 2.0;
 float lastY = SCR_HEIGHT / 2.0;
 bool firstMouse = true;
@@ -55,7 +85,6 @@ int main()
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();
-	// needs opengl 4.0 to use blending to multiple render targets
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -95,122 +124,124 @@ int main()
 	}
 
 	icon(window);
+#if USE_TESSELLATION
+	GLint maxTessLevel;
+	glGetIntegerv(GL_MAX_TESS_GEN_LEVEL, &maxTessLevel);
+	std::cout << "Max available tess level: " << maxTessLevel << std::endl;
+#endif
 
 	// configure global opengl state
 	// -----------------------------
 	/* DEPTH BUFFER */
-	//glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 
 	// build and compile shader program(s)
 	// ------------------------------------
-	Shader solidShader(FileSystem::getPath("shader/solid.vert").c_str(), FileSystem::getPath("shader/solid.frag").c_str());
-	Shader transparentShader(FileSystem::getPath("shader/transparent.vert").c_str(), FileSystem::getPath("shader/transparent.frag").c_str());
-	Shader compositeShader(FileSystem::getPath("shader/composite.vert").c_str(), FileSystem::getPath("shader/composite.frag").c_str());
-	Shader screenShader(FileSystem::getPath("shader/screen.vert").c_str(), FileSystem::getPath("shader/screen.frag").c_str());
+#if USE_TESSELLATION
+	Shader shader(FileSystem::getPath("shader/tessellationShader.vert").c_str(), FileSystem::getPath("shader/tessellationShader.frag").c_str(), NULL, FileSystem::getPath("shader/tessellationShader.tesc").c_str(), FileSystem::getPath("shader/tessellationShader.tese").c_str());
+#else
+	Shader shader(FileSystem::getPath("shader/vertexShader.vert").c_str(), FileSystem::getPath("shader/fragmentShader.frag").c_str());
+#endif
+	// load textures
+	// -------------
+	// read in height map data
+#if USE_TESSELLATION
+	unsigned int texture = loadTexture(FileSystem::getPath("../../content/images/iceland_heightmap.png").c_str(), false);
+
+	int width = 2624;
+	int height = 1756;
+
+	shader.use();
+	shader.setInt("heightMap", 0);
+	shader.setVec2("texelSize", glm::vec2(1.0f/width, 1.0f/height));
+
+#else
+	stbi_set_flip_vertically_on_load(true);
+	int width, height, nrChannels;
+	stbi_us* data = stbi_load_16(FileSystem::getPath("../../content/images/iceland_heightmap.png").c_str(), &width, &height, &nrChannels, 0);
+	if (data)
+	{
+		std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+#endif
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
-	
-	// define quad structure
-	float quadVertices[] = {
-		// positions		// uv
-		-1.0f, -1.0f, 0.0f,	0.0f, 0.0f,
-		 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-		 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+#if USE_TESSELLATION
+	std::vector<float> vertices;
 
-		 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-		-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-		-1.0f, -1.0f, 0.0f, 0.0f, 0.0f
-	};
-	
-	// quad VAO
-	unsigned int quadVAO, quadVBO;
-	glGenVertexArrays(1, &quadVAO);
-	glGenBuffers(1, &quadVBO);
-	glBindVertexArray(quadVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+	// input rez of grid/terrain will be 
+	unsigned int rez = 20; // generating rez*rez patches
+
+	// reserve data
+	vertices.reserve(rez * rez * (3+2)*4);
+
+	for (unsigned int i = 0; i <= rez - 1; i++)
+	{
+		for (unsigned int j = 0; j <= rez - 1; j++)
+		{
+			vertices.push_back(-height / 2.0f + height * j / (float)rez); // v.x
+			vertices.push_back(0.0f); // v.y
+			vertices.push_back(-width / 2.0f + width * i / (float)rez); // v.z
+			vertices.push_back(i / (float)rez); // u
+			vertices.push_back(j / (float)rez); // v
+
+			vertices.push_back(-height / 2.0f + height * j / (float)rez); // v.x
+			vertices.push_back(0.0f); // v.y
+			vertices.push_back(-width / 2.0f + width * (i + 1) / (float)rez); // v.z
+			vertices.push_back((i + 1) / (float)rez); // u
+			vertices.push_back(j / (float)rez); // v
+
+			vertices.push_back(-height / 2.0f + height * (j + 1) / (float)rez); // v.x
+			vertices.push_back(0.0f); // v.y
+			vertices.push_back(-width / 2.0f + width * i / (float)rez); // v.z
+			vertices.push_back(i / (float)rez); // u
+			vertices.push_back((j + 1) / (float)rez); // v
+
+			vertices.push_back(-height / 2.0f + height * (j + 1) / (float)rez); // v.x
+			vertices.push_back(0.0f); // v.y
+			vertices.push_back(-width / 2.0f + width * (i + 1) / (float)rez); // v.z
+			vertices.push_back((i + 1) / (float)rez); // u
+			vertices.push_back((j + 1) / (float)rez); // v
+}
+	}
+	std::cout << "Loaded " << rez * rez << " patches of 4 control points each" << std::endl;
+	std::cout << "Processing " << rez * rez * 4 << " vertices in vertex shader" << std::endl;
+
+	// first, configure the cube's VAO (and terrainVBO)
+	unsigned int terrainVAO, terrainVBO;
+	glGenVertexArrays(1, &terrainVAO);
+	glBindVertexArray(terrainVAO);
+
+	glGenBuffers(1, &terrainVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, terrainVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+
+	// position attribute
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);	// define positions
+	// texCoord attribute
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(sizeof(float) * 3));
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));	// define uvs
-	glBindVertexArray(0);	// unbined vertex array
 
-	// set up framebuffers and their texture attachments
-	// ------------------------------------------------------------------
-	unsigned int opaqueFBO, transparentFBO;
-	glGenFramebuffers(1, &opaqueFBO);
-	glGenFramebuffers(1, &transparentFBO);
+	// specify number of vertices that make up each of the primitives 
+	// Patch --> abstract primitive compromised of a set of n vertices
+	glPatchParameteri(GL_PATCH_VERTICES, NUM_PATCH_PTS);
+#else
+	// create vertices matching width and height of the loaded texture
+	Mesh terrain = createTerrain(width, height, nrChannels, data);
 
-	// set up attachments for opaque/solid framebuffer color & depth buffer
-	// it's possible to use a backbuffer instead or a single framebugger with four attachments all together
-	// (opaque, accumulation, revealage, depth) and render to differnt render targets at each pass
-	unsigned int opaqueTexture;
-	glGenTextures(1, &opaqueTexture);
-	glBindTexture(GL_TEXTURE_2D, opaqueTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_HALF_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	// release the image data
+	stbi_image_free(data);
 
-	unsigned int depthTexture;
-	glGenTextures(1, &depthTexture);
-	glBindTexture(GL_TEXTURE_2D, depthTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glBindTexture(GL_TEXTURE_2D, 0);	// unbinde texture
-
-	glBindFramebuffer(GL_FRAMEBUFFER, opaqueFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, opaqueTexture, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
-	
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "ERROR::FRAMEBUFFER:: Opaque framebuffer is not complete!" << std::endl;
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0); // unbined Framebuffer
-
-	// set up attachments for transparent framebuffer 2 color buffers
-	unsigned int accumTexture;
-	glGenTextures(1, &accumTexture);
-	glBindTexture(GL_TEXTURE_2D, accumTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_HALF_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	unsigned int revealTexture;
-	glGenTextures(1, &revealTexture);
-	glBindTexture(GL_TEXTURE_2D, revealTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, transparentFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, accumTexture, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, revealTexture, 0);
-	// attach opaque framebuffer's depth texture to transparent framebugger to utilize it for depth testing
-	// when rendering the transparent surfaces
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0); 
-
-	const GLenum transparentDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-	glDrawBuffers(2, transparentDrawBuffers);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "ERROR::FRAMEBUFFER:: Transparent framebuffer is not complete!" << std::endl;
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0); // unbined Framebuffer
-
-	// set up transformation matrices
-	// ------------------------------------------------------------------
-	// set z axis arbitraily as the rendering ins order-independent
-	glm::mat4 redModelMat = calculate_model_matrix(glm::vec3(0.0f, 0.0f, -1.0f));
-	glm::mat4 greenModelMat = calculate_model_matrix(glm::vec3(0.0f, 0.0f, 0.0f));
-	glm::mat4 blueModelMat = calculate_model_matrix(glm::vec3(0.0f, 0.0f, 2.0f));
-
-	// set up intermediate variables
-	// ------------------------------------------------------------------
-	glm::vec4 zeroFillerVec(0.0f);
-	glm::vec4 oneFillerVec(1.0f);
+	const int numStrips = (height - 1) ;
+	const int numTrisPerStrip = (width) * 2 - 2;
+#endif
 
 	int frameCount = 0;
 	double previousTime = glfwGetTime();
@@ -218,9 +249,12 @@ int main()
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
-		//glEnable(GL_CULL_FACE);
-		//glCullFace(GL_BACK);
-	
+		// wireframe
+		glPolygonMode(GL_FRONT_AND_BACK, (wireframe) ? GL_LINE : GL_FILL);
+
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+
 		// Set frame time
 		GLfloat currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame; // time per frame 
@@ -241,119 +275,41 @@ int main()
 			previousTime = glfwGetTime();
 		}
 
-		// camera matrices
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-		glm::mat4 view = camera.GetViewMatrix();
-		glm::mat4 vp = projection * view;
-
-
 		// Check and call events
 		processInput(window);
 
 		// render
 		// ------
-
-		// draw solid objects (solid pass)
-		// ------
-		
-		// configure render states
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);	// reset depth function
-		glDepthMask(GL_TRUE);	// reset depth mask
-		glDisable(GL_BLEND);
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-		// bind opaque framebuffer to render solid objects
-		glBindFramebuffer(GL_FRAMEBUFFER, opaqueFBO);
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// DRAW SOLID OBJECTS (with alpha cut outs)
+		shader.use();
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (GLfloat)SCR_WIDTH / (GLfloat)SCR_HEIGHT, 0.1f, 100000.0f);
+		shader.setMat4("projection", projection);
+		shader.setMat4("view", camera.GetViewMatrix());
 
-		// use solid shader
-		solidShader.use();
-
-		// draw red quad
-		solidShader.setMat4("mvp", vp * redModelMat);
-		solidShader.setVec3("color", glm::vec3(1.0f, 0.0f, 0.0f));
-		glBindVertexArray(quadVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		// draw transparent objects (transparent pass)
-		// -----
-
-		// configure render states
-		glDepthMask(GL_FALSE);
-		glEnable(GL_BLEND);
-		glBlendFunci(0, GL_ONE, GL_ONE); // blend func: GL_ONE, GL_ONE
-		glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR); // blend func: GL_ZERO, GL_ONE_MINUS_SRC_ALPHA
-		glBlendEquation(GL_FUNC_ADD);
-
-		// bind transparent framebuffer to render transparent objects
-		glBindFramebuffer(GL_FRAMEBUFFER, transparentFBO);
-		glClearBufferfv(GL_COLOR, 0, &zeroFillerVec[0]);	// clear accum color buffer to 0 
-		glClearBufferfv(GL_COLOR, 1, &oneFillerVec[0]);		// clear reveal color buffer to 1 
-
-		// use transparent shader
-		transparentShader.use();
-
-		// render surfaces in any order to render targets
-
-		// draw green quad
-		transparentShader.setMat4("mvp", vp * greenModelMat);
-		transparentShader.setVec4("color", glm::vec4(0.0f, 1.0f, 0.0f, 0.5f));
-		glBindVertexArray(quadVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		// draw blue quad
-		transparentShader.setMat4("mvp", vp * blueModelMat);
-		transparentShader.setVec4("color", glm::vec4(0.0f, 0.0f, 1.0f, 0.5f));
-		glBindVertexArray(quadVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		// draw composite image (composite pass)
-		// -----
-
-		// set render states
-		glDepthFunc(GL_ALWAYS);	// overwriting the solid buffer, so depth function should always pass
-		glEnable(GL_BLEND);	// using opengl's color blending featue
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // blend func: GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA
-
-		// bind opaque framebuffer
-		glBindFramebuffer(GL_FRAMEBUFFER, opaqueFBO);
-
-		// use composite shader
-		compositeShader.use();
-
-		// draw screen quad
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, accumTexture);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, revealTexture);
-		glBindVertexArray(quadVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		// draw to backbuffer (final pass)
-		// -----
-
-		// set render states
-		glDisable(GL_DEPTH_TEST);
-		glDepthMask(GL_TRUE); // enable depth writes so glClear won't ignore clearing the depth buffer
-		glDisable(GL_BLEND);
-
-		// bind backbuffer
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-		// use screen shader
-		screenShader.use();
-
-		// draw final screen quad (with overwritten depth buffer color)
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, opaqueTexture);
-		glBindVertexArray(quadVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
+		glm::mat4 model(1.0f);
+		//model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+		shader.setMat4("model", model);
+		
+		// render the terrain 
+#if USE_TESSELLATION
+		glBindVertexArray(terrainVAO);
+		// draw patches
+		// patches will be size of 4 and amount will be mutliplied by rez*rez 
+		glDrawArrays(GL_PATCHES, 0, NUM_PATCH_PTS* rez* rez);
+#else
+		glBindVertexArray(terrain.VAO);
+		
+		// height -1 draw calls
+		for (unsigned int strip = 0; strip < numStrips; strip++)
+		{
+			glDrawElements(GL_TRIANGLE_STRIP,   // primitive type
+				numTrisPerStrip + 2,   // number of indices to render
+				GL_UNSIGNED_INT,     // index data type
+				(void*)(sizeof(unsigned int) * (numTrisPerStrip + 2) * strip)); // offset to starting index
+		}
+#endif
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
 		glfwSwapBuffers(window);
@@ -362,19 +318,15 @@ int main()
 
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
-	glDeleteVertexArrays(1, &quadVAO);
-	glDeleteBuffers(1, &quadVBO);
-	glDeleteTextures(1, &opaqueTexture);
-	glDeleteTextures(1, &depthTexture);
-	glDeleteTextures(1, &accumTexture);
-	glDeleteTextures(1, &revealTexture);
-	glDeleteFramebuffers(1, &opaqueFBO);
-	glDeleteFramebuffers(1, &transparentFBO);
+#if USE_TESSELLATION
+	glDeleteVertexArrays(1, &terrainVAO);
+	glDeleteBuffers(1, &terrainVBO);
+#endif
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
 	glfwTerminate();
-	return EXIT_SUCCESS;
+	return 0;
 }
 
 
@@ -394,6 +346,14 @@ void processInput(GLFWwindow *window)
 		glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
 	}
 
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+		Wpressed = true;
+	}
+
+	if (Wpressed && glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) {
+		Wpressed = false;
+		wireframe = !wireframe;
+	}
 
 	if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
 		Fpressed = true;
@@ -554,20 +514,6 @@ Mesh createTerrain(int width, int height, int nrChannels, stbi_us* data) {
 }
 
 
-// generate a model matrix
-// ---------------------------------------------------------------------------------------------------------
-glm::mat4 calculate_model_matrix(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
-{
-	glm::mat4 trans = glm::mat4(1.0f);
-
-	trans = glm::translate(trans, position);
-	trans = glm::rotate(trans, glm::radians(rotation.x), glm::vec3(1.0, 0.0, 0.0));
-	trans = glm::rotate(trans, glm::radians(rotation.y), glm::vec3(0.0, 1.0, 0.0));
-	trans = glm::rotate(trans, glm::radians(rotation.z), glm::vec3(0.0, 0.0, 1.0));
-	trans = glm::scale(trans, scale);
-
-	return trans;
-}
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
@@ -585,6 +531,54 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
+// utility function for loading a 2D texture from file
+// ---------------------------------------------------
+unsigned int loadTexture(char const *path, bool gammaCorrection)
+{
+	/*
+	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
+	 */
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+
+	int width, height, nrComponents;
+	stbi_us *data = stbi_load_16(path, &width, &height, &nrComponents, 0);
+	if (data)
+	{
+		GLenum internalFormat;
+		GLenum dataFormat;
+		if (nrComponents == 1) {
+			internalFormat = dataFormat = GL_RED;
+		}
+		else if (nrComponents == 3) {
+			internalFormat = (gammaCorrection) ? GL_SRGB : GL_RGB;	// GL_SRGB => OpenGL will correct image to linear color space
+			dataFormat = GL_RGB;
+		}
+		else if (nrComponents == 4) {
+			internalFormat = (gammaCorrection) ? GL_SRGB_ALPHA : GL_RGBA; // GL_SRGB_ALPHA => OpenGL will correct image to linear color space
+			dataFormat = GL_RGBA;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // support non-power-of-two heightmap textures
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_SHORT, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		stbi_image_free(data);
+	}
+	else
+	{
+		std::cout << "Texture failed to load at path: " << path << std::endl;
+		stbi_image_free(data);
+	}
+
+	return textureID;
+}
 
 void icon(GLFWwindow* window) {
 	//GLFW ICON

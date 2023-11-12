@@ -2,7 +2,7 @@
 # Minimum CMake Version
 cmake_minimum_required (VERSION 3.15)
 # Project Name
-project(GEOMETRY_SHADER)
+project(Skeletal_Animation)
 
 # Output Dir
 set(RuntimeOutputDir ${CMAKE_CURRENT_SOURCE_DIR}/build)
