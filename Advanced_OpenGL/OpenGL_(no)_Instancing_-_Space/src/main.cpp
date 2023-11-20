@@ -106,12 +106,12 @@ int main()
 
 	// generate a large list of semi-random model transformation matrices
 	// ------------------------------------------------------------------
-	unsigned int amount = 1000;
+	unsigned int amount = 100000;
 	glm::mat4* modelMatrices;
 	modelMatrices = new glm::mat4[amount];
 	srand(glfwGetTime()); // initialize random seed	
-	float radius = 50.0;
-	float offset = 2.5f;
+	float radius = 60.0;
+	float offset = 10.0f;
 	for (unsigned int i = 0; i < amount; i++)
 	{
 		glm::mat4 model(1.0f);
@@ -136,7 +136,8 @@ int main()
 		// 4. now add to list of matrices
 		modelMatrices[i] = model;
 	}
-
+	int frameCount = 0;
+	double previousTime = glfwGetTime();
 	// render loop
 	// -----------
 	while (!glfwWindowShouldClose(window))
@@ -146,6 +147,16 @@ int main()
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
+
+		// fps
+		frameCount++;
+		// If a second has passed.
+		if (currentFrame - previousTime >= 1.0)
+		{
+			std::cout << "FPS:" << frameCount << std::endl;
+			frameCount = 0;
+			previousTime = currentFrame;
+		}
 
 		// input
 		// -----

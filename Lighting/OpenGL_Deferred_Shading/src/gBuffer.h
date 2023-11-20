@@ -76,8 +76,8 @@ class GBuffer {
 
 			// explicitly tell OpenGl which color attachments to be used (of. FB)
 			// enable writing to all four textures
-			//GLenum drawBuffer[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
-			//glDrawBuffers(sizeof(drawBuffer)/sizeof(drawBuffer[0]), drawBuffer); // supplying array if attchment locations 
+			GLenum drawBuffer[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
+			glDrawBuffers(sizeof(drawBuffer)/sizeof(drawBuffer[0]), drawBuffer); // supplying array if attchment locations 
 
 			// finally check if FB is complete
 			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -130,29 +130,29 @@ class GBuffer {
 		/**
 		 * Binds the textures as a target during the geometry pass
 		 */
-		/*	void bindForWriting() {
+		void bindForWriting() {
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
-		};*/
+		};
 
 		/**
 		 * Binds the FBOs as input so its contents can be dumped to the screen
 		 */
-		/*void bindForReading() {
+		void bindForReading() {
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
-		};*/
+		};
 
 		void setReadBuffer(GBUFFER_TEXTURE_TYPE TextureType)
 		{
 			glReadBuffer(GL_COLOR_ATTACHMENT0 + TextureType);
 		}
 
-		/*void bindForReadingTex() {
+		void bindForReadingTex() {
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // disconnecting it from the GL_DRAW_FRAMEBUFFER (binding default FB)
 			for (unsigned int i = 0; i < sizeof(m_textures) / sizeof(m_textures[0]); i++) {
 				glActiveTexture(GL_TEXTURE0 + i); // Binding default 3 textures
 				glBindTexture(GL_TEXTURE_2D, m_textures[GBUFFER_TEXTURE_TYPE_POSITION]+i);
 			}
-		}*/
+		}
 
 	private:
 		GLuint m_fbo;

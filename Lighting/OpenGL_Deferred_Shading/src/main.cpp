@@ -2,8 +2,8 @@
  *	Deferred Shading
  */
 
-#define LEARNOPENGL 1
-#define DEBUG_DEFFERED 0
+#define LEARNOPENGL 0 // 0 ogldev | 1 learnogl
+#define DEBUG_DEFFERED 1 // only works with ogldev
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -36,8 +36,8 @@ void renderSphere();
 void icon(GLFWwindow* window);
 
 // settings
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
+const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_HEIGHT = 600;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 5.0f));
@@ -57,7 +57,7 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	// Resizable Window ?
+	// Resizable Window 
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
 #ifdef __APPLE__
@@ -102,18 +102,16 @@ int main()
 
 	// build and compile shader program(s)
 	// ------------------------------------
-	Shader gBufferShader(FileSystem::getPath("shader/gBufferShader.vs").c_str(), FileSystem::getPath("shader/gBufferShader.fs").c_str());
-	Shader lightingPassShader(FileSystem::getPath("shader/lightingPassShader.vs").c_str(), FileSystem::getPath("shader/lightingPassShader.fs").c_str());
+	Shader gBufferShader(FileSystem::getPath("shader/gBufferShader.vert").c_str(), FileSystem::getPath("shader/gBufferShader.frag").c_str());
+	Shader lightingPassShader(FileSystem::getPath("shader/lightingPassShader.vert").c_str(), FileSystem::getPath("shader/lightingPassShader.frag").c_str());
 	Shader shaderLightBox(FileSystem::getPath("shader/lightBox.vs").c_str(), FileSystem::getPath("shader/lightBox.fs").c_str());
-	
 	Shader pointLightShader(FileSystem::getPath("shader/pointLightShader.vs").c_str(), FileSystem::getPath("shader/pointLightShader.fs").c_str());
 	Shader dirLightShader(FileSystem::getPath("shader/dirLightShader.vs").c_str(), FileSystem::getPath("shader/dirLightShader.fs").c_str());
-
 	Shader stencilTestShader(FileSystem::getPath("shader/stencilTestShader.vs").c_str(), FileSystem::getPath("shader/stencilTestShader.fs").c_str());
 
 	// load models
 	// -----------
-	Model nanosuit(FileSystem::getPath("../../content/models/nanosuit/nanosuit.obj").c_str());
+	Model object(FileSystem::getPath("../../content/models/nanosuit/nanosuit.obj").c_str());
 	std::vector<glm::vec3> objectPositions;
 	objectPositions.push_back(glm::vec3(-3.0, -3.0, -3.0));
 	objectPositions.push_back(glm::vec3(0.0, -3.0, -3.0));
@@ -124,6 +122,21 @@ int main()
 	objectPositions.push_back(glm::vec3(-3.0, -3.0, 3.0));
 	objectPositions.push_back(glm::vec3(0.0, -3.0, 3.0));
 	objectPositions.push_back(glm::vec3(3.0, -3.0, 3.0));
+	
+
+	/*Model object(FileSystem::getPath("../../content/models/backpack/backpack.obj").c_str());
+	std::vector<glm::vec3> objectPositions;
+	objectPositions.push_back(glm::vec3(-3.0, -0.5, -3.0));
+	objectPositions.push_back(glm::vec3(0.0, -0.5, -3.0));
+	objectPositions.push_back(glm::vec3(3.0, -0.5, -3.0));
+	objectPositions.push_back(glm::vec3(-3.0, -0.5, 0.0));
+	objectPositions.push_back(glm::vec3(0.0, -0.5, 0.0));
+	objectPositions.push_back(glm::vec3(3.0, -0.5, 0.0));
+	objectPositions.push_back(glm::vec3(-3.0, -0.5, 3.0));
+	objectPositions.push_back(glm::vec3(0.0, -0.5, 3.0));
+	objectPositions.push_back(glm::vec3(3.0, -0.5, 3.0));
+	*/
+
 	
 	// load textures
 	// -------------
@@ -141,8 +154,8 @@ int main()
 	glBindTexture(GL_TEXTURE_2D, gPosition);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL); // RGB only 3 Channels !
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
 
 	// normal color buffer
 	glGenTextures(1, &gNormal);
@@ -187,7 +200,7 @@ int main()
 
 	// lighting info
 	// -------------
-	const unsigned int NR_LIGHTS = 120;
+	const unsigned int NR_LIGHTS = 32;
 	std::vector<glm::vec3> lightPositions;
 	std::vector<glm::vec3> lightColors;
 	srand(13);
@@ -195,15 +208,15 @@ int main()
 	for (unsigned int i = 0; i < NR_LIGHTS; i++)
 	{
 		// calculate slightly random offsets
-		float xPos = ((rand() % 100) / 100.0) * 6.0 - 3.0;
-		float yPos = ((rand() % 100) / 100.0) * 6.0 - 4.0;
-		float zPos = ((rand() % 100) / 100.0) * 6.0 - 3.0;
-		lightPositions.push_back(glm::vec3(xPos, yPos, zPos));
-		// also calculate random color
-		float rColor = ((rand() % 100) / 200.0f) + 0.5; // between 0.5 and 1.0
-		float gColor = ((rand() % 100) / 200.0f) + 0.5; // between 0.5 and 1.0
-		float bColor = ((rand() % 100) / 200.0f) + 0.5; // between 0.5 and 1.0
-		lightColors.push_back(glm::vec3(rColor, gColor, bColor));
+        float xPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 3.0);
+        float yPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 4.0);
+        float zPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 3.0);
+        lightPositions.push_back(glm::vec3(xPos, yPos, zPos));
+        // also calculate random color
+        float rColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.)
+        float gColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.)
+        float bColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.)
+        lightColors.push_back(glm::vec3(rColor, gColor, bColor));
 	}
 
 	// shader configuration
@@ -218,11 +231,12 @@ int main()
 	while (!glfwWindowShouldClose(window))
 	{
 		// Back-Face Culling
-		//glEnable(GL_CULL_FACE);
-		//glCullFace(GL_BACK);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
 		glFrontFace(GL_CCW);
+		// 
 		// Set frame time
-		GLfloat currentFrame = glfwGetTime();
+		auto currentFrame = static_cast<float>(glfwGetTime());
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
@@ -237,6 +251,7 @@ int main()
 		// ------
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		// 1. geometry pass: render all geometric/color data to g-buffer
 #if LEARNOPENGL
 		//learnopenGl
@@ -275,22 +290,22 @@ int main()
 				model = glm::translate(model, objectPositions[i]);
 				model = glm::scale(model, glm::vec3(0.25f));
 				gBufferShader.setMat4("model", model);
-				nanosuit.Draw(gBufferShader);
+				object.Draw(gBufferShader);
 			}
 #if !LEARNOPENGL and !DEBUG_DEFFERED
 			// When we get here the depth buffer is already populated and the stencil pass
 			// depends on it, but it does not write to it.
 			glDepthMask(GL_FALSE);
 
-			//glDisable(GL_DEPTH_TEST); // manipulated elsewhere
+			glDisable(GL_DEPTH_TEST); // manipulated elsewhere
 
 #endif
+			glBindFramebuffer(GL_FRAMEBUFFER, 0); // DrawFramebuffer
 
-		// 2. lighting pass: use g-buffer to calculate the scene's lighting
-		//glBindFramebuffer(GL_FRAMEBUFFER, 0); // DrawFramebuffer
-		//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			// 2. lighting pass: use g-buffer to calculate the scene's lighting
 #if LEARNOPENGL
+			
 			//learnopengl.com
 			/*
 				Problem unnessary Function calls
@@ -355,24 +370,24 @@ int main()
 	//OpenGLDev
 	#if DEBUG_DEFFERED
 			// draw 4 GBuffer Textures as quads on full screen
-			gBuffer.BindForReading(); // SOURCE FBO to be bound to GL_READ_FRAMEBUFFER
+			gBuffer.bindForReading(); // SOURCE FBO to be bound to GL_READ_FRAMEBUFFER
 
 			GLsizei HalfWidth = (GLsizei)(SCR_WIDTH / 2.0f);
 			GLsizei HalfHeight = (GLsizei)(SCR_HEIGHT / 2.0f);
 			/* copy from the G buffer textures into the screen */
-			gBuffer.SetReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_POSITION); // Bind specific texture to GL_READ_BUFFER (only can copy from a single Texture at a time)
+			gBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_POSITION); // Bind specific texture to GL_READ_BUFFER (only can copy from a single Texture at a time)
 			glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, // SRC_RECTANGLE
 				0, 0, HalfWidth, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);// Destination Rectangle; SRC {Color, Depth or Stenticle Buffer}; Handle possible scaling {GL_NEAREST, GL_LINEAR (only for GL_COLOR_BUFFER_BIT)}
 
-			gBuffer.SetReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_ALBEDOSPEC);
+			gBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_ALBEDOSPEC);
 			glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT,
 				0, HalfHeight, HalfWidth, SCR_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-			gBuffer.SetReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_NORMAL);
+			gBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_NORMAL);
 			glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT,
 				HalfWidth, HalfHeight, SCR_WIDTH, SCR_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-			gBuffer.SetReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_TEXCOORD);
+			gBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_TEXCOORD);
 			glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT,
 				HalfWidth, 0, SCR_WIDTH, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 	#else 

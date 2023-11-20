@@ -95,7 +95,7 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader shader(FileSystem::getPath("shader/instance_shader.vs").c_str(), FileSystem::getPath("shader/instance_shader.fs").c_str());
+	Shader shader(FileSystem::getPath("shader/instance_shader.vert").c_str(), FileSystem::getPath("shader/instance_shader.frag").c_str());
 	
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes

@@ -137,7 +137,7 @@ int main()
 	}
 
 	// configure instanced array
-   // -------------------------
+    // -------------------------
 	unsigned int buffer;
 	glGenBuffers(1, &buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
@@ -161,6 +161,10 @@ int main()
 		glEnableVertexAttribArray(6);
 		glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
 
+		// by setting this attribute to 1 we're telling OpenGL that we want to update 
+		// the content of the vertex attribute when we start to render a new instance.
+		// By setting it to 2 we'd update the content every 2 instances and so on. 
+		// By setting the attribute divisor to 1 we're effectively telling OpenGL that the vertex attribute at attribute location 2 is an instanced array.
 		glVertexAttribDivisor(3, 1);
 		glVertexAttribDivisor(4, 1);
 		glVertexAttribDivisor(5, 1);
@@ -168,7 +172,8 @@ int main()
 
 		glBindVertexArray(0);
 	}
-\
+	int frameCount = 0;
+	double previousTime = glfwGetTime();
 	// render loop
 	// -----------
 	while (!glfwWindowShouldClose(window))
@@ -178,6 +183,18 @@ int main()
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
+
+		// fps
+		frameCount++;
+		// If a second has passed.
+		if (currentFrame - previousTime >= 1.0)
+		{
+			std::cout << "FPS:" << frameCount << std::endl;
+			frameCount = 0;
+			previousTime = currentFrame;
+		}
+
+
 		// input
 		// -----
 		processInput(window);

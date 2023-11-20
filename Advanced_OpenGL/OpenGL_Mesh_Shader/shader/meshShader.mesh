@@ -1,0 +1,124 @@
+#version 450
+#extension GL_NV_mesh_shader : require
+layout(local_size_x=1) in; // normally  a highe value like 32
+layout(max_vertices=5, max_primitives=4) out;  // recommended 64 & 126
+layout(triangles) out; // triangles/lines/points
+
+layout(location=0) out InterpolantsV {
+    vec3 color;
+    //flat vec3 colorF;
+} OUTV[];
+
+layout(location=1) __perprimitiveNV out InterpolantsP {
+    vec3 color;
+    //flat vec3 colorF;
+} OUTP[];
+
+// BUILD IN VARIABLES
+
+// new output vars
+
+//out gl_MeshPerVertexNV {
+//    vec4 gl_Position;
+//    float gl_PointSize;
+//    float gl_ClipDistance[];
+//    float gl_CullDistance[];
+//} gl_MeshVerticesNV[]; // [max_vertices]
+
+//__perprimitiveNV out gl_MeshPerPrimitive {
+//    int gl_PrimitiveID;
+//    int gl_Layer;
+//    int gl_ViewportIndex;
+//    int gl_ViewportMask;
+//} // [max_primitives]
+
+//out uint gl_PrimitiveCountNV;
+//out uint gl_PrimitiveIndicesNV[]; // its actually uint8
+
+// If we don't redeclare gl_PerVertex, compilation fails with the following error:
+// error C7592: ARB_separate_shader_objects requires built-in block gl_PerVertex to be redeclared before accessing its members
+//out gl_PerVertex {
+//    vec4 gl_Position;
+//} gl_Why;
+
+void main()
+{
+    gl_MeshVerticesNV[0].gl_Position = vec4(-1.0, -1.0, 0.0, 1.0); // Upper Left
+    gl_MeshVerticesNV[1].gl_Position = vec4( 1.0, -1.0, 0.0, 1.0); // Upper Right
+    gl_MeshVerticesNV[2].gl_Position = vec4( 0.0,  0.0, 0.0, 1.0); // center
+    gl_MeshVerticesNV[3].gl_Position = vec4(-1.0,  1.0, 0.0, 1.0); // Bottom Left
+    gl_MeshVerticesNV[4].gl_Position = vec4( 1.0,  1.0, 0.0, 1.0); // Bottom Right
+
+    gl_MeshPrimitivesNV[0].gl_PrimitiveID=0;
+    gl_MeshPrimitivesNV[1].gl_PrimitiveID=1;
+    gl_MeshPrimitivesNV[2].gl_PrimitiveID=2;
+    gl_MeshPrimitivesNV[3].gl_PrimitiveID=3;
+
+    OUTV[0].color = vec3(1,0,0);
+    OUTV[1].color = vec3(0,1,0);
+    OUTV[2].color = vec3(0,0,1);
+    OUTV[3].color = vec3(1,0,1);
+    OUTV[4].color = vec3(1,1,1);
+
+    OUTP[0].color = vec3(1,0,0);
+    OUTP[1].color = vec3(0,1,0);
+    OUTP[2].color = vec3(0,0,1);
+    OUTP[3].color = vec3(1,0,1);
+
+    // triangle 01
+    gl_PrimitiveIndicesNV[0] = 0;
+    gl_PrimitiveIndicesNV[1] = 1;
+    gl_PrimitiveIndicesNV[2] = 2;
+    // triangle 02
+    gl_PrimitiveIndicesNV[3] = 2;
+    gl_PrimitiveIndicesNV[4] = 1;
+    gl_PrimitiveIndicesNV[5] = 4;
+    // triangle 03
+    gl_PrimitiveIndicesNV[6] = 2;
+    gl_PrimitiveIndicesNV[7] = 4;
+    gl_PrimitiveIndicesNV[8] = 3;
+    // triangle 04
+    gl_PrimitiveIndicesNV[9] =  2;
+    gl_PrimitiveIndicesNV[10] = 3;
+    gl_PrimitiveIndicesNV[11] = 0;
+
+    gl_PrimitiveCountNV = 4;
+}
+
+//void main()
+//{
+//    gl_MeshVerticesNV[0].gl_Position = vec4(-1.0, -1.0, 0.0, 1.0); // Upper Left
+//    gl_MeshVerticesNV[1].gl_Position = vec4( 1.0, -1.0, 0.0, 1.0); // Upper Right
+//    gl_MeshVerticesNV[2].gl_Position = vec4( 0.0,  0.0, 0.0, 1.0); // center
+//    gl_MeshVerticesNV[3].gl_Position = vec4(-1.0,  1.0, 0.0, 1.0); // Bottom Left
+//    gl_MeshVerticesNV[4].gl_Position = vec4( 1.0,  1.0, 0.0, 1.0); // Bottom Right
+//    // triangle 01
+//    gl_PrimitiveIndicesNV[0] = 0;
+//    gl_PrimitiveIndicesNV[1] = 1;
+//    gl_PrimitiveIndicesNV[2] = 2;
+//    // triangle 02
+//    gl_PrimitiveIndicesNV[3] = 1;
+//    gl_PrimitiveIndicesNV[4] = 4;
+//    gl_PrimitiveIndicesNV[5] = 2;
+//
+//    gl_PrimitiveCountNV = 4;
+//}
+//
+
+//void main()
+//{
+//    uint invocation = gl_LocalInvocationID.x;
+//    uvec4 info = meshinfos[gl_WorkGroupID.x]; // #verts, vertoffset, #prims, primoffset
+//    uint vertex = min(invocation, info.x - 1);
+//    gl_MeshVerticesNV[invocation].gl_Position = texelFetch(texVbo, info.y + vertex);
+//    myout[invocation].normal = = texelFetch(texNormal, info.y + vertex).xyz;
+//
+//    uint prim = min(invocation, infoz - 1);
+//    uint topology = texelFetch(texTopology, info.w + prim);
+//    //alternative utiity function exists to write packed 4x8
+//    gl_PrimitiveIndicesNV[invocation * 3 + 0] = (topology<<0) & 0xFF;
+//    gl_PrimitiveIndicesNV[invocation * 3 + 1] = (topology<<8) & 0xFF;
+//    gl_PrimitiveIndicesNV[invocation * 3 + 2] = (topology<<16) & 0xFF;
+//    gl_PrimitiveCountNV = info.z; // define amount of triangles (actually on thread enough)
+//}
+//
