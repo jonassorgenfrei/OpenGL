@@ -210,7 +210,6 @@ int main()
 		// draw one work group with the starting index being 0. 
 		glDrawMeshTasksNV(0, 1);
 
-
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
 		glfwSwapBuffers(window);
