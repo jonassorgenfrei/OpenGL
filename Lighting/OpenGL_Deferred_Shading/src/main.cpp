@@ -5,6 +5,8 @@
 #define LEARNOPENGL 0 // 0 ogldev | 1 learnogl
 #define DEBUG_DEFFERED 1 // only works with ogldev
 
+#define GLM_FORCE_SILENT_WARNINGS 1
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -41,8 +43,8 @@ const unsigned int SCR_HEIGHT = 600;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 5.0f));
-float lastX = SCR_WIDTH / 2.0;
-float lastY = SCR_HEIGHT / 2.0;
+double lastX = SCR_WIDTH / 2.0;
+double lastY = SCR_HEIGHT / 2.0;
 bool firstMouse = true;
 
 // timing 
@@ -602,7 +604,7 @@ void renderSphere()
 
 		const unsigned int X_SEGMENTS = 64;
 		const unsigned int Y_SEGMENTS = 64;
-		const float PI = 3.14159265359;
+		const float PI = 3.14159265359f;
 		for (unsigned int y = 0; y <= Y_SEGMENTS; ++y)
 		{
 			for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
@@ -640,7 +642,7 @@ void renderSphere()
 			}
 			oddRow = !oddRow;
 		}
-		indexCount = indices.size();
+		indexCount = (unsigned int)indices.size();
 
 		std::vector<float> data;
 		for (int i = 0; i < positions.size(); ++i)
@@ -665,7 +667,7 @@ void renderSphere()
 		glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), &data[0], GL_STATIC_DRAW);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
-		float stride = (3 + 2 + 3) * sizeof(float);
+		GLsizei stride = (3 + 2 + 3) * sizeof(float);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
 		glEnableVertexAttribArray(1);
@@ -795,7 +797,7 @@ void processInput(GLFWwindow *window)
 		glfwSetWindowShouldClose(window, true);
 
 	float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
-
+	(void)cameraSpeed;
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
 		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
@@ -818,13 +820,13 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 			firstMouse = false;
 		}
 
-		float xoffset = xpos - lastX;
-		float yoffset = lastY - ypos;
+		double xoffset = xpos - lastX;
+		double yoffset = lastY - ypos;
 		// reversed since y-coordinates range from bottom to top
 		lastX = xpos;
 		lastY = ypos;
 
-		camera.rotate(xoffset, yoffset);
+		camera.rotate((float)xoffset, (float)yoffset);
 	} 
 
 	//Moving 
@@ -837,25 +839,25 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 			firstMouse = false;
 		}
 
-		float xoffset = xpos - lastX;
-		float yoffset = lastY - ypos;
+		double xoffset = xpos - lastX;
+		double yoffset = lastY - ypos;
 		// reversed since y-coordinates range from bottom to top
 		lastX = xpos;
 		lastY = ypos;
 
 		//camera.ProcessMouseMovement(xoffset, yoffset);
 		if (xoffset > 0) {
-			camera.translate(LEFT, xoffset*0.05);
+			camera.translate(LEFT, (float)xoffset*0.05f);
 		}
 		else {
-			camera.translate(RIGHT, xoffset*-0.05);
+			camera.translate(RIGHT, (float)xoffset*-0.05f);
 		}
 
 		if (yoffset > 0) {
-			camera.translate(DOWN, yoffset*0.05);
+			camera.translate(DOWN, (float)yoffset*0.05f);
 		}
 		else {
-			camera.translate(UP, yoffset*-0.05);
+			camera.translate(UP, (float)yoffset*-0.05f);
 		}
 	}
 	
@@ -869,18 +871,18 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 			firstMouse = false;
 		}
 
-		float xoffset = xpos - lastX;
+		double xoffset = xpos - lastX;
 		//float yoffset = lastY - ypos;
 		// reversed since y-coordinates range from bottom to top
 		lastX = xpos;
 		//lastY = ypos;
 
 		//camera.ProcessMouseMovement(xoffset, yoffset);
-		if (xoffset > 0) {
-			camera.translate(FORWARD, xoffset*0.05);
+		if (xoffset > 0.0) {
+			camera.translate(FORWARD, (float)xoffset*0.05f);
 		}
 		else {
-			camera.translate(BACKWARD, xoffset*-0.05);
+			camera.translate(BACKWARD, (float)xoffset*-0.05f);
 		}
 	}
 
@@ -899,7 +901,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	camera.ProcessMouseScroll(yoffset);
+	(void)window;
+	(void)xoffset;
+	camera.ProcessMouseScroll((float)yoffset);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -908,6 +912,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	// make sure the viewport matches the new window dimensions; note that width and 
 	// height will be significantly larger than specified on retina displays.
+	(void)window;
 	glViewport(0, 0, width, height);
 }
 
@@ -925,8 +930,8 @@ unsigned int loadTexture(char const *path, bool gammaCorrection)
 	unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
 	if (data)
 	{
-		GLenum internalFormat;
-		GLenum dataFormat;
+		GLenum internalFormat = NULL;
+		GLenum dataFormat = NULL;
 		if (nrComponents == 1) {
 			internalFormat = dataFormat = GL_RED;
 		}
@@ -939,15 +944,16 @@ unsigned int loadTexture(char const *path, bool gammaCorrection)
 			dataFormat = GL_RGBA;
 		}
 
-		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
+		if (internalFormat && dataFormat){
+			glBindTexture(GL_TEXTURE_2D, textureID);
+			glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
+			glGenerateMipmap(GL_TEXTURE_2D);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		}
 		stbi_image_free(data);
 	}
 	else

@@ -62,8 +62,8 @@ public:
         const char * fShaderCode = fragmentCode.c_str();
         // 2. compile shaders
         unsigned int vertex, fragment;
-        int success;
-        char infoLog[512];
+        //int success;
+        //char infoLog[512];
         // vertex shader
         vertex = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(vertex, 1, &vShaderCode, NULL);
@@ -75,7 +75,7 @@ public:
         glCompileShader(fragment);
         checkCompileErrors(fragment, "FRAGMENT");
 		// if geometry shader is given, compile geometry shader
-		unsigned int geometry;
+		unsigned int geometry = NULL;
 		if (geometryPath != nullptr)
 		{
 			const char * gShaderCode = geometryCode.c_str();
@@ -88,7 +88,7 @@ public:
         ID = glCreateProgram();
         glAttachShader(ID, vertex);
         glAttachShader(ID, fragment);
-		if (geometryPath != nullptr)
+		if (geometryPath != nullptr && geometry)
 			glAttachShader(ID, geometry);
         glLinkProgram(ID);
         checkCompileErrors(ID, "PROGRAM");
