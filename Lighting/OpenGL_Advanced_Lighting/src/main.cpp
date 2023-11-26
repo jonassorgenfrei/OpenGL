@@ -42,7 +42,10 @@ const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 //Light Model
 bool blinn = false;
+bool orenNayar = false;
 bool blinnKeyPressed = false;
+bool orenNayarKeyPressed = false;
+float diffuseRoughness = 0.5f;
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 float lastX = SCR_WIDTH / 2.0;
@@ -107,7 +110,7 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader shader(FileSystem::getPath("shader/blinnPhongShader.vs").c_str(), FileSystem::getPath("shader/blinnPhongShader.fs").c_str());
+	Shader shader(FileSystem::getPath("shader/blinnPhongShader.vert").c_str(), FileSystem::getPath("shader/blinnPhongShader.frag").c_str());
 	
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
@@ -175,6 +178,8 @@ int main()
 		shader.setVec3("viewPos", camera.Position);
 		shader.setVec3("lightPos", lightPos);
 		shader.setInt("blinn", blinn);
+		shader.setInt("orenNayar", orenNayar);
+		shader.setFloat("diffuseRoughness", diffuseRoughness);
 
 		// Floor 
 		glBindVertexArray(planeVAO);
@@ -225,6 +230,18 @@ void processInput(GLFWwindow *window)
 	{
 		blinnKeyPressed = false;
 	}
+
+	if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS && !orenNayarKeyPressed)
+	{
+		orenNayar = !orenNayar;
+		orenNayarKeyPressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_O) == GLFW_RELEASE)
+	{
+		orenNayarKeyPressed = false;
+	}
+
+	
 }
 
 // glfw: whenever the mouse moves, this callback is called
@@ -322,7 +339,11 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	camera.ProcessMouseScroll(yoffset);
+	
+	diffuseRoughness += 0.05 * yoffset;
+	diffuseRoughness = min(1.0f, max(diffuseRoughness, 0.0f));
+	//camera.ProcessMouseScroll(yoffset);
+	std::cout << diffuseRoughness << std::endl;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
