@@ -45,7 +45,7 @@ class GBuffer {
 		bool init(unsigned int WindowWidth, unsigned int WindowHeight) {
 			// Create the FBO
 			glGenFramebuffers(1, &m_fbo);
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
+			glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
 			
 			// create gBuffer Textures
 			glGenTextures(sizeof(m_textures) / sizeof(m_textures[0]), m_textures);
@@ -57,7 +57,7 @@ class GBuffer {
 				// creates the storage area of the texture (without initializing it)
 				glBindTexture(GL_TEXTURE_2D, m_textures[i]);
 					//if texture id is ALBEDOSPEC using RGBA
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, WindowWidth, WindowHeight, 0, (i == GBUFFER_TEXTURE_TYPE_ALBEDOSPEC) ? GL_RGBA : GL_RGB, GL_FLOAT, NULL);
+				glTexImage2D(GL_TEXTURE_2D, 0, (i == GBUFFER_TEXTURE_TYPE_ALBEDOSPEC) ? GL_RGBA32F : GL_RGB32F, WindowWidth, WindowHeight, 0, (i == GBUFFER_TEXTURE_TYPE_ALBEDOSPEC) ? GL_RGBA : GL_RGB, GL_FLOAT, NULL);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // prevents unnecessary interpolation between the texels that might create some fine distortions
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 				// attaches the texture to the FBO as a target
@@ -71,7 +71,7 @@ class GBuffer {
 		
 			//final 
 			glBindTexture(GL_TEXTURE_2D, m_finalTexture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WindowWidth, WindowHeight, 0, GL_RGB, GL_FLOAT, NULL);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WindowWidth, WindowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, m_finalTexture, 0); // attacht to number 4
 
 			// explicitly tell OpenGl which color attachments to be used (of. FB)
@@ -109,14 +109,16 @@ class GBuffer {
 		};
 		void bindForStencilPass() {
 			// must disable the draw buffers
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
 			glDrawBuffer(GL_NONE);
 			// avoid garbaging the final buffer with a black image of the bounding sphere!
 		};
 		void bindForLightPass() {
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
 			glDrawBuffer(GL_COLOR_ATTACHMENT4);
 			for (unsigned int i = 0; i < sizeof(m_textures) / sizeof(m_textures[0]); i++) {
 				glActiveTexture(GL_TEXTURE0 + i); // Binding default 3 textures
-				glBindTexture(GL_TEXTURE_2D, m_textures[GBUFFER_TEXTURE_TYPE_POSITION] + i);
+				glBindTexture(GL_TEXTURE_2D, m_textures[GBUFFER_TEXTURE_TYPE_POSITION + i]);
 			}
 		};
 		void bindForFinalPass() {

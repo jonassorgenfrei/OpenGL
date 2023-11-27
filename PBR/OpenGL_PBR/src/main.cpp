@@ -5,7 +5,8 @@
  *  SHADED_STATE 1 - texture shaded
  */
 
-#define SHADED_STATE 1
+#define SHADED_STATE 0
+
 #if SHADED_STATE == 1
 	/*
 	 * 0 - rustedIron
@@ -205,7 +206,7 @@ int main()
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		// Set frame time
 		GLfloat currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
@@ -615,8 +616,8 @@ void renderSphere()
 		std::vector<glm::vec3> normals;
 		std::vector<unsigned int> indices;
 
-		const unsigned int X_SEGMENTS = 4;
-		const unsigned int Y_SEGMENTS = 4;
+		const unsigned int X_SEGMENTS = 36;
+		const unsigned int Y_SEGMENTS = 36;
 		const float PI = 3.14159265359;
 		for (unsigned int y = 0; y <= Y_SEGMENTS; ++y)
 		{

@@ -19,7 +19,7 @@
   * 1 - IRRADIANCE MAP
   * 2 - PREFILTER (Spec IBL) MAP
   */
-#define RENDER_ENV_MAP 0
+#define RENDER_ENV_MAP 2
 
 /**
  * Mipmap level to sample from cubemap 
@@ -629,7 +629,7 @@ int main()
 #elif RENDER_ENV_MAP == 1
 		glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap); // display irradiance map
 #elif RENDER_ENV_MAP == 2
-		backgroundShader.setMat4("mipmap", RENDER_ENV_PREFILTER_MIPMAP);
+		backgroundShader.setFloat("mipmap", RENDER_ENV_PREFILTER_MIPMAP);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap); // display prefilter map
 #endif // !RENDER_ENV_MAP == 1
 		renderCube();
