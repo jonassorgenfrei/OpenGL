@@ -1,0 +1,315 @@
+#version 430 core
+
+// ----------------------------------------------------------------------------
+//
+// Makros
+//
+// ----------------------------------------------------------------------------
+
+#define NUM_LIGHTS 100            /**< max count of lights */
+#define NUM_FRUSTUM_SIDES 4       /**< max sides of the  Frusta */
+#define NUM_DEBUG_POSITIONS 24    /**< number of positions for Debugging,
+                                       that are used per tile */
+#define DEBUGGING                 /**< compile debugging informationen  */
+
+// ----------------------------------------------------------------------------
+//
+// Workgroup-Definition
+//
+// ----------------------------------------------------------------------------
+
+layout (local_size_x = NUM_LIGHTS) in;
+
+// ----------------------------------------------------------------------------
+//
+// Typen
+//
+// ----------------------------------------------------------------------------
+
+/**
+ * @brief Punktlichtquelle mit isotroper Abstrahlung
+ *
+ * Parameter einer Punkt-Lichtquelle mit isotroper Abstrahlung. Die Punktlichtquellen werden über ein Buffer Object
+ * an den Shader übergeben. Deswegen gibt es dieses struct auch im Host-Code. Die Speicherrepräsentation der structs
+ * ist aufeinander abgestimmt und muss bei einer Änderung berücksichtigt werden.
+ */
+struct PointLight {
+    vec3 position;              /**< Position der Lichtquelle */
+    float radius;               /**< Radius der Lichtquelle */
+    vec4 color;                 /**< Anteil der Lichtquelle an der diffusen Beleuchtung */
+};
+
+// ----------------------------------------------------------------------------
+//
+// Uniforms
+//
+// ----------------------------------------------------------------------------
+
+/**
+ * @brief Buffer für die Lichtquellen
+ *
+ * In diesem Buffer werden die Informationen zu den Lichtquellen gespeichert. Im Host
+ * gibt es eine C-Repräsentation des structs PointLight, die an das Speicherlayout für
+ * Uniform (und auch Shader Storage Buffer) angepasst ist.
+ *
+ * @remarks Dieser Buffer wird auch vom Shaderprogramm "Main" verwendet. Es muss darauf
+ *          geachtet werden, dass der binding-Punkt übereinstimmt.
+ */
+layout (std430, binding = 0) buffer LightsBuffer {
+    PointLight lights[];
+};
+
+/**
+ * @brief Buffer für die Indizes der sichtbaren Lichtquellen
+ *
+ * In diesem Buffer wird für jede einzelne Kachel gespeichert, welche Lichtquellen den
+ * Pyramidenstumpf der Kachel überlappen.
+ *
+ * Layout:
+ *
+ * Kachel 1                    Kachel 2
+ * |                           |
+ * v                           v
+ * +---+---+---+---+-------+---+-------
+ * | N | 0 | 1 | 2 | ...   | K | ...
+ * +---+---+---+---+-------+---+-------
+ *
+ * Für jede Kachel wird zuerst die Anzahl der Lichtquellen (N) und anschließend ihre
+ * Indizes (0..) gespeichert. Die Kapazität für jede Kachel ist gleich der Anzahl der
+ * Lichtquellen insgesamt. So muss nicht mit einem Atomic Counter gearbeitet
+ * werden, um für jede Kachel einen unterschiedlich größen Speicherbereich zu
+ * reservieren. Außerdem entfällt damit die Notwendigkeit für Pointer (Indizes[0]),
+ * um den Anfang der Indices einer Kachel im Buffer zu speichern. Somit ist auch
+ * keine weitere Textur (oder weiterer Buffer) notwendig, um diese Pointer
+ * (Indices) für jede Kachel zu speichern.
+ *
+ * [0] Da GLSL keine Pointertypen hat, werden Pointerstrukturen typischerweise
+ *     mit Indices auf Array-Elemente (in Buffern) implementiert.
+ */
+layout (std430, binding = 1) buffer VisibleLightIndicesBuffer {
+    int visibleLightIndices[];
+};
+
+/**
+ * @brief Positionen der Linien für das Debugging
+ *
+ * In diesem Buffer Object werden Vertex-Positionen für Linien gespeichert. Diese sind
+ * ausschließlich für Debugging-Zwecke bestimmt. Die Positionen werden als 4D-Vektoren
+ * in homogenen Koordinaten gespeichert.
+ */
+layout (std430, binding = 2) buffer DebugPositionsBuffer {
+    vec4 debugPositions[];
+};
+
+/**
+ * @brief Farben der Linien für das Debugging
+ *
+ * In diesem Buffer Object werden die Vertex-Farben für die Linien gespeichert. Diese
+ * sind ausschließlich für Debugging-Zwecke bestimmt. Farben werden als 4D-Vektoren
+ * im typischen Format RGBA gespeichert.
+ */
+layout (std430, binding = 3) buffer DebugColorsBuffer{
+    vec4 debugColors[];
+};
+
+uniform mat4 InverseViewProjectionMatrix;       /**< Transformation vom Clipping- ins
+                                                     Weltkoordinatensystem */
+uniform mat4 ViewMatrix;                        /**< Transformation vom Welt- ins
+                                                     Viewing-Koordinatensystem */
+uniform ivec2 FramebufferSize;                  /**< Größe des Framebuffers */
+uniform ivec2 TileSize;                         /**< Größe der einzelnen Kacheln */
+uniform bool UpdateGrid;                        /**< Gibt an, ob die Debug-Ausgaben
+                                                     pro Frame aktualisiert werden */
+
+// ----------------------------------------------------------------------------
+//
+// Shared Variables
+//
+// ----------------------------------------------------------------------------
+
+shared vec3 planes_origins[NUM_FRUSTUM_SIDES];  /**< Ursprungspunkte für die Ebenen */
+shared vec3 planes_normals[NUM_FRUSTUM_SIDES];  /**< Normalen für die Ebenen */
+shared int numVisibleLights;                    /**< Anzahl der Lichtquellen in der
+                                                     aktuellen Kachel */
+
+// ----------------------------------------------------------------------------
+//
+// Funktionen
+//
+// ----------------------------------------------------------------------------
+
+/**
+ * @brief W-Division
+ *
+ * Führt eine W-Division für den übergebenen 4D-Vektor aus.
+ *
+ * @param v       Für diesen Vektor wird die W-Division ausgeführt
+ *
+ * @return Resultat der W-Division
+ */
+vec3 wdiv(vec4 v) {
+    return v.xyz / v.w;
+}
+
+
+/**
+ * @brief Normale einer Fläche berechnen
+ *
+ * Mit dieser Funktion kann die Normale einer Fläche berechnet werden. Die drei übergebenen
+ * Punkte liegen in der Fläche.
+ *
+ * @param center    Vertex in der Mitte (zwischen v1 und v2)
+ * @param v1        Vertex gegen den Uhrzeigersinn, wenn man von vorne auf die Fläche schaut.
+ * @param v2        Vertex im Uhrzeigersinn, wenn man von vorne auf die Fläche schaut.
+ *
+ * @return Normale der Ebene, die von den drei Punkten aufgespannt wird.
+ */
+vec3 normalOfPlane(vec3 center, vec3 v1, vec3 v2) {
+    vec3 e1 = v1 - center;
+    vec3 e2 = v2 - center;
+
+    return normalize(cross(e1, e2));
+}
+
+/**
+ * Einsprungpunkt für den Compute Shader
+ */
+void main() {
+    uvec2 tilePosition = uvec2(gl_WorkGroupID.xy);
+    uvec2 numTiles     = uvec2(gl_NumWorkGroups.xy);
+    uint linearWorkGroupIndex = uint(numTiles.x*tilePosition.y + tilePosition.x);
+
+    //
+    // Die folgenden Berechnungen werden nur von der ersten Invocation ausgeführt
+    //
+
+    if (gl_LocalInvocationID.x == 0) {
+        numVisibleLights = 0;
+
+        // Grenzen der Kachel in Clipping-Koordinaten
+        float ndcLeft         = 2*(float(TileSize* tilePosition.x)      / FramebufferSize.x) - 1;
+        float ndcBottom       = 2*(float(TileSize* tilePosition.y)      / FramebufferSize.y) - 1;
+        float ndcRight        = 2*(float(TileSize*(tilePosition.x + 1)) / FramebufferSize.x) - 1;
+        float ndcTop          = 2*(float(TileSize*(tilePosition.y + 1)) / FramebufferSize.y) - 1;
+
+        // Eckpunkte des Frustums auf der Rückseite
+        vec3 leftBottom       = wdiv(InverseViewProjectionMatrix*vec4(ndcLeft , ndcBottom, 0, 1));
+        vec3 rightBottom      = wdiv(InverseViewProjectionMatrix*vec4(ndcRight, ndcBottom, 0, 1));
+        vec3 leftTop          = wdiv(InverseViewProjectionMatrix*vec4(ndcLeft , ndcTop   , 0, 1));
+        vec3 rightTop         = wdiv(InverseViewProjectionMatrix*vec4(ndcRight, ndcTop   , 0, 1));
+
+        // Eckpunkte des Frustum auf der Vorderseite
+        vec3 leftBottomFront  = wdiv(InverseViewProjectionMatrix*vec4(ndcLeft , ndcBottom, 1, 1));
+        vec3 rightBottomFront = wdiv(InverseViewProjectionMatrix*vec4(ndcRight, ndcBottom, 1, 1));
+        vec3 leftTopFront     = wdiv(InverseViewProjectionMatrix*vec4(ndcLeft , ndcTop   , 1, 1));
+        vec3 rightTopFront    = wdiv(InverseViewProjectionMatrix*vec4(ndcRight, ndcTop   , 1, 1));
+
+        // Ebenen berechnen
+        planes_origins[0] = leftBottom;
+        planes_normals[0] = normalOfPlane(leftBottom, leftBottomFront, rightBottomFront);
+        planes_origins[1] = rightBottom;
+        planes_normals[1] = normalOfPlane(rightBottom, rightBottomFront, rightTopFront);
+        planes_origins[2] = rightTop;
+        planes_normals[2] = normalOfPlane(rightTop, rightTopFront, leftTopFront);
+        planes_origins[3] = leftTop;
+        planes_normals[3] = normalOfPlane(leftTop, leftTopFront, leftBottomFront);
+
+#ifdef DEBUGGING
+        // Nur Debugging-Informationen
+        if (UpdateGrid) {
+            for (int i = 0; i < NUM_DEBUG_POSITIONS; i++) {
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + i] = vec4(0, 0, 0, 1);
+                debugColors[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + i] = vec4(1, 1, 1, 1);
+            }
+
+            debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) +  0] = vec4(leftBottom, 1);
+            debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) +  1] = vec4(rightBottom, 1);
+            debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) +  2] = vec4(rightBottom, 1);
+            debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) +  3] = vec4(rightTop, 1);
+            debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) +  4] = vec4(rightTop, 1);
+            debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) +  5] = vec4(leftTop, 1);
+            debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) +  6] = vec4(leftTop, 1);
+            debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) +  7] = vec4(leftBottom, 1);
+
+            if (tilePosition.x == 25 && tilePosition.y == 25) {
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 8+0] = vec4(leftBottomFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 8+1] = vec4(rightBottomFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 8+2] = vec4(rightBottomFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 8+3] = vec4(rightTopFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 8+4] = vec4(rightTopFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 8+5] = vec4(leftTopFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 8+6] = vec4(leftTopFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 8+7] = vec4(leftBottomFront, 1);
+
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 16+0] = vec4(leftBottom, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 16+1] = vec4(rightBottomFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 16+2] = vec4(rightBottom, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 16+3] = vec4(rightTopFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 16+4] = vec4(rightTop, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 16+5] = vec4(leftTopFront, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 16+6] = vec4(leftTop, 1);
+                debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 16+7] = vec4(leftBottomFront, 1);
+
+                for (int i = 0; i < NUM_DEBUG_POSITIONS-8; i++) {
+                    debugColors[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + 8+i] = vec4(1, 1, 0, 1);
+                }
+            }
+        }
+#endif
+    }
+
+    barrier();
+
+    // ----------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------
+
+    //
+    // Hier wird das Culling für alle Lichtquellen parallel ausgeführt
+    //
+
+    PointLight light = lights[gl_LocalInvocationID.x];
+
+    vec4 viewPosition = ViewMatrix*vec4(light.position, 1);
+    float zDistance = -wdiv(viewPosition).z;
+
+    bool centerInside = true;
+    bool inRange = true;
+    for (int i = 0; i < NUM_FRUSTUM_SIDES; ++i) {
+        vec3 diff = light.position - planes_origins[i];
+        float distance = dot(diff, planes_normals[i]);
+
+        // Lichtquelle ist hinter der Kamera
+        if (zDistance < -light.radius) {
+            inRange = false;
+        }
+
+        // Mitte der Lichtquelle ist nicht im Frustum
+        if (distance > 0) {
+            centerInside = false;
+        }
+
+        // Lichtquelle ist so weit entfernt, dass sie den Frustum nicht beeinflusst
+        if (distance > light.radius) {
+            inRange = false;
+        }
+    }
+
+    if (centerInside || inRange) {
+        int index = atomicAdd(numVisibleLights, 1);
+        visibleLightIndices[(NUM_LIGHTS + 1)*linearWorkGroupIndex + 1 + index] = int(gl_LocalInvocationID.x);
+    }
+
+    barrier();
+
+    // ----------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------
+
+    //
+    // Die erste Invocation schreibt die Anzahl der Lichtquellen in den Buffer
+    //
+
+    if (gl_LocalInvocationID.x == 0) {
+        // Anzahl der Lichtquellen in dieser Tile eintragen
+        visibleLightIndices[(NUM_LIGHTS + 1)*linearWorkGroupIndex] = numVisibleLights;
+    }
+}
