@@ -2,11 +2,11 @@
  
 // ----------------------------------------------------------------------------
 //
-// Attribute
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
-layout (location = 0) in vec4 vPosition; /**< Position des Vertexes im Modell-Koordinatensystem */
+layout (location = 0) in vec4 vPosition;
 
 // ----------------------------------------------------------------------------
 //
@@ -14,19 +14,16 @@ layout (location = 0) in vec4 vPosition; /**< Position des Vertexes im Modell-Ko
 //
 // ----------------------------------------------------------------------------
 
-uniform mat4 ModelMatrix;               /**< Transformation vom Modell- ins Welt-Koordinatensystem */
-uniform mat4 ViewMatrix;                /**< Transformation vom Welt- ins Kamera-Koordinatensystem */
-uniform mat4 ProjectionMatrix;          /**< Transformation vom Kamera- ins Clipping-Koordinatensystem*/
+uniform mat4 ModelMatrix;               
+uniform mat4 ViewMatrix;               
+uniform mat4 ProjectionMatrix;          
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
-/**
- * Einsprungpunkt für den Vertex-Shader
- */
 void main() {
     gl_Position = ProjectionMatrix*ViewMatrix*ModelMatrix*vPosition;
 }

@@ -527,7 +527,11 @@ int main()
 		for (unsigned int i = 0; i < vegetation.size(); i++)
 		{
 			float distance = glm::length(camera.Position - vegetation[i]);
-			sorted[distance] = vegetation[i];
+			//sorted
+			//sorted[distance] = vegetation[i];
+
+			//unsorted 
+			sorted[float(i)] = vegetation[i];
 		}
 
 		// per-frame time logic
@@ -673,6 +677,8 @@ int main()
 		//Windows
 		glBindVertexArray(transparentVAO);
 		glBindTexture(GL_TEXTURE_2D, transparentTexture);
+
+		glDisable(GL_CULL_FACE);
 		for (std::map<float, glm::vec3>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
 		{
 			for (int p = 0; p < 360; p += 360) {
@@ -686,7 +692,8 @@ int main()
 				glDrawArrays(GL_TRIANGLES, 0, 6);
 			}
 		}	
-		
+		glEnable(GL_CULL_FACE);
+
 		glBindFramebuffer(GL_FRAMEBUFFER, 0); // back to default
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);

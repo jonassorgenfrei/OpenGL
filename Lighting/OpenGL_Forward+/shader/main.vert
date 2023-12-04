@@ -2,17 +2,17 @@
 
 // ----------------------------------------------------------------------------
 //
-// Attribute
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
-layout (location = 0) in vec4 vPosition;    /**< Position des Vertexes im Modell-Koordinatensystem */
-layout (location = 1) in vec3 vNormal;      /**< Normale des Vertexes im Modell-Koordinatensystem */
-layout (location = 2) in vec2 vTexCoord;    /**< Textur-Koordinate des Vertexes */
+layout (location = 0) in vec3 vPosition;    
+layout (location = 1) in vec3 vNormal;      
+layout (location = 2) in vec2 vTexCoord;    
 
-out vec4 fWorldPosition;                    /**< Position des Vertexes im Welt-Koordinatensystem */
-out vec3 fWorldNormal;                      /**< Normale des Vertexes im Welt-Koordinatensystem */
-out vec2 fTexCoord;                         /**< Textur-Koordinate des Vertexes */
+out vec4 fWorldPosition;                    
+out vec3 fWorldNormal;                      
+out vec2 fTexCoord;                         
 
 // ----------------------------------------------------------------------------
 //
@@ -20,22 +20,19 @@ out vec2 fTexCoord;                         /**< Textur-Koordinate des Vertexes 
 //
 // ----------------------------------------------------------------------------
 
-uniform mat4 ModelMatrix;                   /**< Transformation vom Modell- ins Welt-Koordinatensystem */
-uniform mat3 NormalMatrix;                  /**< Transformation der Normalen vom Modell- ins Welt-Koordinatensystem */
-uniform mat4 ViewMatrix;                    /**< Transformation vom Welt- ins Kamera-Koordinatensystem */
-uniform mat4 ProjectionMatrix;              /**< Transformation vom Kamera-Koordinatensystem ins Clipping-Koordinatensystem */
+uniform mat4 ModelMatrix;                   
+uniform mat3 NormalMatrix;                  
+uniform mat4 ViewMatrix;                    
+uniform mat4 ProjectionMatrix;              
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
-/**
- * Einsprungpunkt für den Vertex-Shader
- */
 void main() {
-    fWorldPosition = ModelMatrix*vPosition;
+    fWorldPosition = ModelMatrix*vec4(vPosition, 1.0);
     fWorldNormal = normalize(NormalMatrix*vNormal);
     fTexCoord = vTexCoord;
     gl_Position = ProjectionMatrix*ViewMatrix*fWorldPosition;

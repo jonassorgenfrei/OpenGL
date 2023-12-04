@@ -32,7 +32,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // current Mouse position 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
-void drawPlane(void);
+
 /* load texture */
 unsigned int loadTexture(const char *path, bool gammaCorrection);
 void renderScene(const Shader &shader);
@@ -44,6 +44,12 @@ void icon(GLFWwindow* window);
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
+
+bool d_pressed = false;
+bool p_pressed = false;
+
+bool debug = false;
+bool peterPanning = false;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -226,15 +232,15 @@ int main()
 			glClear(GL_DEPTH_BUFFER_BIT);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, woodTexture);
-			#ifdef PETERPANING
-			glEnable(GL_CULL_FACE);
-			glCullFace(GL_FRONT);
-			#endif
+			if(peterPanning) {
+				glEnable(GL_CULL_FACE);
+				glCullFace(GL_FRONT);
+			}
 			renderScene(simpleDepthShader);
-			#ifdef PETERPANING
-			glCullFace(GL_BACK); // don't forget to reset original culling face
-			glDisable(GL_CULL_FACE);
-			#endif
+			if (peterPanning) {
+				glCullFace(GL_BACK); // don't forget to reset original culling face
+				glDisable(GL_CULL_FACE);
+			}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		// 2. then render scene as normal with shadow mapping (using dpeth map)
@@ -257,15 +263,15 @@ int main()
 		renderScene(shadowShader);	
 
 		// DEBUG
-	
+		if (debug) {
 			// render depth map to quad for visual debugging
-			/*debugDepthQuad.use();
+			debugDepthQuad.use();
 			debugDepthQuad.setFloat("near_plane", near_plane);
 			debugDepthQuad.setFloat("far_plane", far_plane);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, depthMap);
-			renderQuad();*/
-	
+			renderQuad();
+		}
 		
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
@@ -427,7 +433,6 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
 
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
@@ -435,6 +440,24 @@ void processInput(GLFWwindow *window)
 		glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
 	}
 
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+		d_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE && d_pressed) {
+		debug = !debug;
+		d_pressed = false;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
+		p_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE && p_pressed) {
+		peterPanning = !peterPanning;
+		p_pressed = false;
+
+		if (peterPanning)
+			std::cout << "enable peter panning" << std::endl;
+	}
 }
 
 // glfw: whenever the mouse moves, this callback is called

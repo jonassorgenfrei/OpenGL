@@ -5,7 +5,7 @@
  *  SHADED_STATE 1 - texture shaded
  */
 
-#define SHADED_STATE 0
+#define SHADED_STATE 1
 
 #if SHADED_STATE == 1
 	/*

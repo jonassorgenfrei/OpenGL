@@ -7,9 +7,9 @@
 //
 // ----------------------------------------------------------------------------
 
-in vec4 fColor;         /**< Interpolierte Farbe der Vertices */
+in vec4 fColor;         
 
-out vec4 FragColor;     /**< Farbe des Fragments */
+out vec4 FragColor;   
 
 // ----------------------------------------------------------------------------
 //
@@ -17,17 +17,14 @@ out vec4 FragColor;     /**< Farbe des Fragments */
 //
 // ----------------------------------------------------------------------------
 
-uniform vec4 Color;     /**< Farbe der Fragmente */
+uniform vec4 Color; 
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
-/**
- * Einsprungpunkt für den Fragment-Shader
- */
 void main() {
     FragColor = fColor;
 }

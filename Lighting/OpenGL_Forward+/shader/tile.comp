@@ -6,11 +6,14 @@
 //
 // ----------------------------------------------------------------------------
 
-#define NUM_LIGHTS 100            /**< max count of lights */
-#define NUM_FRUSTUM_SIDES 4       /**< max sides of the  Frusta */
-#define NUM_DEBUG_POSITIONS 24    /**< number of positions for Debugging,
-                                       that are used per tile */
-#define DEBUGGING                 /**< compile debugging informationen  */
+// max count of lights
+#define NUM_LIGHTS 100
+// max sides of the  Frusta
+#define NUM_FRUSTUM_SIDES 4
+// number of positions for Debugging, that are used per tile
+#define NUM_DEBUG_POSITIONS 24
+// compile debugging informationen
+#define DEBUGGING
 
 // ----------------------------------------------------------------------------
 //
@@ -22,21 +25,19 @@ layout (local_size_x = NUM_LIGHTS) in;
 
 // ----------------------------------------------------------------------------
 //
-// Typen
+// Types
 //
 // ----------------------------------------------------------------------------
 
-/**
- * @brief Punktlichtquelle mit isotroper Abstrahlung
- *
- * Parameter einer Punkt-Lichtquelle mit isotroper Abstrahlung. Die Punktlichtquellen werden über ein Buffer Object
- * an den Shader übergeben. Deswegen gibt es dieses struct auch im Host-Code. Die Speicherrepräsentation der structs
- * ist aufeinander abgestimmt und muss bei einer Änderung berücksichtigt werden.
- */
+ /**
+  * Isotropic Pointlight
+  * Pointlight data is stored in a buffer object
+  * NOTE: consider Memory Layout
+  */
 struct PointLight {
-    vec3 position;              /**< Position der Lichtquelle */
-    float radius;               /**< Radius der Lichtquelle */
-    vec4 color;                 /**< Anteil der Lichtquelle an der diffusen Beleuchtung */
+    vec3 position;
+    float radius;
+    vec4 color;
 };
 
 // ----------------------------------------------------------------------------
@@ -46,80 +47,70 @@ struct PointLight {
 // ----------------------------------------------------------------------------
 
 /**
- * @brief Buffer für die Lichtquellen
- *
- * In diesem Buffer werden die Informationen zu den Lichtquellen gespeichert. Im Host
- * gibt es eine C-Repräsentation des structs PointLight, die an das Speicherlayout für
- * Uniform (und auch Shader Storage Buffer) angepasst ist.
- *
- * @remarks Dieser Buffer wird auch vom Shaderprogramm "Main" verwendet. Es muss darauf
- *          geachtet werden, dass der binding-Punkt übereinstimmt.
+ * Light Data buffer
+ * contains data of lights 
  */
 layout (std430, binding = 0) buffer LightsBuffer {
     PointLight lights[];
 };
 
 /**
- * @brief Buffer für die Indizes der sichtbaren Lichtquellen
+ * @brief Buffer with indices of visiblie lights
  *
- * In diesem Buffer wird für jede einzelne Kachel gespeichert, welche Lichtquellen den
- * Pyramidenstumpf der Kachel überlappen.
+ * Buffer includes for every tile the indices of the lights overlapping the
+ * truncated pyramid
  *
  * Layout:
  *
- * Kachel 1                    Kachel 2
- * |                           |
- * v                           v
- * +---+---+---+---+-------+---+-------
- * | N | 0 | 1 | 2 | ...   | K | ...
- * +---+---+---+---+-------+---+-------
+ * Tile 1                  Tile 2
+ * |                         |
+ * v                         v
+ * +---+---+---+---+-----+---+-------
+ * | N | 0 | 1 | 2 | ... | K | ...
+ * +---+---+---+---+-----+---+-------
  *
- * Für jede Kachel wird zuerst die Anzahl der Lichtquellen (N) und anschließend ihre
- * Indizes (0..) gespeichert. Die Kapazität für jede Kachel ist gleich der Anzahl der
- * Lichtquellen insgesamt. So muss nicht mit einem Atomic Counter gearbeitet
- * werden, um für jede Kachel einen unterschiedlich größen Speicherbereich zu
- * reservieren. Außerdem entfällt damit die Notwendigkeit für Pointer (Indizes[0]),
- * um den Anfang der Indices einer Kachel im Buffer zu speichern. Somit ist auch
- * keine weitere Textur (oder weiterer Buffer) notwendig, um diese Pointer
- * (Indices) für jede Kachel zu speichern.
+ * N - amount of light sources
+ * [0...(K)] - indicies of the lights 
+ * The Capacity (K) is equal for each Tile and is the number of overall light sources.
+ * This avoids the need for an atomic counter to reserve a unique memory-amount 
+ * for each tile.
+ * This avoids the need for Indice pointers in a seperate texture/buffer.
  *
- * [0] Da GLSL keine Pointertypen hat, werden Pointerstrukturen typischerweise
- *     mit Indices auf Array-Elemente (in Buffern) implementiert.
+ * [0] Since GLSL doesn't have pointer types, pointer structures are implemented as indices into 
+ * array elements (buffers).
  */
 layout (std430, binding = 1) buffer VisibleLightIndicesBuffer {
     int visibleLightIndices[];
 };
 
 /**
- * @brief Positionen der Linien für das Debugging
- *
- * In diesem Buffer Object werden Vertex-Positionen für Linien gespeichert. Diese sind
- * ausschließlich für Debugging-Zwecke bestimmt. Die Positionen werden als 4D-Vektoren
- * in homogenen Koordinaten gespeichert.
+ * @brief positions of the lines for debugging
+ * position as 4d vector as homogene coordinates.
+ * For debugging purpose only
  */
 layout (std430, binding = 2) buffer DebugPositionsBuffer {
     vec4 debugPositions[];
 };
 
 /**
- * @brief Farben der Linien für das Debugging
- *
- * In diesem Buffer Object werden die Vertex-Farben für die Linien gespeichert. Diese
- * sind ausschließlich für Debugging-Zwecke bestimmt. Farben werden als 4D-Vektoren
- * im typischen Format RGBA gespeichert.
+ * @brief colors of the lines for debugging
+ * colors as 4D vectoren as typical RGBA
+ * For debugging purpose only
  */
 layout (std430, binding = 3) buffer DebugColorsBuffer{
     vec4 debugColors[];
 };
 
-uniform mat4 InverseViewProjectionMatrix;       /**< Transformation vom Clipping- ins
-                                                     Weltkoordinatensystem */
-uniform mat4 ViewMatrix;                        /**< Transformation vom Welt- ins
-                                                     Viewing-Koordinatensystem */
-uniform ivec2 FramebufferSize;                  /**< Größe des Framebuffers */
-uniform ivec2 TileSize;                         /**< Größe der einzelnen Kacheln */
-uniform bool UpdateGrid;                        /**< Gibt an, ob die Debug-Ausgaben
-                                                     pro Frame aktualisiert werden */
+// transformation from clipping to worldspace
+uniform mat4 InverseViewProjectionMatrix;      
+// transformation from world to viewspace
+uniform mat4 ViewMatrix;
+// size of the framebuffer
+uniform ivec2 FramebufferSize;
+// size of a tile
+uniform ivec2 TileSize;
+// flag if debug grid data should be calculated
+uniform bool UpdateGrid;
 
 // ----------------------------------------------------------------------------
 //
@@ -127,25 +118,27 @@ uniform bool UpdateGrid;                        /**< Gibt an, ob die Debug-Ausga
 //
 // ----------------------------------------------------------------------------
 
-shared vec3 planes_origins[NUM_FRUSTUM_SIDES];  /**< Ursprungspunkte für die Ebenen */
-shared vec3 planes_normals[NUM_FRUSTUM_SIDES];  /**< Normalen für die Ebenen */
-shared int numVisibleLights;                    /**< Anzahl der Lichtquellen in der
-                                                     aktuellen Kachel */
+// Origin to define the plane sides
+shared vec3 planes_origins[NUM_FRUSTUM_SIDES];
+// Normalen to define the plane sides
+shared vec3 planes_normals[NUM_FRUSTUM_SIDES];
+// amount of lights in the current tile
+shared int numVisibleLights;
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
 /**
  * @brief W-Division
  *
- * Führt eine W-Division für den übergebenen 4D-Vektor aus.
+ * Calculates w-division for a 4d vector
  *
- * @param v       Für diesen Vektor wird die W-Division ausgeführt
+ * @param v      input vector
  *
- * @return Resultat der W-Division
+ * @return vec3 with w-division applied
  */
 vec3 wdiv(vec4 v) {
     return v.xyz / v.w;
@@ -153,16 +146,15 @@ vec3 wdiv(vec4 v) {
 
 
 /**
- * @brief Normale einer Fläche berechnen
+ * @brief Calculat the normal of a plane
  *
- * Mit dieser Funktion kann die Normale einer Fläche berechnet werden. Die drei übergebenen
- * Punkte liegen in der Fläche.
+ * The 3 given points define the plane 
  *
- * @param center    Vertex in der Mitte (zwischen v1 und v2)
- * @param v1        Vertex gegen den Uhrzeigersinn, wenn man von vorne auf die Fläche schaut.
- * @param v2        Vertex im Uhrzeigersinn, wenn man von vorne auf die Fläche schaut.
+ * @param center    Vertex in the middle (between v1 and v2)
+ * @param v1        Vertex CCW, seen from the front
+ * @param v2        Vertex CW, seen from the front
  *
- * @return Normale der Ebene, die von den drei Punkten aufgespannt wird.
+ * @return Normal of the plane, defined by the 3 given points
  */
 vec3 normalOfPlane(vec3 center, vec3 v1, vec3 v2) {
     vec3 e1 = v1 - center;
@@ -171,40 +163,36 @@ vec3 normalOfPlane(vec3 center, vec3 v1, vec3 v2) {
     return normalize(cross(e1, e2));
 }
 
-/**
- * Einsprungpunkt für den Compute Shader
- */
 void main() {
+    // get tile position based on workgroupi
     uvec2 tilePosition = uvec2(gl_WorkGroupID.xy);
+    // get amount of tiles
     uvec2 numTiles     = uvec2(gl_NumWorkGroups.xy);
     uint linearWorkGroupIndex = uint(numTiles.x*tilePosition.y + tilePosition.x);
 
-    //
-    // Die folgenden Berechnungen werden nur von der ersten Invocation ausgeführt
-    //
-
+    // only run the following code in the first invocation
     if (gl_LocalInvocationID.x == 0) {
         numVisibleLights = 0;
 
-        // Grenzen der Kachel in Clipping-Koordinaten
+        // border of the tile in clipping space
         float ndcLeft         = 2*(float(TileSize* tilePosition.x)      / FramebufferSize.x) - 1;
         float ndcBottom       = 2*(float(TileSize* tilePosition.y)      / FramebufferSize.y) - 1;
         float ndcRight        = 2*(float(TileSize*(tilePosition.x + 1)) / FramebufferSize.x) - 1;
         float ndcTop          = 2*(float(TileSize*(tilePosition.y + 1)) / FramebufferSize.y) - 1;
 
-        // Eckpunkte des Frustums auf der Rückseite
+        // corner points of the frustum in the back
         vec3 leftBottom       = wdiv(InverseViewProjectionMatrix*vec4(ndcLeft , ndcBottom, 0, 1));
         vec3 rightBottom      = wdiv(InverseViewProjectionMatrix*vec4(ndcRight, ndcBottom, 0, 1));
         vec3 leftTop          = wdiv(InverseViewProjectionMatrix*vec4(ndcLeft , ndcTop   , 0, 1));
         vec3 rightTop         = wdiv(InverseViewProjectionMatrix*vec4(ndcRight, ndcTop   , 0, 1));
 
-        // Eckpunkte des Frustum auf der Vorderseite
+        // corner points of the frustum in the front
         vec3 leftBottomFront  = wdiv(InverseViewProjectionMatrix*vec4(ndcLeft , ndcBottom, 1, 1));
         vec3 rightBottomFront = wdiv(InverseViewProjectionMatrix*vec4(ndcRight, ndcBottom, 1, 1));
         vec3 leftTopFront     = wdiv(InverseViewProjectionMatrix*vec4(ndcLeft , ndcTop   , 1, 1));
         vec3 rightTopFront    = wdiv(InverseViewProjectionMatrix*vec4(ndcRight, ndcTop   , 1, 1));
 
-        // Ebenen berechnen
+        // calculate the plane
         planes_origins[0] = leftBottom;
         planes_normals[0] = normalOfPlane(leftBottom, leftBottomFront, rightBottomFront);
         planes_origins[1] = rightBottom;
@@ -215,7 +203,7 @@ void main() {
         planes_normals[3] = normalOfPlane(leftTop, leftTopFront, leftBottomFront);
 
 #ifdef DEBUGGING
-        // Nur Debugging-Informationen
+        // only debugging-information
         if (UpdateGrid) {
             for (int i = 0; i < NUM_DEBUG_POSITIONS; i++) {
                 debugPositions[NUM_DEBUG_POSITIONS*(linearWorkGroupIndex) + i] = vec4(0, 0, 0, 1);
@@ -258,15 +246,15 @@ void main() {
 #endif
     }
 
+    // wait for all local invocation to reach this point
     barrier();
 
     // ----------------------------------------------------------------------------
     // ----------------------------------------------------------------------------
 
     //
-    // Hier wird das Culling für alle Lichtquellen parallel ausgeführt
+    // calculate culling for each light in parallel
     //
-
     PointLight light = lights[gl_LocalInvocationID.x];
 
     vec4 viewPosition = ViewMatrix*vec4(light.position, 1);
@@ -278,17 +266,17 @@ void main() {
         vec3 diff = light.position - planes_origins[i];
         float distance = dot(diff, planes_normals[i]);
 
-        // Lichtquelle ist hinter der Kamera
+        // if light is behind the camera
         if (zDistance < -light.radius) {
             inRange = false;
         }
 
-        // Mitte der Lichtquelle ist nicht im Frustum
+        // center of the light is not in the frustum
         if (distance > 0) {
             centerInside = false;
         }
 
-        // Lichtquelle ist so weit entfernt, dass sie den Frustum nicht beeinflusst
+        // light is so far distant that it doesn't influence the frustum
         if (distance > light.radius) {
             inRange = false;
         }
@@ -305,11 +293,10 @@ void main() {
     // ----------------------------------------------------------------------------
 
     //
-    // Die erste Invocation schreibt die Anzahl der Lichtquellen in den Buffer
+    // The first invocation writes the amount of lights influencing the tile into the buffer
     //
-
     if (gl_LocalInvocationID.x == 0) {
-        // Anzahl der Lichtquellen in dieser Tile eintragen
+        // write amount of lights for tile in buffer
         visibleLightIndices[(NUM_LIGHTS + 1)*linearWorkGroupIndex] = numVisibleLights;
     }
 }

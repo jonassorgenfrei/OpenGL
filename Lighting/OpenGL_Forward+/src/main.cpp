@@ -9,6 +9,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include "shader_m.h"
@@ -28,12 +29,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // current Mouse position 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
-/* load texture */
-unsigned int loadTexture(const char *path, bool gammaCorrection);
 
 /* render geometry */
-void renderQuad();
-void renderCube();
 void renderSphere();
 
 // helper functions
@@ -45,7 +42,8 @@ void icon(GLFWwindow* window);
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
-const unsigned int DEBUG_POSITIONS_BUFFER_SIZE = 500000;
+// allocate enough storage for debug buffer
+const unsigned int DEBUG_POSITIONS_BUFFER_SIZE = 5000000;
 const unsigned int TILE_SIZE = 16;
 
 const unsigned int NR_LIGHTS = 100;
@@ -56,7 +54,7 @@ int framebufferWidth = SCR_WIDTH;
 int framebufferHeight = SCR_HEIGHT;
 
 // camera
-Camera camera(glm::vec3(-140.0f, 20.0f, -3.0f), glm::vec3(0.0f,1.0f,0.0f), -0.85f, -2.75f);
+Camera camera(glm::vec3(-6.8981f, 0.965631f, -0.312417f), glm::vec3(0.0f,1.0f,0.0f), -2.95f, -3.55f);
 
 double lastX = SCR_WIDTH / 2.0;
 double lastY = SCR_HEIGHT / 2.0;
@@ -74,7 +72,7 @@ bool wireframe = false;		// render wireframe flag
 bool heatmapVis = false;	// render heatmap over the scene
 bool tileVis = false;		// render tiles as grid (renderGrid)
 bool lightVis = false;		// render light sources as spheres
-bool updateGrid = false;	// if tile-grid has to be recalculated per frame
+bool updateGrid = true;		// if tile-grid has to be recalculated per frame
 
 
 // timing 
@@ -116,7 +114,7 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	// Resizable Window 
-	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+	//glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
 #ifdef __APPLE__
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
@@ -125,6 +123,7 @@ int main()
 	// glfw window creation
 	// --------------------
 	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Advanced GL", NULL, NULL);
+	
 	/* creates and configures default framebuffer */
 	if (window == NULL)
 	{
@@ -139,7 +138,7 @@ int main()
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
 	
-	//tell GLFW to capture our mouse
+	// GLFW to capture mouse
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
 	// glad: load all OpenGL function pointers
@@ -163,16 +162,15 @@ int main()
 
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
-
-	// Back-Face Culling
-	glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);		// Back-Face Culling
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
 
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearDepth(1);
 
 	// build and compile shader program(s)
 	// ------------------------------------
-	Shader shader(FileSystem::getPath("shader/base.vert").c_str(), FileSystem::getPath("shader/base.frag").c_str());
 	Shader mainProgram(FileSystem::getPath("shader/main.vert").c_str(), FileSystem::getPath("shader/main.frag").c_str());
 	Shader colorProgram(FileSystem::getPath("shader/color.vert").c_str(), FileSystem::getPath("shader/color.frag").c_str());
 	Shader uniformColorProgram(FileSystem::getPath("shader/uniformcolor.vert").c_str(), FileSystem::getPath("shader/uniformcolor.frag").c_str());
@@ -184,13 +182,13 @@ int main()
 	Model object(FileSystem::getPath("../../content/models/sponza_crytek/sponza.obj").c_str());
 	std::cout << "Finished Model Loading" << std::endl;
 
-	// load textures
-	// -------------
-
 	// set up buffers
 	// --------------
+
+	// debug buffer
 	GLuint debugPositionsVertexArray;
 	GLuint debugPositions, debugColors;
+
 	glGenVertexArrays(1, &debugPositionsVertexArray);
 	glBindVertexArray(debugPositionsVertexArray);
 
@@ -218,9 +216,7 @@ int main()
 	
 	// lighting info
 	// -------------
-	
 	std::vector<PointLight> lights;
-
 	for (unsigned int i = 0; i < NR_LIGHTS; i++)
 	{
 		// calculate slightly random offsets
@@ -240,15 +236,15 @@ int main()
 
 	repareTilesMemory(SCR_WIDTH, SCR_HEIGHT);
 
-
 	// shader configuration
 	// --------------------
 
 	// Timer Queries
 	GLuint timerQuery[2];
 	glGenQueries(2, timerQuery);
-	// Im ersten Frame wird die Timer Query g_timerQuery[0] beschrieben und von g_timerQuery[1] gelesen. Um einen Fehler
-	// beim Auslesen der Zeit zu verhindern, wird hier eine Dummy-Zeit gemessen.
+
+	// write to timer query timerQuery[0] and read from timerQuery[1] in first frame
+	// get dummy time for timerQuery[1]
 	glBeginQuery(GL_TIME_ELAPSED, timerQuery[1]);
 	glEndQuery(GL_TIME_ELAPSED);
 	
@@ -258,7 +254,6 @@ int main()
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
-
 		// Set frame time
 		auto currentFrame = static_cast<float>(glfwGetTime());
 		deltaTime = currentFrame - lastFrame;
@@ -267,22 +262,28 @@ int main()
 		// Check and call events
 		processInput(window);
 
+		// begin timer
 		glBeginQuery(GL_TIME_ELAPSED, timerQuery[frameIndex % 2]);
 
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClearDepth(1);
+		// clear Framebuffer
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		// select either wireframe or shaded
 		glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 
+		// calulate amount of tiles based on framebuffer size
 		int numTilesX = (framebufferWidth + (TILE_SIZE - 1)) / TILE_SIZE;
 		int numTilesY = (framebufferHeight + (TILE_SIZE - 1)) / TILE_SIZE;
 
 		// calc projectiong & view matrix
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.001f, 100.0f);
 		glm::mat4 view = camera.GetViewMatrix();
+		// identity model matrix
+		glm::mat4 identityMatrix(1.0);
 
-		// light culling
+		// ----------------------------------------------------------------------------
+		// Light Culling
+		// ----------------------------------------------------------------------------
+
 		glm::mat4 invViewProjMat = glm::inverse(projection * view);
 		tileProgram.use();
 
@@ -296,25 +297,95 @@ int main()
 		// run compute shader
 		glDispatchCompute(numTilesX, numTilesY, 1);
 
-		// render
-		// ------
-		
+		// ----------------------------------------------------------------------------
+		// Grid Rendering
+		// ----------------------------------------------------------------------------
+
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+		if (tileVis) {
+
+			colorProgram.use();
+			colorProgram.setMat4("ModelMatrix", identityMatrix);
+			colorProgram.setMat4("ViewMatrix", view);
+			colorProgram.setMat4("ProjectionMatrix", projection);
+			colorProgram.setVec4("Color", glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
+
+			glBindVertexArray(debugPositionsVertexArray);
+			glDrawArrays(GL_LINES, 0, 24 * numTilesX * numTilesY);
+			glBindVertexArray(0);
+		}
+
+		// ----------------------------------------------------------------------------
+		// Draw Light Sources
+		// ----------------------------------------------------------------------------
+
+		if (lightVis) {
+			uniformColorProgram.use();
+			uniformColorProgram.setMat4("ViewMatrix", view);
+			uniformColorProgram.setMat4("ProjectionMatrix", projection);
+
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightsBuffer);
+
+			PointLight* lightsPointer = (PointLight*) glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
+
+			for (int lightIndex = 0; lightIndex < NR_LIGHTS; ++lightIndex) {
+				PointLight light = lightsPointer[lightIndex];
+				glm::mat4 model(1.0f);
+				model = glm::translate(model, light.position);
+				model = glm::scale(model, glm::vec3(0.05f));
+
+				uniformColorProgram.setVec4("Color", light.color);
+				uniformColorProgram.setMat4("ModelMatrix", model);
+				renderSphere();
+			}
+			glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+		}
+
+		// ----------------------------------------------------------------------------
+		// Rendering of the scene
+		// ----------------------------------------------------------------------------
+
 		glm::mat4 model(1.0f);
-		model = glm::scale(model, glm::vec3(0.1f));
-		shader.use();
-		shader.setMat4("projection", projection);
-		shader.setMat4("view", view);
-		shader.setMat4("model", model);
-		object.Draw(shader);
-		
+		model = glm::scale(model, glm::vec3(0.005f));
+		glm::mat3 normal = glm::inverseTranspose(glm::mat3(model));
+		mainProgram.use();
+		mainProgram.setMat4("ViewMatrix", view);
+		mainProgram.setMat4("ProjectionMatrix", projection);
+		mainProgram.setInt("NumLights", NR_LIGHTS);
+		mainProgram.setInt2("TileSize", TILE_SIZE, TILE_SIZE);
+		mainProgram.setInt2("NumTiles", numTilesX, numTilesY);
+		mainProgram.setInt("RenderHeatmap", heatmapVis);
+		mainProgram.setMat4("ModelMatrix", model);
+		mainProgram.setMat4("NormalMatrix", normal);
+
+		// Synchronization direkt vor dem Rendern des Modells, damit der Compute Shader so lange wie möglich unabhängig von dem
+		// Draw Command arbeiten kann.
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+		object.Draw(mainProgram);
+
+		glEndQuery(GL_TIME_ELAPSED);
+
 		// check and print timer query
-		GLuint64 elapsedTime;
-		glGetQueryObjectui64v(timerQuery[(frameIndex + 1) % 2], GL_QUERY_RESULT, &elapsedTime);
+		GLuint64 elapsed_time_in_nanoseconds;
 
-		float time = elapsedTime / 1000000.0f;
-		std::cout << "Rendering time: " << time << "ms" << std::endl;
+		//GLint available = 0;
+		//while (!available) {
+		//	glGetQueryObjectiv(timerQuery[(frameIndex + 1) % 2], GL_QUERY_RESULT_AVAILABLE, &available);
+		//}
 
+		glGetQueryObjectui64v(timerQuery[(frameIndex + 1) % 2], GL_QUERY_RESULT, &elapsed_time_in_nanoseconds);
+
+		double time = static_cast<double>(elapsed_time_in_nanoseconds) / 1000000.0;
+		// print render time every 60 frames
+		if (frameIndex%60 == 0) {
+			std::cout << "Rendering time: " << time << "ms | " << "FPS: " << 1.0 / time * 1000.0 << std::endl;
+		}
+		
 		++frameIndex;
+
+		// reset update grid 
+		updateGrid = false;
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
@@ -324,7 +395,14 @@ int main()
 
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
-	
+	glDeleteQueries(2, timerQuery);
+	glDeleteBuffers(1, &visibleLightsBuffer);
+
+	glDeleteBuffers(1, &lightsBuffer);
+	glDeleteBuffers(1, &debugColors);
+	glDeleteBuffers(1, &debugPositions);
+	glDeleteVertexArrays(1, &debugPositionsVertexArray);
+
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
 	glfwTerminate();
@@ -431,112 +509,6 @@ void renderSphere()
 	glBindVertexArray(0);
 }
 
-// renderCube() renders a 1x1 3D cube in NDC.
-// -------------------------------------------------
-unsigned int cubeVAO = 0;
-unsigned int cubeVBO = 0;
-void renderCube()
-{
-	// initialize (if necessary)
-	if (cubeVAO == 0)
-	{
-		float vertices[] = {
-			// back face
-			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-			 1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
-			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-			-1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-			// front face
-			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-			 1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-			 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-			 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-			-1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-			// left face
-			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-			-1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-			-1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-			// right face
-			 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-			 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-			 1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
-			 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-			 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-			 1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
-			// bottom face
-			-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-			 1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-			 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-			 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-			-1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-			-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-			// top face
-			-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-			 1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-			 1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
-			 1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-			-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-			-1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
-		};
-		glGenVertexArrays(1, &cubeVAO);
-		glGenBuffers(1, &cubeVBO);
-		// fill buffer
-		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-		// link vertex attributes
-		glBindVertexArray(cubeVAO);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
-	}
-	// render Cube
-	glBindVertexArray(cubeVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-	glBindVertexArray(0);
-}
-
-// renderQuad() renders a 1x1 XY quad in NDC
-// -----------------------------------------
-unsigned int quadVAO = 0;
-unsigned int quadVBO;
-void renderQuad()
-{
-	if (quadVAO == 0)
-	{
-		float quadVertices[] = {
-			// positions        // texture Coords
-			-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-			-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-			 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-			 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-		};
-		// setup plane VAO
-		glGenVertexArrays(1, &quadVAO);
-		glGenBuffers(1, &quadVBO);
-		glBindVertexArray(quadVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	}
-	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glBindVertexArray(0);
-}
-
 /// <summary>
 /// Repares the tiles memory.
 /// create buffer with indices of visible light sources
@@ -569,11 +541,8 @@ void repareTilesMemory(int width, int height) {
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {	
-
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
-
-	// float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
 
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
@@ -590,7 +559,6 @@ void processInput(GLFWwindow *window)
 		std::cout << " M: Toggle Heatmap" << std::endl;
 		std::cout << " T: Toggle Show Tiles" << std::endl;
 		std::cout << " L: Toggle Show Lights" << std::endl;
-		std::cout << " U: Update Grid" << std::endl;
 		h_pressed = false;
 	}
 
@@ -625,17 +593,6 @@ void processInput(GLFWwindow *window)
 		lightVis = !lightVis;
 		l_pressed = false;
 	}
-
-	if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) {
-		u_pressed = true;
-	}
-	if (glfwGetKey(window, GLFW_KEY_U) == GLFW_RELEASE && u_pressed) {
-		updateGrid = !updateGrid;
-		u_pressed = false;
-	}
-
-	
-
 }
 
 // glfw: whenever the mouse moves, this callback is called
@@ -659,6 +616,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 		lastY = ypos;
 
 		camera.rotate((float)xoffset, (float)yoffset);
+
+		// update grid on mouse change
+		updateGrid = true;
 	} 
 
 	//Moving 
@@ -691,6 +651,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 		else {
 			camera.translate(UP, (float)yoffset*-0.05f);
 		}
+
+		// update grid on mouse change
+		updateGrid = true;
 	}
 	
 	//Zoom 
@@ -716,6 +679,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 		else {
 			camera.translate(BACKWARD, (float)xoffset*-0.05f);
 		}
+		// update grid on mouse change
+		updateGrid = true;
 	}
 
 	if ((	glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_RELEASE ||
@@ -752,55 +717,9 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 
 	repareTilesMemory(width, height);
-}
 
-// utility function for loading a 2D texture from file
-// ---------------------------------------------------
-unsigned int loadTexture(char const *path, bool gammaCorrection)
-{
-	/*
-	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
-	 */
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
-
-	int width, height, nrComponents;
-	unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
-	GLenum internalFormat = GL_RGB;
-	GLenum dataFormat = GL_RGB;
-	if (data)
-	{
-		
-		if (nrComponents == 1) {
-			internalFormat = dataFormat = GL_RED;
-		}
-		else if (nrComponents == 3) {
-			internalFormat = (gammaCorrection) ? GL_SRGB : GL_RGB;	// GL_SRGB => OpenGL will correct image to linear color space
-			dataFormat = GL_RGB;
-		}
-		else if (nrComponents == 4) {
-			internalFormat = (gammaCorrection) ? GL_SRGB_ALPHA : GL_RGBA; // GL_SRGB_ALPHA => OpenGL will correct image to linear color space
-			dataFormat = GL_RGBA;
-		}
-
-		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		stbi_image_free(data);
-	}
-	else
-	{
-		std::cout << "Texture failed to load at path: " << path << std::endl;
-		stbi_image_free(data);
-	}
-
-	return textureID;
+	// update grid on viewport change
+	updateGrid = true;
 }
 
 void icon(GLFWwindow* window) {

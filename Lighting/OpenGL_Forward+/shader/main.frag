@@ -2,46 +2,41 @@
 
 // ----------------------------------------------------------------------------
 //
-// Makros
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
-#define GLOBAL_AMBIENT_FACTOR (0.25)
+in vec3 fWorldNormal;                       
+in vec4 fWorldPosition;                     
+in vec2 fTexCoord;                         
+
+out vec4 FragColor;                         
 
 // ----------------------------------------------------------------------------
 //
-// Typen
+// Types
 //
 // ----------------------------------------------------------------------------
 
-/**
- * @brief Materialparameter
- *
- * Mit diesem struct können die Materialparameter einer Oberfläche gespeichert werden. Im Host-Code
- * gibt es ebenfalls ein struct mit dem Bezeichner Material. Die Speicherrepräsentation der structs
- * ist _nicht_ aufeinander abgestimmt.
- */
 struct Material {
-    vec4 color;                 /**< Beleuchtungsunabhängige Farbe */
-    float ambientReflection;    /**< Ambienter Reflexionskoeffizient */
-    float diffuseReflection;    /**< Diffuser Reflexionskoeffizient */
-    float specularReflection;   /**< Spekularer Reflexionskoeffizient */
-    float shininess;            /**< Wahrgenommene Glattheit der Oberfläche */
-    bool hasTexture;            /**< Gibt an, ob das Material Reflexionskoeffizienten aus einer
-                                     Textur bezieht */
+	//Textures
+	sampler2D texture_height1;
+	sampler2D texture_diffuse1;
+	sampler2D texture_specular1;
+	sampler2D texture_emission1;
+    float shininess;
+}; 
+
+ /**
+  * Isotropic Pointlight
+  * Pointlight data is stored in a buffer object
+  * NOTE: consider Memory Layout
+  */
+struct PointLight {
+    vec3 position;
+    float radius;
+    vec4 color;
 };
-
-// ----------------------------------------------------------------------------
-//
-// Attribute
-//
-// ----------------------------------------------------------------------------
-
-in vec3 fWorldNormal;                       /**< Normale des Vertexes im Welt-Koordinatensystem */
-in vec4 fWorldPosition;                     /**< Position des Vertex im Welt-Koordinatensystem */
-in vec2 fTexCoord;                          /**< Textur-Koordinate */
-
-out vec4 FragColor;                         /**< Farbe des Fragments */
 
 // ----------------------------------------------------------------------------
 //
@@ -49,124 +44,103 @@ out vec4 FragColor;                         /**< Farbe des Fragments */
 //
 // ----------------------------------------------------------------------------
 
-/** Textur mit Reflexionskoeffizienten */
-layout (binding = 0) uniform sampler2D ObjectMaterialTexture;
+uniform mat4 ViewMatrix;
 
-uniform mat4 ViewMatrix;                    /**< Transformation vom Welt- ins Kamera-Koordinatensystem*/
+//Materials
+uniform Material material;
 
-uniform Material ObjectMaterial;            /**< Material das gerendert werden soll */
-
-uniform int NumLights;                      /**< Anzahl der Lichtquellen */
-uniform ivec2 TileSize;                     /**< Größe der Kacheln (Breite und Höhe) */
-uniform ivec2 NumTiles;                     /**< Anzahl der Kacheln auf der X- und Y-Achse */
-uniform bool RenderHeatmap;                 /**< Gibt an, ob aktuell die Heatmap gerendert wird */
-
-/**
- * @brief Punktlichtquelle mit isotroper Abstrahlung
- *
- * Parameter einer Punkt-Lichtquelle mit isotroper Abstrahlung. Die Punktlichtquellen werden über ein Buffer Object
- * an den Shader übergeben. Deswegen gibt es dieses struct auch im Host-Code. Die Speicherrepräsentation der structs
- * ist aufeinander abgestimmt und muss bei einer Änderung berücksichtigt werden.
- */
-struct PointLight {
-    vec3 position;              /**< Position der Lichtquelle */
-    float radius;               /**< Radius der Lichtquelle */
-    vec4 color;                 /**< Anteil der Lichtquelle an der diffusen Beleuchtung */
-};
-
-
+// number of light sources
+uniform int NumLights;
+// size of tiles vec2(width, height)
+uniform ivec2 TileSize;
+// amount tiles vec2(x, y)
+uniform ivec2 NumTiles;
+// flag if heatmap should be overlayed
+uniform bool RenderHeatmap;
 
 /**
- * @brief Buffer für die Lichtquellen
- *
- * In diesem Buffer werden die Informationen zu den Lichtquellen gespeichert. Im Host
- * gibt es eine C-Repräsentation des structs PointLight, die an das Speicherlayout für
- * Uniform (und auch Shader Storage Buffer) angepasst ist.
- *
- * @remarks Dieser Buffer wird auch vom Shaderprogramm "Tile" verwendet. Es muss darauf
- *          geachtet werden, dass der binding-Punkt übereinstimmt.
+ * Light Data buffer
+ * contains data of lights 
  */
 layout (std430, binding = 0) buffer LightsBuffer {
     PointLight lights[];
 };
 
 /**
- * @brief Buffer für die Indizes der sichtbaren Lichtquellen
+ * @brief Buffer with indices of visiblie lights
  *
- * In diesem Buffer wird für jede einzelne Kachel gespeichert, welche Lichtquellen den
- * Pyramidenstumpf der Kachel überlappen.
+ * Buffer includes for every tile the indices of the lights overlapping the
+ * truncated pyramid
  *
  * Layout:
  *
- * Kachel 1                  Kachel 2
+ * Tile 1                  Tile 2
  * |                         |
  * v                         v
  * +---+---+---+---+-----+---+-------
  * | N | 0 | 1 | 2 | ... | K | ...
  * +---+---+---+---+-----+---+-------
  *
- * Für jede Kachel wird zuerst die Anzahl der Lichtquellen (N) und anschließend ihre
- * Indizes (0..) gespeichert. Die Kapazität für jede Kachel ist gleich der Anzahl der
- * Lichtquellen insgesamt. So muss nicht mit einem Atomic Counter gearbeitet
- * werden, um für jede Kachel einen unterschiedlich größen Speicherbereich zu
- * reservieren. Außerdem entfällt damit die Notwendigkeit für Pointer (Indizes[0]),
- * um den Anfang der Indices einer Kachel im Buffer zu speichern. Somit ist auch
- * keine weitere Textur (oder weiterer Buffer) notwendig, um diese Pointer
- * (Indices) für jede Kachel zu speichern.
+ * N - amount of light sources
+ * [0...(K)] - indicies of the lights 
+ * The Capacity (K) is equal for each Tile and is the number of overall light sources.
+ * This avoids the need for an atomic counter to reserve a unique memory-amount 
+ * for each tile.
+ * This avoids the need for Indice pointers in a seperate texture/buffer.
  *
- * [0] Da GLSL keine Pointertypen hat, werden Pointerstrukturen typischerweise
- *     mit Indices auf Array-Elemente (in Buffern) implementiert.
+ * [0] Since GLSL doesn't have pointer types, pointer structures are implemented as indices into 
+ * array elements (buffers).
  */
 layout (std430, binding = 1) buffer VisibleLightIndicesBuffer {
     int visibleLightIndices[];
 };
 
+// ----------------------------------------------------------------------------
+//
+// Functions
+//
+// ----------------------------------------------------------------------------
 
-// ----------------------------------------------------------------------------
-//
-// Funktionen
-//
-// ----------------------------------------------------------------------------
 /**
  * @brief W-Division
  *
- * Führt eine W-Division für den übergebenen 4D-Vektor aus.
+ * Calculates w-division for a 4d vector
  *
- * @param v       Für diesen Vektor wird die W-Division ausgeführt
+ * @param v      input vector
  *
- * @return Resultat der W-Division
+ * @return vec3 with w-division applied
  */
 vec3 wdiv(vec4 v) {
     return v.xyz / v.w;
 }
+
 /**
- * @brief Berechnet die Kameraposition im Weltkoordinatensystem
+ * @brief Calculate camera position in world space
  *
- * Berechnet die Kameraposition, indem der Nullpunkt des Betrachterkoordinatensystems
- * mit der Inversen View Matrix in das Welt-Koordinatensystem transformiert wird.
+ * Calculates the camera position, by transform the origin of the view coordinate system
+ * to the world coordinate system using the ivnerse view matrix 
  *
  * @param viewMatrix    ViewMatrix
  *
- * @return Position der Kamera im Weltkoordinatensystem
+ * @return position of the camera in world space
  */
 vec3 makeCameraWorldPosition(mat4 viewMatrix) {
     return wdiv(inverse(viewMatrix)*vec4(0, 0, 0, 1));
 }
 
 /**
- * @brief Oberflächenpunkt mit einer Punktlichtquelle beleuchten
+ * @brief BRDF to calculate lighting on a surface point
  *
- * Mit dieser Funktion kann die Beleuchtung für einen Punkt auf einer Oberfläche
- * berechnet werden. Dazu wird ein vereinfachtes Phong-Modell verwendet.
+ * Using a simplified Phong-Modell.
  *
- * @param material              Materialeigenschaften des Oberflächenpunktes
- * @param pointLight            Eigenschaften der Punktlichtquelle
- * @param baseColor             Farbe des Oberflächenpunktes (vereinfachtes Phong)
- * @param cameraWorldPosition   Position der Kamera im Weltkoordinatensystem
- * @param worldPosition         Position des Oberflächenpunktes im Weltkoordinatensystem
- * @param worldNormal           Normale des Oberflächenpunktes im Weltkoordinatensystem
+ * @param material              Material from model
+ * @param pointLight            Pointlight attributes
+ * @param baseColor             Diffuse color of surface (simplified Phong)
+ * @param cameraWorldPosition   position of the camera in world space
+ * @param worldPosition         position of the surface point in worldspace
+ * @param worldNormal           normale of the surface point in worldspace
  *
- * @return Beleuchtung für den Oberflächenpunkt
+ * @return Lighting of the surface point
  */
 vec4 shadePointLight(Material material,
                      PointLight pointLight,
@@ -179,30 +153,28 @@ vec4 shadePointLight(Material material,
     vec3 lightDirection = normalize(pointLight.position - worldPosition);
     vec3 reflectionDirection = reflect(-lightDirection, worldNormal);
 
-    vec4 i_amb  = baseColor*material.ambientReflection*pointLight.color;
-    vec4 i_diff = max(0, dot(worldNormal, lightDirection))*baseColor*material.diffuseReflection*pointLight.color;
-    vec4 i_spec = pow(max(0, dot(reflectionDirection, cameraDirection)), material.shininess)*material.specularReflection*pointLight.color;
+    vec4 i_amb  = baseColor*pointLight.color;
+    vec4 i_diff = max(0, dot(worldNormal, lightDirection)) * baseColor* pointLight.color;
+    vec4 i_spec = pow(max(0, dot(reflectionDirection, cameraDirection)), material.shininess) * pointLight.color;
 
     float distance = length(pointLight.position - worldPosition);
-    // Hier ein sehr einfaches und unrealistischen Fall-off Modell.
+    // simple (but unrealistic) fall-off modell for the light
     float d = max(0, 1 - (1.0/pointLight.radius)*distance);
 
     return d*(i_amb + i_diff + i_spec);
 }
 
 /**
- * @brief Berechnung der Farbe für die Heatmap
+ * @brief Calculate the color for the heatmap
  *
- * Mit dieser Funktion kann die Farbe der Heatmap für einen Wert berechnet werden.
+ * @param value     Values between [0,1] to calculate heatmap
  *
- * @param value     Wert zwischen 0 und 1 für die Berechnung der Heatmap
- *
- * @return Farbe der Heatmap für den übergebenen Wert
+ * @return color of the heatmap for the given value
  */
 vec4 heatmap(float value) {
     vec3 color = vec3(0);
 
-    // Farbewerte der Heatmap
+    // color values of the heatmap
     const vec3 color0 = vec3(0, 0, 1);
     const vec3 color1 = vec3(0, 1, 0);
     const vec3 color2 = vec3(1, 1, 0);
@@ -221,50 +193,41 @@ vec4 heatmap(float value) {
     return vec4(color, 1);
 }
 
-
-
-
-/**
- * Einsprungpunkt für den Fragment-Shader
- */
 void main() {
-    // Invertierung der Texturkoordinaten auf der Y-Achse, da die meisten OBJ-Dateien
-    // Texturkoordinaten enthalten, bei denen der Koordinatenursprung oben links ist.
-    vec2 invTexCoord = vec2(fTexCoord.x, 1 - fTexCoord.y);
+    // read texture
+    vec4 materialColor = texture(material.texture_diffuse1, fTexCoord); 
 
-    vec4 materialColor = ObjectMaterial.hasTexture ? texture(ObjectMaterialTexture, invTexCoord) : ObjectMaterial.color;
+    // remove alpha 
+    if(materialColor.a < 0.1)
+        discard;
 
-    // Position der Lichtquellenindizes in Buffer Object berechnen.
+    // calculate position of the light indicies in the buffer object
     ivec2 tilePosition = ivec2(gl_FragCoord.xy) / TileSize.xy;
     uint linearWorkGroupIndex = uint(NumTiles.x*tilePosition.y + tilePosition.x);
 
-    // Anzahl der Lichtquellen wird vor den Indizes selbst gespeichert.
+    // amount of lights are stored in the buffer as first component
     int numLights = visibleLightIndices[(NumLights + 1)*linearWorkGroupIndex];
 
-    // Beitrag jeder einzelnen Lichtquelle zur Beleuchtung des Oberflächenpunktes
-    // berechnen und die Intensitäten aufaddieren-
+    // calculate the contribution of each light to the global lighting of the surface pointLight
+    // accumulate the intensity
     vec4 color = vec4(0, 0, 0, 1);    
     for (int lightIndex = 0; lightIndex < numLights; ++lightIndex) {
         int index = visibleLightIndices[(NumLights + 1)*linearWorkGroupIndex + lightIndex + 1];
         PointLight light = lights[index];
 
-        vec4 illumination = shadePointLight(ObjectMaterial,
+        vec4 illumination = shadePointLight(material,
                                             light,
                                             materialColor,
                                             makeCameraWorldPosition(ViewMatrix),
                                             wdiv(fWorldPosition),
                                             fWorldNormal);
-
         color += illumination;
     }
 
-    // Hier wird eine ambient Beleuchtung addiert, da die Verteilung der Lichtquellen
-    // typischerweise so ungleichmäßig ist, dass nicht jeder Teil der Szene beleuchtet
-    // wird. Durch das Addieren der Materialfarbe wird eine ambiente Beleuchtung
-    // mit komplett weißem Licht erreicht.
-    FragColor = color + GLOBAL_AMBIENT_FACTOR*materialColor;
+    // add some minimal ambient color
+    FragColor = color + materialColor*0.2;
 
-    // Heatmap leicht transparent über die Szene legen.
+    // layer heatmap semi-transparent on top of the scene.
     if (RenderHeatmap) {
       FragColor = mix(FragColor, heatmap(float(numLights)/NumLights), 0.7);
     }
