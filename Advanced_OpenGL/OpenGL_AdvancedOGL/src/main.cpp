@@ -528,10 +528,10 @@ int main()
 		{
 			float distance = glm::length(camera.Position - vegetation[i]);
 			//sorted
-			//sorted[distance] = vegetation[i];
+			sorted[distance] = vegetation[i];
 
 			//unsorted 
-			sorted[float(i)] = vegetation[i];
+			//sorted[float(i)] = vegetation[i];
 		}
 
 		// per-frame time logic

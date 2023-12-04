@@ -203,7 +203,7 @@ int main()
 	// set up transformation matrices
 	// ------------------------------------------------------------------
 	// set z axis arbitraily as the rendering ins order-independent
-	glm::mat4 redModelMat = calculate_model_matrix(glm::vec3(0.0f, 0.0f, -1.0f));
+	glm::mat4 redModelMat = calculate_model_matrix(glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 greenModelMat = calculate_model_matrix(glm::vec3(0.0f, 0.0f, 0.0f));
 	glm::mat4 blueModelMat = calculate_model_matrix(glm::vec3(0.0f, 0.0f, 2.0f));
 

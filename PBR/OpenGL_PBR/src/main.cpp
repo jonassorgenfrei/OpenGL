@@ -5,7 +5,7 @@
  *  SHADED_STATE 1 - texture shaded
  */
 
-#define SHADED_STATE 1
+#define SHADED_STATE 0
 
 #if SHADED_STATE == 1
 	/*
@@ -117,9 +117,9 @@ int main()
 	// build and compile our shader program
 	// ------------------------------------
 #if	SHADED_STATE == 0
-	Shader shader(FileSystem::getPath("shader/pbr.vs").c_str(), FileSystem::getPath("shader/pbr.fs").c_str());	// pbr Shader
+	Shader shader(FileSystem::getPath("shader/pbr.vert").c_str(), FileSystem::getPath("shader/pbr.frag").c_str());	// pbr Shader
 #elif SHADED_STATE == 1
-	Shader shader(FileSystem::getPath("shader/pbr_texture.vs").c_str(), FileSystem::getPath("shader/pbr_texture.fs").c_str());	// pbr Shader
+	Shader shader(FileSystem::getPath("shader/pbr_texture.vert").c_str(), FileSystem::getPath("shader/pbr_texture.frag").c_str());	// pbr Shader
 #endif 
 
 	shader.use();												// bind Shader
