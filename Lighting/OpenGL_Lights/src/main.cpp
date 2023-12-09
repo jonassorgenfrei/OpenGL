@@ -87,8 +87,8 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader ourShader(FileSystem::getPath("shader/cube.vs").c_str(), FileSystem::getPath("shader/cube.fs").c_str());
-	Shader lightShader(FileSystem::getPath("shader/light.vs").c_str(), FileSystem::getPath("shader/light.fs").c_str());
+	Shader ourShader(FileSystem::getPath("shader/cube.vert").c_str(), FileSystem::getPath("shader/cube.frag").c_str());
+	Shader lightShader(FileSystem::getPath("shader/light.vert").c_str(), FileSystem::getPath("shader/light.frag").c_str());
 	
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// Position (x,y,z) | Color (r,g,b) | Texturcoordinate (x,y) | Normal (x,y,z)

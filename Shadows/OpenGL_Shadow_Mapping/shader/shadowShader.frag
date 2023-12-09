@@ -27,6 +27,53 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 	float closestDepth = texture(shadowMap, projCoords.xy).r;	//from lights point of view
 	// get current depth at the fragment 
 	float currentDepth = projCoords.z;
+	
+	// check if currentDepth is highger than closestDepth
+	float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
+
+	// force shadow when z coordinante is larger than 1.0
+	if(projCoords.z > 1.0)
+        shadow = 0.0;
+
+	return shadow;
+}
+
+
+float shadowCalculationBiased(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
+{
+	// Perspective Devide
+	// transform clip-space coordinates in the range [-w,w] to [-1, 1]
+	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+	// transform NDC coordinantes to the range [0,1]
+	projCoords = projCoords * 0.5 +0.5;
+	// Sample the depth map
+	float closestDepth = texture(shadowMap, projCoords.xy).r;	//from lights point of view
+	// get current depth at the fragment 
+	float currentDepth = projCoords.z;
+	//Shadow Bias (offsets the depth of the surface [or  the shadow map] by a small bias amount)
+	//float bias = BIAS;
+	float bias = max(0.05 * (1.0 - dot(normal,lightDir)), BIAS); // change amount of bias based on the surface angle towards the light: something we can solve with the dot product
+	
+	float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+
+	// force shadow when z coordinante is larger than 1.0
+	if(projCoords.z > 1.0)
+        shadow = 0.0;
+
+	return shadow;
+}
+
+float shadowCalculationPCF(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
+{
+	// Perspective Devide
+	// transform clip-space coordinates in the range [-w,w] to [-1, 1]
+	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+	// transform NDC coordinantes to the range [0,1]
+	projCoords = projCoords * 0.5 +0.5;
+	// Sample the depth map
+	float closestDepth = texture(shadowMap, projCoords.xy).r;	//from lights point of view
+	// get current depth at the fragment 
+	float currentDepth = projCoords.z;
 	//Shadow Bias (offsets the depth of the surface [or  the shadow map] by a small bias amount)
 	//float bias = BIAS;
 	float bias = max(0.05 * (1.0 - dot(normal,lightDir)), BIAS); // change amount of bias based on the surface angle towards the light: something we can solve with the dot product
@@ -44,11 +91,7 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 	}
 	shadow /= 9.0; // ave. result by total samples taken
 
-	// check if currentDepth is highger than closestDepth
-	//float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
-	//float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
-
-	// dorce shadow when z coordinante is larger than 1.0
+	// force shadow when z coordinante is larger than 1.0
 	if(projCoords.z > 1.0)
         shadow = 0.0;
 
@@ -74,7 +117,7 @@ void main()
     spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0);
     vec3 specular = spec * lightColor;    
     // calculate shadow
-    float shadow = shadowCalculation(fs_in.FragPosLightSpace, normal, lightDir);       
+    float shadow = shadowCalculationPCF(fs_in.FragPosLightSpace, normal, lightDir);       
     vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular)) * color;    
     
     FragColor = vec4(lighting, 1.0);

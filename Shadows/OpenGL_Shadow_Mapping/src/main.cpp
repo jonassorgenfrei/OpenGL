@@ -47,9 +47,11 @@ const unsigned int SCR_HEIGHT = 720;
 
 bool d_pressed = false;
 bool p_pressed = false;
+bool w_pressed = false;
 
 bool debug = false;
-bool peterPanning = false;
+bool peterPanning = true;
+bool wireframe = false;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -117,21 +119,21 @@ int main()
 
 	// build and compile shader program(s)
 	// ------------------------------------
-	Shader shadowShader(FileSystem::getPath("shader/shadowShader.vs").c_str(), FileSystem::getPath("shader/shadowShader.fs").c_str());
-	Shader debugDepthQuad(FileSystem::getPath("shader/depthMapRender.vs").c_str(), FileSystem::getPath("shader/depthMapRender.fs").c_str());
-	Shader simpleDepthShader(FileSystem::getPath("shader/simpleDepthShader.vs").c_str(), FileSystem::getPath("shader/simpleDepthShader.fs").c_str());
+	Shader shadowShader(FileSystem::getPath("shader/shadowShader.vert").c_str(), FileSystem::getPath("shader/shadowShader.frag").c_str());
+	Shader debugDepthQuad(FileSystem::getPath("shader/depthMapRender.vert").c_str(), FileSystem::getPath("shader/depthMapRender.frag").c_str());
+	Shader simpleDepthShader(FileSystem::getPath("shader/simpleDepthShader.vert").c_str(), FileSystem::getPath("shader/simpleDepthShader.frag").c_str());
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
 	float planeVertices[] = {
 		// positions            // normals         // texcoords
-		 25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,  25.0f,  0.0f,
-		-25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
-		-25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
+		 25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,   25.0f,   0.0f,
+		-25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,    0.0f,   0.0f,
+		-25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,    0.0f,  25.0f,
 
-		 25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,  25.0f,  0.0f,
-		-25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   0.0f, 25.0f,
-		 25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,  25.0f, 10.0f
+		 25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,   25.0f,   0.0f,
+		-25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,    0.0f,  25.0f,
+		 25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   25.0f,  25.0f
 	};
 
 	// Setup cube VAO
@@ -243,10 +245,13 @@ int main()
 			}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		// 2. then render scene as normal with shadow mapping (using dpeth map)
+		// 2. then render scene as normal with shadow mapping (using depth map)
 		//Rest view port
-			glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+		glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		// draw full/wireframe
+		glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
+
 		shadowShader.use();
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 		glm::mat4 view = camera.GetViewMatrix();
@@ -261,6 +266,9 @@ int main()
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, depthMap);
 		renderScene(shadowShader);	
+		
+		// reset draw mode
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 		// DEBUG
 		if (debug) {
@@ -273,6 +281,7 @@ int main()
 			renderQuad();
 		}
 		
+
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
 		glfwSwapBuffers(window);
@@ -457,6 +466,15 @@ void processInput(GLFWwindow *window)
 
 		if (peterPanning)
 			std::cout << "enable peter panning" << std::endl;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+		w_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE && w_pressed) {
+		wireframe = !wireframe;
+		w_pressed = false;
+
 	}
 }
 

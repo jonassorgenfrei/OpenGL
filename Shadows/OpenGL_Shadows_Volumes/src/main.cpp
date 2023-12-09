@@ -1,6 +1,7 @@
 /* 
- *	Screen Space Ambient Occlusion (SSAO)
- *		Occlusion approximation
+ *	Stencil Shadow Volume Technique
+ *  when an object is inside the volume (in shadow) the front polygons of the volume win the depth test
+ * against the polygons of the object and the back polygons of the volume fail the same test
  */
 
 #include <glad/glad.h>
@@ -72,8 +73,10 @@ int main()
 	// glfw window creation
 	// --------------------
 	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Advanced GL", NULL, NULL);
+
 	/* creates and configures default framebuffer */
-	
+	// NOTE: glfw creates a stencil buffer automatically
+	// other libs may not
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -107,16 +110,18 @@ int main()
 	/* Face Culling */
 	glEnable(GL_CULL_FACE);
 
+	glDepthFunc(GL_LEQUAL);
+
+	Shader nullShader(FileSystem::getPath("shader/null_technique.vert").c_str(), FileSystem::getPath("shader/null_technique.frag").c_str());
+	Shader shadowVolume(FileSystem::getPath("shader/shadow_volume.vert").c_str(), FileSystem::getPath("shader/shadow_volume.frag").c_str(), FileSystem::getPath("shader/shadow_volume.geom").c_str());
+	
+	/*
 	// build and compile our shader program
 	// ------------------------------------
-	Shader shader(FileSystem::getPath("shader/point_shadows.vert").c_str(), FileSystem::getPath("shader/point_shadows.frag").c_str());
+	
 	Shader simpleDepthShader(FileSystem::getPath("shader/point_shadows_depth.vert").c_str(), FileSystem::getPath("shader/point_shadows_depth.frag").c_str(), FileSystem::getPath("shader/point_shadows_depth.geom").c_str());
 	Shader lightShader(FileSystem::getPath("shader/light.vert").c_str(), FileSystem::getPath("shader/light.frag").c_str());
 	
-	// load models
-	// -----------
-	//Model nanosuit(".\\models\\nanosuit\\nanosuit.obj");
-
 	// load textures
 	// -------------
 	unsigned int woodTexture = loadTexture(FileSystem::getPath("../../content/images/wood.png").c_str(), false);
@@ -156,6 +161,9 @@ int main()
 	shader.setInt("diffuseTexture", 0);
 	shader.setInt("depthMap", 1);
 
+	
+	*/
+
 	// lighting info
 	// -------------
 	glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
@@ -175,13 +183,168 @@ int main()
 		// move light position over time
 		lightPos.z = sin(glfwGetTime() * 0.5) * 3.0;
 
+
+		//m_scale += 0.1f;
+
+		//m_pGameCamera->OnRender();
+
+		glDepthMask(GL_TRUE);
+
 		// render
 		// ------
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		// 0. create depth cubemap transformation matrices
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		
+		// 0. RenderSceneIntoDepth
 		// -----------------------------------------------
+		// render entire scene into depth buffer, without touching the color buffer
+		glDrawBuffer(GL_NONE);	// disable writes to the color buffer
+		// if the depth buffer is only partially updated we will get incorrect results
+		nullShader.use();
+
+		/*
+			Pipeline p;
+
+			p.SetCamera(m_pGameCamera->GetPos(), m_pGameCamera->GetTarget(), m_pGameCamera->GetUp());
+			p.SetPerspectiveProj(m_persProjInfo);
+
+			m_boxOrientation.m_rotation = Vector3f(0, m_scale, 0);
+			p.Orient(m_boxOrientation);
+			m_nullTech.SetWVP(p.GetWVPTrans());
+			m_box.Render();
+
+			p.Orient(m_quadOrientation);
+			m_nullTech.SetWVP(p.GetWVPTrans());
+			m_quad.Render();
+		*/
+
+		// 1. RenderShadowVolIntoStencil
+		// --------------------------------------------
+		// render shadow volume into the stencil buffer while setting up the stencil test
+		// it generates the volume (and its caps) from the silhouette of the occluder
+		glEnable(GL_STENCIL_TEST);
+
+		// disable writes to the depth buffer (NOTE: writes to color are still disabled from the previous step)
+		// only update stencil buffer
+		glDepthMask(GL_FALSE);
+		// enable depth clamp, cause projected-to-infinity-vertices (from the far cap) to be clamped to
+		// the maximum depth value (otherwise the far cap would be clipped away
+		glEnable(GL_DEPTH_CLAMP);
+		// disable back face culling, algorithms depends on rendering all the triangles of the volume
+		glDisable(GL_CULL_FACE);
+
+		// We need the stencil test to be enabled but we want it
+		// to succeed always. Only the depth test matters.
+		glStencilFunc(GL_ALWAYS, 0, 0xff);
+
+		// Set the stencil test per the depth fail algorithm
+		glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+		glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+
+		shadowVolume.use();
+
+		/*
+			m_ShadowVolTech.SetLightPos(m_pointLight.Position);
+
+			// Render the occluder
+			Pipeline p;
+			p.SetCamera(m_pGameCamera->GetPos(), m_pGameCamera->GetTarget(), m_pGameCamera->GetUp());
+			p.SetPerspectiveProj(m_persProjInfo);
+			m_boxOrientation.m_rotation = Vector3f(0, m_scale, 0);
+			p.Orient(m_boxOrientation);
+			m_ShadowVolTech.SetVP(p.GetVPTrans());
+			m_ShadowVolTech.SetWorldMatrix(p.GetWorldTrans());
+			m_box.Render();
+		*/
+
+		// Restore local stuff
+		glDisable(GL_DEPTH_CLAMP);
+		glEnable(GL_CULL_FACE);
+
+		// 2. RenderShadowedScene
+		// --------------------------------------------
+		// render the scene while taking the values in the stencil buffer into account
+		// only render pixels whose stencil value is zero
+		// enable writing in color buffer
+		glDrawBuffer(GL_BACK);
+
+		// Draw only if the corresponding stencil value is zero
+		glStencilFunc(GL_EQUAL, 0x0, 0xFF);
+
+		// prevent update to the stencil buffer
+		glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_KEEP);
+
+		/*
+			m_LightingTech.Enable();
+
+			m_pointLight.AmbientIntensity = 0.0f;
+			m_pointLight.DiffuseIntensity = 0.8f;
+
+			m_LightingTech.SetPointLights(1, &m_pointLight);
+
+			Pipeline p;
+			p.SetPerspectiveProj(m_persProjInfo);
+			p.SetCamera(m_pGameCamera->GetPos(), m_pGameCamera->GetTarget(), m_pGameCamera->GetUp());
+
+			m_boxOrientation.m_rotation = Vector3f(0, m_scale, 0);
+			p.Orient(m_boxOrientation);
+			m_LightingTech.SetWVP(p.GetWVPTrans());
+			m_LightingTech.SetWorldMatrix(p.GetWorldTrans());
+			m_box.Render();
+
+			p.Orient(m_quadOrientation);
+			m_LightingTech.SetWVP(p.GetWVPTrans());
+			m_LightingTech.SetWorldMatrix(p.GetWorldTrans());
+			m_pGroundTex->Bind(COLOR_TEXTURE_UNIT);
+			m_quad.Render();
+		*/
+		glDisable(GL_STENCIL_TEST);
+
+		// 3. RenderAmbientLight
+		// --------------------------------------------
+		// add extra ambient render pass to avoid black pixels, that were dropped by the stencil test
+		
+		// enable blending to merge the resutls of the previous pass with this one
+		glEnable(GL_BLEND);
+		glBlendEquation(GL_FUNC_ADD);
+		glBlendFunc(GL_ONE, GL_ONE);
+
+		m_LightingTech.Enable();
+
+		m_pointLight.AmbientIntensity = 0.2f;
+		m_pointLight.DiffuseIntensity = 0.0f;	// note: zero out diffuse intensity
+
+		m_LightingTech.SetPointLights(1, &m_pointLight);
+
+		m_pGroundTex->Bind(GL_TEXTURE0);
+
+		Pipeline p;
+		p.SetPerspectiveProj(m_persProjInfo);
+		p.SetCamera(m_pGameCamera->GetPos(), m_pGameCamera->GetTarget(), m_pGameCamera->GetUp());
+
+		m_boxOrientation.m_rotation = Vector3f(0, m_scale, 0);
+		p.Orient(m_boxOrientation);
+		m_LightingTech.SetWVP(p.GetWVPTrans());
+		m_LightingTech.SetWorldMatrix(p.GetWorldTrans());
+		m_box.Render();
+
+		p.Orient(m_quadOrientation);
+		m_LightingTech.SetWVP(p.GetWVPTrans());
+		m_LightingTech.SetWorldMatrix(p.GetWorldTrans());
+		m_pGroundTex->Bind(COLOR_TEXTURE_UNIT);
+		m_quad.Render();
+
+		glDisable(GL_BLEND);
+		
+
+
+		/*
+		
+
+		
+		
+
+		
 		float aspect = (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT;
 		float nearP = 1.0f;
 		float far_plane = 25.0f;
@@ -205,8 +368,7 @@ int main()
 		shadowTransforms.push_back(shadowProj *
 			glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0))); // far		
 
-		// 1. first render to depth cubemap
-		// --------------------------------
+		
 		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 			glClear(GL_DEPTH_BUFFER_BIT);
@@ -252,7 +414,7 @@ int main()
 			lightShader.setMat4("model", model);
 			renderSphere();
 		}
-		
+		*/
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
 		glfwSwapBuffers(window);
