@@ -40,7 +40,7 @@ const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
 bool visLight = false;
-bool shadows = false;
+bool shadows = true;
 
 bool space_pressed = false;
 bool l_pressed = false;

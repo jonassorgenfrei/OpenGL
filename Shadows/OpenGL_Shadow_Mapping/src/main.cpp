@@ -45,6 +45,9 @@ void icon(GLFWwindow* window);
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
+//const unsigned int SHADOW_WIDTH = 1024 / 2, SHADOW_HEIGHT = 1024 / 2;
+const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+
 bool d_pressed = false;
 bool p_pressed = false;
 bool w_pressed = false;
@@ -127,12 +130,13 @@ int main()
 	// ------------------------------------------------------------------
 	float planeVertices[] = {
 		// positions            // normals         // texcoords
-		 25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,   25.0f,   0.0f,
+		-25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,    0.0f,  25.0f,
 		-25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,    0.0f,   0.0f,
-		-25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,    0.0f,  25.0f,
-
 		 25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,   25.0f,   0.0f,
+	
 		-25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,    0.0f,  25.0f,
+		 25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,   25.0f,   0.0f,
+		
 		 25.0f, -0.5f, -25.0f,  0.0f, 1.0f, 0.0f,   25.0f,  25.0f
 	};
 
@@ -156,7 +160,7 @@ int main()
 	unsigned int woodTexture = loadTexture(FileSystem::getPath("../../content/images/wood.png").c_str(), GL_FALSE);
 
 	/* the depth map */
-	const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+	
 	// create a framebuffer object for rendering the depthMap
 	unsigned int depthMapFBO;
 	glGenFramebuffers(1, &depthMapFBO);
@@ -197,9 +201,6 @@ int main()
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
-	//	glEnable(GL_CULL_FACE);
-	//	glCullFace(GL_BACK);
-
 		// Set frame time
 		GLfloat currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
@@ -249,6 +250,10 @@ int main()
 		//Rest view port
 		glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		//glEnable(GL_CULL_FACE);
+		//glCullFace(GL_BACK);
+
 		// draw full/wireframe
 		glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 
@@ -474,8 +479,8 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE && w_pressed) {
 		wireframe = !wireframe;
 		w_pressed = false;
-
 	}
+
 }
 
 // glfw: whenever the mouse moves, this callback is called

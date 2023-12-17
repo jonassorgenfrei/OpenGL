@@ -1,7 +1,9 @@
 /* 
  *	Stencil Shadow Volume Technique
  *  when an object is inside the volume (in shadow) the front polygons of the volume win the depth test
- * against the polygons of the object and the back polygons of the volume fail the same test
+ *  against the polygons of the object and the back polygons of the volume fail the same test
+ * 
+ * NOTE: THIS PROGRAM IS WORK IN PROGESS AND NOT WORKING YET!
  */
 
 #include <glad/glad.h>
@@ -38,13 +40,16 @@ void icon(GLFWwindow* window);
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
+const unsigned int SCR_HEIGHT = 1024;
+
+bool w_pressed = false;
+bool l_pressed = false;
 
 bool visLight = false;
 bool shadows = false;
 
 bool space_pressed = false;
-bool l_pressed = false;
+bool wireframe = false;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -109,18 +114,20 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 	/* Face Culling */
 	glEnable(GL_CULL_FACE);
-
+	// to avoid z fighting from pixels
+	// relaxes the depth test a bit, if a second pixel is rendered on top of a previous pixel with the same
+	// depth the last pixel always take precedence
 	glDepthFunc(GL_LEQUAL);
 
-	Shader nullShader(FileSystem::getPath("shader/null_technique.vert").c_str(), FileSystem::getPath("shader/null_technique.frag").c_str());
-	Shader shadowVolume(FileSystem::getPath("shader/shadow_volume.vert").c_str(), FileSystem::getPath("shader/shadow_volume.frag").c_str(), FileSystem::getPath("shader/shadow_volume.geom").c_str());
-	
-	/*
 	// build and compile our shader program
 	// ------------------------------------
-	
-	Shader simpleDepthShader(FileSystem::getPath("shader/point_shadows_depth.vert").c_str(), FileSystem::getPath("shader/point_shadows_depth.frag").c_str(), FileSystem::getPath("shader/point_shadows_depth.geom").c_str());
-	Shader lightShader(FileSystem::getPath("shader/light.vert").c_str(), FileSystem::getPath("shader/light.frag").c_str());
+	Shader nullShader(FileSystem::getPath("shader/null_technique.vert").c_str(), FileSystem::getPath("shader/null_technique.frag").c_str());
+	Shader shadowVolume(FileSystem::getPath("shader/shadow_volume.vert").c_str(), FileSystem::getPath("shader/shadow_volume.frag").c_str(), FileSystem::getPath("shader/shadow_volume.geom").c_str());
+	//Shader lightShader(FileSystem::getPath("shader/light.vert").c_str(), FileSystem::getPath("shader/light.frag").c_str());
+	Shader shadowVolumeViz(FileSystem::getPath("shader/shadow_volume.vert").c_str(), FileSystem::getPath("shader/const.frag").c_str(), FileSystem::getPath("shader/shadow_volumeVis.geom").c_str());
+	//Shader shadowVolumeViz(FileSystem::getPath("shader/shadow_volume.vert").c_str(), FileSystem::getPath("shader/const.frag").c_str());
+
+	/*
 	
 	// load textures
 	// -------------
@@ -183,10 +190,12 @@ int main()
 		// move light position over time
 		lightPos.z = sin(glfwGetTime() * 0.5) * 3.0;
 
-
 		//m_scale += 0.1f;
 
 		//m_pGameCamera->OnRender();
+
+		// draw full/wireframe
+		glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 
 		glDepthMask(GL_TRUE);
 
@@ -195,12 +204,20 @@ int main()
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		
+		// set uniforms
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+		glm::mat4 view = camera.GetViewMatrix();
+		glm::mat4 model = glm::mat4(1.0f);
+
 		// 0. RenderSceneIntoDepth
 		// -----------------------------------------------
 		// render entire scene into depth buffer, without touching the color buffer
 		glDrawBuffer(GL_NONE);	// disable writes to the color buffer
 		// if the depth buffer is only partially updated we will get incorrect results
 		nullShader.use();
+		nullShader.setMat4("projection", projection);
+		nullShader.setMat4("view", view);
+		nullShader.setMat4("model", model);
 
 		/*
 			Pipeline p;
@@ -308,7 +325,28 @@ int main()
 		glEnable(GL_BLEND);
 		glBlendEquation(GL_FUNC_ADD);
 		glBlendFunc(GL_ONE, GL_ONE);
-
+		/*
+		nullShader.setMat4("projection", projection);
+		nullShader.setMat4("view", view);
+		// room cube
+		glm::mat4 model = glm::mat4(1.0);
+		model = glm::scale(model, glm::vec3(5.0f));
+		shader.setMat4("model", model);
+		glCullFace(GL_FRONT);
+		//glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
+		shader.setInt("reverse_normals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
+		renderCube();
+		shader.setInt("reverse_normals", 0); // and of course disable it
+		glCullFace(GL_BACK);
+		//glEnable(GL_CULL_FACE);
+		// cubes
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
+		model = glm::scale(model, glm::vec3(0.5f));
+		shader.setMat4("model", model);
+		renderCube();
+		*/
+		/*
 		m_LightingTech.Enable();
 
 		m_pointLight.AmbientIntensity = 0.2f;
@@ -333,17 +371,24 @@ int main()
 		m_LightingTech.SetWorldMatrix(p.GetWorldTrans());
 		m_pGroundTex->Bind(COLOR_TEXTURE_UNIT);
 		m_quad.Render();
-
+		*/
 		glDisable(GL_BLEND);
 		
+		// visualize shadow volumes
+		shadowVolumeViz.use();
+		shadowVolumeViz.setMat4("projection", projection);
+		shadowVolumeViz.setMat4("view", view);
+
+		// cubes
+		model = glm::mat4(1.0f);
+		//model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
+		model = glm::scale(model, glm::vec3(0.5f));
+		shadowVolumeViz.setMat4("model", model);
+		shadowVolumeViz.setVec3("lightPos", lightPos);
+		renderCube();
 
 
 		/*
-		
-
-		
-		
-
 		
 		float aspect = (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT;
 		float nearP = 1.0f;
@@ -479,74 +524,86 @@ void renderScene(const Shader &shader)
 // -------------------------------------------------
 unsigned int cubeVAO = 0;
 unsigned int cubeVBO = 0;
+unsigned int cubeEBO = 0;
 void renderCube()
 {
 	// initialize (if necessary)
 	if (cubeVAO == 0)
 	{
-		float vertices[] = {
-			// back face
-			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-			 1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
-			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-			-1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-			// front face
-			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-			 1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-			 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-			 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-			-1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-			// left face
-			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-			-1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-			-1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-			// right face
-			 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-			 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-			 1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
-			 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-			 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-			 1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
-			// bottom face
-			-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-			 1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-			 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-			 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-			-1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-			-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-			// top face
-			-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-			 1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-			 1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
-			 1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-			-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-			-1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
+		// TODO: FIX ADJACENCY RENDERING
+		// Points 0, 2, and 4 define the triangle.
+		// Points 1, 3, and 5 tell where adjacent triangles are
+
+		// Vertex array (assuming each vertex has 3 coordinates)
+		GLfloat vertices[] = {
+			// Vertex 0
+			-0.5f, -0.5f, -0.5f,
+			// Vertex 1
+			0.5f, -0.5f, -0.5f,
+			// Vertex 2
+			-0.5f, 0.5f, -0.5f,
+			// Vertex 3
+			0.5f, 0.5f, -0.5f,
+			// Vertex 4
+			-0.5f, -0.5f, 0.5f,
+			// Vertex 5
+			0.5f, -0.5f, 0.5f,
+			// Vertex 6
+			-0.5f, 0.5f, 0.5f,
+			// Vertex 7
+			0.5f, 0.5f, 0.5f,
 		};
+
+		// Index array
+		GLuint indices[] = {
+			// Bottom face
+			0, 1, 2, 3, 4, 5,
+
+			// Front face
+			0, 1, 5, 4, 2, 3,
+
+			// Right face
+			1, 3, 7, 5, 0, 2,
+
+			// Back face
+			4, 5, 7, 6, 2, 3,
+
+			// Left face
+			0, 1, 3, 2, 4, 5,
+
+			// Top face
+			2, 3, 7, 6, 0, 1,
+		};
+
+	
 		glGenVertexArrays(1, &cubeVAO);
 		glGenBuffers(1, &cubeVBO);
+		glGenBuffers(1, &cubeEBO);
+
+		// link vertex attributes
+		glBindVertexArray(cubeVAO);
+
 		// fill buffer
 		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-		// link vertex attributes
-		glBindVertexArray(cubeVAO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cubeEBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+		
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+		//glEnableVertexAttribArray(1);
+		//glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+		//glEnableVertexAttribArray(2);
+		//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+		//glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindVertexArray(0);
 	}
 	// render Cube
 	glBindVertexArray(cubeVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
+	// This function takes the topology, the number of indicesand their type.
+	// The fourth parameter tells it where to start in the index buffer.
+	glDrawElements(GL_TRIANGLES_ADJACENCY, sizeof(indices) / sizeof(indices[0]), GL_UNSIGNED_INT, 0);
+	//glDrawElementsBaseVertex(GL_TRIANGLES_ADJACENCY, 36, GL_UNSIGNED_INT, );
 	glBindVertexArray(0);
 }
 
@@ -585,6 +642,14 @@ void processInput(GLFWwindow *window)
 	{
 		l_pressed = false;
 	}
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+		w_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE && w_pressed) {
+		wireframe = !wireframe;
+		w_pressed = false;
+	}
+
 
 }
 

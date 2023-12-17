@@ -77,7 +77,7 @@ float shadowCalculationPCF(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 	//Shadow Bias (offsets the depth of the surface [or  the shadow map] by a small bias amount)
 	//float bias = BIAS;
 	float bias = max(0.05 * (1.0 - dot(normal,lightDir)), BIAS); // change amount of bias based on the surface angle towards the light: something we can solve with the dot product
-
+	bias = 0;
 	// PCF (percentage-closer filtering) to produce softer shadows
 	float shadow = 0.0;
 	vec2 texelSize = 1.0 / textureSize(shadowMap, 0);	// width and height of texture at mipmap level 0
@@ -117,7 +117,9 @@ void main()
     spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0);
     vec3 specular = spec * lightColor;    
     // calculate shadow
-    float shadow = shadowCalculationPCF(fs_in.FragPosLightSpace, normal, lightDir);       
+    //float shadow = shadowCalculation(fs_in.FragPosLightSpace, normal, lightDir);       
+	float shadow = shadowCalculationBiased(fs_in.FragPosLightSpace, normal, lightDir);      
+	//float shadow = shadowCalculationPCF(fs_in.FragPosLightSpace, normal, lightDir);      
     vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular)) * color;    
     
     FragColor = vec4(lighting, 1.0);

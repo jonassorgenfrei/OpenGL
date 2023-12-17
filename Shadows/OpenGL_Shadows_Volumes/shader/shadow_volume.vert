@@ -5,7 +5,7 @@ layout (location = 1) in vec3 Normal;
 layout (location = 2) in vec2 TexCoord;      
 
 out vec3 PosL;
-                                                                                    
+
 void main()                                                                         
 {                     
     // forward position as is

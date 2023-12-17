@@ -2,7 +2,7 @@
 # Minimum CMake Version
 cmake_minimum_required (VERSION 3.15)
 # Project Name
-project(SSAO)
+project(Stencil_Silhouette)
 
 # Output Dir
 set(RuntimeOutputDir ${CMAKE_CURRENT_SOURCE_DIR}/build)

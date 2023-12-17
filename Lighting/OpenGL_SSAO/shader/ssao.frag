@@ -24,11 +24,11 @@ const vec2 noiseScale = vec2(1280.0/4.0, 720.0/4.0); // screen = 1280x720
 // by deviding the screen's dimensions by the noise texture size:
 
 /**
- * Invertiert die Binärdarstellung einer Zahl an der Kommastelle
+ * Inverts the binary representation of a number at the decimal position
  *
- * @param bits                  Zahl a
+ * @param bits                  number a
  *
- * @return Zahl a mit invertierter Binärdarstellung nach dem Komma
+ * @return Number a with inverted binary representation after decimal position
  */
 float radicalInverse_VdC(uint bits) {
         bits = (bits << 16u) | (bits >> 16u);
@@ -42,23 +42,23 @@ float radicalInverse_VdC(uint bits) {
 uniform mat4 projection;
 
 /**
- * Berechnet auf Basis eines 2D-Vektors einen Zufallswert
+ * Calculates a 2d random vector
  *
- * @param xi                    2D-Vektor als Grundlage des Zufallswertes
+ * @param xi                    2D-vector as seed for the noise generation
  *
- * @return Zufallswert
+ * @return Random vector
  */
 float rand(vec2 xi){
 	return fract(sin(dot(xi.xy, vec2(12.9898,78.233))) * 43758.5453);
 }
 
 /**
- * Berechnet einen Vektor in der Hemisphäre um die Y-Achse. Die Verteilung der Vektoren
- * entspricht cos(theta).
+ * Caluclates a vector in the hemisphere around the Y-axis. The distribution of the 
+ * vectors is based on cos(theta)
  *
- * @param xi                   Zufallsvektor im Intervall [0, 1)
+ * @param xi                   Random vector in the range [0, 1)
  *
- * @return Vektor in der Hemisphäre um die Y-Achse
+ * @return vector in the Hemisphere around the Y-axis
  */
 vec3 sampleHemisphereCos(float u, float v) { // Y ist oben
         float phi = v * 2.0 * PI;
@@ -68,12 +68,12 @@ vec3 sampleHemisphereCos(float u, float v) { // Y ist oben
 }
 
 /**
- * Berechnet den i-ten Hammersley-Punkt aus N Punkten
+ * Calculates the i-th Hammersley-Point out of N Points
  *
- * @param i                     Zu berechnenden Punkt der Hammersley-Sequenz
- * @param N                     Gesamtanzahl der zu berechnenden Punkte
+ * @param i                     Point to calculate the the Hammersley-Sequence
+ * @param N                     Total amount of points to calculate
  *
- * @return i-ter Hammersley-Punkt
+ * @return i-th Hammersley-Point
  */
 vec2 hammersley(uint i, uint N) {
   return vec2(float(i)/float(N), radicalInverse_VdC(i));
@@ -113,6 +113,7 @@ void main()
         vec3 sam = sampleHemisphereCos(xi.x, xi.y);
 
 		// get sample position
+		// either use hamerslay calculations or pre calulated samples
 		vec3 _sample = TBN * sam;//samples[i];	// from tangent to view-space
 		_sample = fragPos + _sample * radius;
 		// we then add the view-space kernel offset sample to the view-space
