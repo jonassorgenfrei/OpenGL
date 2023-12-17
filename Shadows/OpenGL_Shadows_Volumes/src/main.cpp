@@ -128,7 +128,7 @@ int main()
 	//Shader shadowVolumeViz(FileSystem::getPath("shader/shadow_volume.vert").c_str(), FileSystem::getPath("shader/const.frag").c_str());
 
 	/*
-	
+	LGL CODE: 
 	// load textures
 	// -------------
 	unsigned int woodTexture = loadTexture(FileSystem::getPath("../../content/images/wood.png").c_str(), false);
@@ -373,7 +373,7 @@ int main()
 		m_quad.Render();
 		*/
 		glDisable(GL_BLEND);
-		
+		//glDisable(GL_CULL_FACE);
 		// visualize shadow volumes
 		shadowVolumeViz.use();
 		shadowVolumeViz.setMat4("projection", projection);
@@ -389,7 +389,7 @@ int main()
 
 
 		/*
-		
+		LGL CODE: 
 		float aspect = (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT;
 		float nearP = 1.0f;
 		float far_plane = 25.0f;
@@ -535,44 +535,51 @@ void renderCube()
 		// Points 1, 3, and 5 tell where adjacent triangles are
 
 		// Vertex array (assuming each vertex has 3 coordinates)
+		
 		GLfloat vertices[] = {
 			// Vertex 0
-			-0.5f, -0.5f, -0.5f,
+			 1.0f, -1.0f,  1.0f,
 			// Vertex 1
-			0.5f, -0.5f, -0.5f,
+			-1.0f, -1.0f,  1.0f,
 			// Vertex 2
-			-0.5f, 0.5f, -0.5f,
+			 1.0f,  1.0f,  1.0f,
 			// Vertex 3
-			0.5f, 0.5f, -0.5f,
+			-1.0f,  1.0f,  1.0f,
 			// Vertex 4
-			-0.5f, -0.5f, 0.5f,
+			-1.0f, -1.0f, -1.0f,
 			// Vertex 5
-			0.5f, -0.5f, 0.5f,
+			 1.0f, -1.0f, -1.0f,
 			// Vertex 6
-			-0.5f, 0.5f, 0.5f,
+			-1.0f,  1.0f, -1.0f,
 			// Vertex 7
-			0.5f, 0.5f, 0.5f,
+			 1.0f,  1.0f, -1.0f,
 		};
 
 		// Index array
 		GLuint indices[] = {
-			// Bottom face
-			0, 1, 2, 3, 4, 5,
+			// Bottom
+			0, 3, 1, 4, 5, 2,			
+			1, 6, 4, 7, 5, 0,
 
-			// Front face
-			0, 1, 5, 4, 2, 3,
+			// Side 1
+			0, 1, 5, 7, 2, 3,
+			5, 4, 7, 6, 2, 0,
 
-			// Right face
-			1, 3, 7, 5, 0, 2,
+			// Side 2
+			5, 1, 4, 6, 7, 2,
+			4, 1, 6, 2, 7, 5,
 
-			// Back face
-			4, 5, 7, 6, 2, 3,
+			// Side 3
+			4, 5, 1, 3, 6, 7,
+			1, 0, 3, 2, 6, 4,
 
-			// Left face
-			0, 1, 3, 2, 4, 5,
+			// Side 4
+			1, 5, 0, 2, 3, 6,
+			0, 5, 2, 6, 3, 1,
+			// Top
+			3, 0, 2, 7, 6, 1,
+			2, 5, 7, 4, 6, 3
 
-			// Top face
-			2, 3, 7, 6, 0, 1,
 		};
 
 	
@@ -590,20 +597,22 @@ void renderCube()
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 		
 		glEnableVertexAttribArray(0);
+		// positions
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+		// normals
 		//glEnableVertexAttribArray(1);
 		//glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+		// uv coords
 		//glEnableVertexAttribArray(2);
 		//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-		//glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindVertexArray(0);
 	}
 	// render Cube
 	glBindVertexArray(cubeVAO);
 	// This function takes the topology, the number of indicesand their type.
 	// The fourth parameter tells it where to start in the index buffer.
-	glDrawElements(GL_TRIANGLES_ADJACENCY, sizeof(indices) / sizeof(indices[0]), GL_UNSIGNED_INT, 0);
-	//glDrawElementsBaseVertex(GL_TRIANGLES_ADJACENCY, 36, GL_UNSIGNED_INT, );
+	glDrawElementsBaseVertex(GL_TRIANGLES_ADJACENCY, 6*2*(3+3), GL_UNSIGNED_INT, 0, 0);
 	glBindVertexArray(0);
 }
 
