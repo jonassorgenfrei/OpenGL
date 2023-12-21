@@ -313,7 +313,7 @@ int main()
 	glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 	//glm::vec3 lightColor = glm::vec3(0.2f, 0.2f, 0.7f);
 	float lightAmbientIntensity = 0.5f;
-	float lightDiffuseIntensity = 0.6fa;
+	float lightDiffuseIntensity = 0.6f;
 
 	// shader configuration
 	// --------------------
