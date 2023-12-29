@@ -12,12 +12,11 @@ set(CMAKE_CXX_EXTENSIONS ON)
 # optimization
 # set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-
 IF(NOT CMAKE_BUILD_TYPE)
-  SET(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
+  SET(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+# set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 if(WIN32)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
@@ -42,9 +41,9 @@ message(STATUS "Found ASSIMP in ${ASSIMP_ROOT_DIR}")
 
 # GLAD
 IF(DEFINED ENV{glad_DIR}) 
-	set(GLAD_SRC_DIRS $ENV{glad_DIR})
-	set(GLAD_INCLUDE_DIRS ${GLAD_SRC_DIRS}/include )
-	message(STATUS "Found GLAD in ${GLAD_SRC_DIRS}")
+	set(GLAD_SRC_DIR $ENV{glad_DIR})
+	set(GLAD_INCLUDE_DIRS ${GLAD_SRC_DIR}/include )
+	message(STATUS "Found GLAD in ${GLAD_SRC_DIR}")
 ELSE()
 	message(FATAL_ERROR "GLAD ENVIRONMENT VARIABLE NOT SET")
 ENDIF()
@@ -69,7 +68,7 @@ ENDIF()
 
 if(WIN32)
   set(LIBS ${GLFW3_LIBRARY_DIRS} opengl32 ${ASSIMP_LIBRARIES})
-  #set(LIBS glfw3 opengl32 assimp freetype irrKlang)
+  # set(LIBS glfw3 opengl32 assimp freetype irrKlang)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 elseif(UNIX AND NOT APPLE)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
@@ -78,7 +77,8 @@ elseif(UNIX AND NOT APPLE)
   find_package(X11 REQUIRED)
   # note that the order is important for setting the libs
   # use pkg-config --libs $(pkg-config --print-requires --print-requires-private glfw3) in a terminal to confirm
-  set(LIBS ${GLFW3_LIBRARY} X11 Xrandr Xinerama Xi Xxf86vm Xcursor GL dl pthread freetype ${ASSIMP_LIBRARY})
+  set(LIBS ${GLFW3_LIBRARY} X11 Xrandr Xinerama Xi Xxf86vm Xcursor GL dl pthread ${ASSIMP_LIBRARY})
+  #set(LIBS ${GLFW3_LIBRARY} X11 Xrandr Xinerama Xi Xxf86vm Xcursor GL dl pthread freetype ${ASSIMP_LIBRARY})
   set (CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -ldl")
 elseif(APPLE)
   INCLUDE_DIRECTORIES(/System/Library/Frameworks)
@@ -88,7 +88,8 @@ elseif(APPLE)
   FIND_LIBRARY(CoreVideo_LIBRARY CoreVideo)
   MARK_AS_ADVANCED(COCOA_LIBRARY OpenGL_LIBRARY)
   SET(APPLE_LIBS ${COCOA_LIBRARY} ${IOKit_LIBRARY} ${OpenGL_LIBRARY} ${CoreVideo_LIBRARY})
-  SET(APPLE_LIBS ${APPLE_LIBS} ${GLFW3_LIBRARY} ${ASSIMP_LIBRARY} ${FREETYPE_LIBRARIES})
+  SET(APPLE_LIBS ${APPLE_LIBS} ${GLFW3_LIBRARY} ${ASSIMP_LIBRARY})
+  #SET(APPLE_LIBS ${APPLE_LIBS} ${GLFW3_LIBRARY} ${ASSIMP_LIBRARY} ${FREETYPE_LIBRARIES})
   set(LIBS ${LIBS} ${APPLE_LIBS})
 else()
   set(LIBS )
@@ -99,27 +100,28 @@ set(FOLDERS
     Model
 )
 
+set(Model
+    OpenGL_Model
+    OpenGL_Model_Advanced
+)
+
 set(PBR
     Lighting
     Diffuse_irradiance
     Specular_IBL
 )
 
-set(Model
-    OpenGL_Model
-    OpenGL_Model_Advanced
-)
-
+# configure file paths
 configure_file(configuration/root_directory.h.in configuration/root_directory.h)
 configure_file(configuration/sample_directories.h.in configuration/sample_directories.h)
 
 include_directories(${CMAKE_BINARY_DIR}/configuration)
 
 # first create relevant static libraries requried for other projects
-add_library(STB_IMAGE "src/stb_image.cpp")
+add_library(STB_IMAGE "samples/stb_image.cpp")
 set(LIBS ${LIBS} STB_IMAGE)
 
-add_library(GLAD "$ENV{glad_DIR}/src/glad.c")
+add_library(GLAD "${GLAD_SRC_DIR}/src/glad.c")
 set(LIBS ${LIBS} GLAD)
 
 macro(makeLink src dest target)
@@ -178,21 +180,25 @@ function(create_project_from_sources folder sample)
     add_sample_directory(${NAME} ${SAMPLE_PATH_ABS})
     # copy shader files to build directory
    
-	# copy dlls
-	#file(GLOB DLLS "dlls/*.dll")
+	  # copy dlls
+    #if(WIN32)
+	  #   file(GLOB DLLS "dlls/*.dll")
+    #   add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${DLLS} $<TARGET_FILE_DIR:${NAME}>)
+    #endif(WIN32)
+
     #foreach(SHADER ${SHADERS})
     #    if(WIN32)
     #        # configure_file(${SHADER} "test")
     #        add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SHADER} $<TARGET_FILE_DIR:${NAME}>)
-    #		add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${DLLS} $<TARGET_FILE_DIR:${NAME}>)
     #    elseif(UNIX AND NOT APPLE)
-    #        file(COPY ${SHADER} DESTINATION ${CMAKE_SOURCE_DIR}/bin/${chapter})
+    #        file(COPY ${SHADER} DESTINATION ${CMAKE_SOURCE_DIR}/bin/${folder})
     #    elseif(APPLE)
     #        # create symbolic link for *.vert *.frag *.gs
     #        get_filename_component(SHADERNAME ${SHADER} NAME)
-    #        makeLink(${SHADER} ${CMAKE_SOURCE_DIR}/bin/${chapter}/${SHADERNAME} ${NAME})
+    #        makeLink(${SHADER} ${CMAKE_SOURCE_DIR}/bin/${folder}/${SHADERNAME} ${NAME})
     #    endif(WIN32)
     #endforeach(SHADER)
+    
     # if compiling for visual studio, also use configure file for each project (specifically to set up working directory)
     if(MSVC)
         # configure_file(${CMAKE_SOURCE_DIR}/configuration/visualstudio.vcxproj.user.in ${CMAKE_CURRENT_BINARY_DIR}/${NAME}.vcxproj.user @ONLY)
