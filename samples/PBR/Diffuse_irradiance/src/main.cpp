@@ -49,6 +49,9 @@ bool firstMouse = true;
 float deltaTime = 0.0f; // time between current frame and last frame
 float lastFrame = 0.0f; // time of last frame
 
+bool envMapIrradiance = false;
+bool i_pressed = false;
+
 
 int nrRows = 7;
 int nrColumns = 7;
@@ -165,6 +168,7 @@ int main()
 	{
 		glGenTextures(1, &hdrTexture);
 		glBindTexture(GL_TEXTURE_2D, hdrTexture);
+		// load HDR image 
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);	// note: specification texture's data as float
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -222,7 +226,7 @@ int main()
 		equirectangulatToCubemapShader.setMat4("view", captureViews[i]);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);	// change color attachment each time
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		
 		renderCube();	// render unit cube
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -353,8 +357,13 @@ int main()
 		backgroundShader.use();
 		backgroundShader.setMat4("view", view);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
-		//glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap); // display irradiance map
+		
+		if (envMapIrradiance) {
+			glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap); // display irradiance map
+		}
+		else {
+			glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+		}
 		renderCube();
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -380,12 +389,20 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
+	//float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
 
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
 		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 		glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
+		i_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_RELEASE && i_pressed) {
+		envMapIrradiance = !envMapIrradiance;
+		i_pressed = false;
 	}
 
 }
