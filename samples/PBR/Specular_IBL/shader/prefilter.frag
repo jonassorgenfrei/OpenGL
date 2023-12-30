@@ -118,7 +118,8 @@ void main()
 {		
     vec3 N = normalize(WorldPos);
     
-    // make the simplyfying assumption that V equals R equals the normal 
+    // make the simplyfying assumption that V equals R equals the normal
+    // assuming the view dir to be equal to the output sample direction
     vec3 R = N;
     vec3 V = R;
 
