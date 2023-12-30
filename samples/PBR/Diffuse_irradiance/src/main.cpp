@@ -52,6 +52,9 @@ float lastFrame = 0.0f; // time of last frame
 bool envMapIrradiance = false;
 bool i_pressed = false;
 
+// irradiance map resolution
+const int IRRADIANCE_WIDTH = 32;
+const int IRRADIANCE_HEIGHT = 32;
 
 int nrRows = 7;
 int nrColumns = 7;
@@ -240,7 +243,7 @@ int main()
 	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
 	for (unsigned int i = 0; i < 6; ++i)
 	{
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 32, 32, 0, GL_RGB, GL_FLOAT, nullptr);
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, IRRADIANCE_WIDTH, IRRADIANCE_HEIGHT, 0, GL_RGB, GL_FLOAT, nullptr);
 	}
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -250,7 +253,7 @@ int main()
 
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 32, 32);	// use render Buffer for Depth 
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, IRRADIANCE_WIDTH, IRRADIANCE_HEIGHT);	// use render Buffer for Depth 
 	// 32x32 resolution is enough since the map doesnt have to store a lot of high frequency details
 
 	// pbr: solve diffuse integral by convolution to create an irradieance (cube)map.
@@ -261,7 +264,7 @@ int main()
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);	// bind converted cubemap
 
-	glViewport(0, 0, 32, 32);	// don't forget to configure the viewport to the capture dimensions; note dimension fits the irradiance map
+	glViewport(0, 0, IRRADIANCE_WIDTH, IRRADIANCE_HEIGHT);	// don't forget to configure the viewport to the capture dimensions; note dimension fits the irradiance map
 
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	for (unsigned int i = 0; i < 6; ++i)	// convolute the environment map for each side of the new cube 
