@@ -59,6 +59,8 @@ float spacing = 2.5;
 
 int main()
 {
+	std::cout << "PBR - Diffuse Irradiance" << std::endl;
+	std::cout << "i - Toggle Irradiance Map" << std::endl;
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();
@@ -107,7 +109,7 @@ int main()
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
+	glDepthFunc(GL_LEQUAL); // change depth function for skybox
 
 
 	// build and compile our shader program

@@ -1,7 +1,7 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#include <glad\glad.h>
+#include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -22,11 +22,11 @@ enum Camera_Movement {
 };
 
 // Default camera values
-const float YAW		  = -90.0f;
-const float PITCH	  = 0.0f;
-
+const float YAW			= -90.0f;
+const float PITCH		= 0.0f;
+const float SPEED		= 2.5f;
 const float SENSITIVITY = 0.05f;
-const float ZOOM	  = 45.0f;
+const float ZOOM		= 45.0f;
 
 // An abstract camera class that process input and calculates the corresponding 
 // Eular Angles, Vectors and Matrices for use in OpenGl
@@ -44,6 +44,7 @@ public:
 	float Yaw;
 	float Pitch;
 	// camera options
+	float MovementSpeed;
 	float MouseSensitivity;
 	float Zoom;
 
@@ -119,6 +120,45 @@ public:
 			Position += Up * velocity;
 		if (direction == DOWN)
 			Position -= Up * velocity;
+	}
+
+	// Process input received from any keyboard-like input system. 
+	// Accepts input parameter in the form of camera defined ENUM
+	// (to abstract it from windowing systems)
+	void ProcessKeyboard(Camera_Movement direction, float deltaTime)
+	{
+		float velocity = MovementSpeed * deltaTime;
+		if (direction == FORWARD)
+			Position += Front * velocity;
+		if (direction == BACKWARD)
+			Position -= Front * velocity;
+		if (direction == LEFT)
+			Position -= Right * velocity;
+		if (direction == RIGHT)
+			Position += Right * velocity;
+	}
+
+	// processes input received from a mouse input system.
+	// Expects the offset value in both the x and y direction.
+	void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
+	{
+		xoffset *= MouseSensitivity;
+		yoffset *= MouseSensitivity;
+
+		Yaw += xoffset;
+		Pitch += yoffset;
+
+		// Make sure that when pitch is out of bounds, screen doen't get flipped
+		if (constrainPitch)
+		{
+			if (Pitch > 89.0f)
+				Pitch = 89.0f;
+			if (Pitch < -89.0f)
+				Pitch = -89.0f;
+		}
+
+		//Update Front, Right and Up Vectors using the updated Eular angles
+		updateCameraVectors();
 	}
 	
 	// processes input received from a mouse input system.

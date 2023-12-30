@@ -20,5 +20,6 @@ Required Libraries:
     GLM - GLM_DIR
     Assimp - ASSIMP_DIR
     Glad - glad_DIR
+    Freetype - Freetype_DIR
     
 NOTE: some Examples (e.g. MeshShader) require Glad to have some extensions enabled.
