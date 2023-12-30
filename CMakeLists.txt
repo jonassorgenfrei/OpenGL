@@ -18,6 +18,9 @@ ENDIF(NOT CMAKE_BUILD_TYPE)
 
 # set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
+# enable folders
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 if(WIN32)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 endif(WIN32)
@@ -126,10 +129,14 @@ include_directories(${CMAKE_BINARY_DIR}/configuration)
 
 # first create relevant static libraries requried for other projects
 add_library(STB_IMAGE "samples/stb_image.cpp")
+set_property(TARGET STB_IMAGE PROPERTY FOLDER "Static Libraries")
 set(LIBS ${LIBS} STB_IMAGE)
 
 add_library(GLAD "${GLAD_SRC_DIR}/src/glad.c")
+set_property(TARGET GLAD PROPERTY FOLDER "Static Libraries")
 set(LIBS ${LIBS} GLAD)
+
+
 
 macro(makeLink src dest target)
   add_custom_command(TARGET ${target} POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink ${src} ${dest}  DEPENDS  ${dest} COMMENT "mklink ${src} -> ${dest}")
@@ -146,78 +153,79 @@ function(add_sample_directory target_name samplePath)
   target_compile_definitions(${target_name} PUBLIC SAMPLE_${NAME})
 endfunction()
 
-
 function(create_project_from_sources folder sample)
   set(SAMPLE_PATH "samples/${folder}/${sample}")
   set(SAMPLE_PATH_ABS "${CMAKE_CURRENT_SOURCE_DIR}/${SAMPLE_PATH}")
   
 	file(GLOB SOURCE
-            "${SAMPLE_PATH}/src/*.h"
-            "${SAMPLE_PATH}/src/*.cpp"
-    )
-    file(GLOB_RECURSE SHADERS
-        "${SAMPLE_PATH}/shader/*"
-    )
-    if (sample STREQUAL "")
-      SET(replaced "")
-      string(REPLACE "/" "_" replaced ${folder})
-      set(NAME ${replaced})
-    else()
-      set(NAME "${folder}__${sample}")
-    endif()
-    
-    
-    add_executable(${NAME} ${SOURCE} ${SHADERS})
-    target_link_libraries(${NAME} ${LIBS})
-    if(MSVC)
-		target_compile_options(${NAME} PRIVATE /std:c++17 /MP)
-        target_link_options(${NAME} PUBLIC /ignore:4099)
-    endif(MSVC)
-    if(WIN32)
-        set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${folder}")
-        set_target_properties(${NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${folder}/Debug")
-    elseif(UNIX AND NOT APPLE)
-        set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${folder}")
-    elseif(APPLE)
-        set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${folder}")
-        set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin/${folder}")
-        set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/bin/${folder}")
-    endif(WIN32)
+    "${SAMPLE_PATH}/src/*.h"
+    "${SAMPLE_PATH}/src/*.cpp"
+  )
+  file(GLOB_RECURSE SHADERS
+    "${SAMPLE_PATH}/shader/*"
+  )
+  if (sample STREQUAL "")
+    SET(replaced "")
+    string(REPLACE "/" "_" replaced ${folder})
+    set(NAME ${replaced})
+  else()
+    set(NAME "${sample}")
+  endif()
+  
+  add_executable(${NAME} ${SOURCE} ${SHADERS})
+  target_link_libraries(${NAME} ${LIBS})
+  if(MSVC)
+  target_compile_options(${NAME} PRIVATE /std:c++17 /MP)
+      target_link_options(${NAME} PUBLIC /ignore:4099)
+  endif(MSVC)
+  if(WIN32)
+      set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${folder}")
+      set_target_properties(${NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${folder}/Debug")
+  elseif(UNIX AND NOT APPLE)
+      set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${folder}")
+  elseif(APPLE)
+      set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${folder}")
+      set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin/${folder}")
+      set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/bin/${folder}")
+  endif(WIN32)
 
-    add_sample_directory(${NAME} ${SAMPLE_PATH_ABS})
-    # copy shader files to build directory
-   
-	  # copy dlls
-    #if(WIN32)
-	  #   file(GLOB DLLS "dlls/*.dll")
-    #   add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${DLLS} $<TARGET_FILE_DIR:${NAME}>)
-    #endif(WIN32)
+  add_sample_directory(${NAME} ${SAMPLE_PATH_ABS})
 
-    #foreach(SHADER ${SHADERS})
-    #    if(WIN32)
-    #        # configure_file(${SHADER} "test")
-    #        add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SHADER} $<TARGET_FILE_DIR:${NAME}>)
-    #    elseif(UNIX AND NOT APPLE)
-    #        file(COPY ${SHADER} DESTINATION ${CMAKE_SOURCE_DIR}/bin/${folder})
-    #    elseif(APPLE)
-    #        # create symbolic link for *.vert *.frag *.gs
-    #        get_filename_component(SHADERNAME ${SHADER} NAME)
-    #        makeLink(${SHADER} ${CMAKE_SOURCE_DIR}/bin/${folder}/${SHADERNAME} ${NAME})
-    #    endif(WIN32)
-    #endforeach(SHADER)
-    
-    # if compiling for visual studio, also use configure file for each project (specifically to set up working directory)
-    if(MSVC)
-        # configure_file(${CMAKE_SOURCE_DIR}/configuration/visualstudio.vcxproj.user.in ${CMAKE_CURRENT_BINARY_DIR}/${NAME}.vcxproj.user @ONLY)
+  # copy shader files to build directory
+  
+  # copy dlls
+  #if(WIN32)
+  #   file(GLOB DLLS "dlls/*.dll")
+  #   add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${DLLS} $<TARGET_FILE_DIR:${NAME}>)
+  #endif(WIN32)
 
-        # create filter for shaders
-        foreach(source IN LISTS SHADERS)
-            get_filename_component(source_path "${source}" PATH)
-            file(RELATIVE_PATH pathR "${SAMPLE_PATH_ABS}" "${source_path}")
-            string(REPLACE "/" "\\" source_path_ide "${pathR}")
-            source_group("${source_path_ide}" FILES "${source}")
-        endforeach()
-    endif(MSVC)
+  foreach(SHADER ${SHADERS})
+      if(WIN32)
+          # configure_file(${SHADER} "test")
+          add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SHADER} $<TARGET_FILE_DIR:${NAME}>)
+      elseif(UNIX AND NOT APPLE)
+          file(COPY ${SHADER} DESTINATION ${CMAKE_SOURCE_DIR}/bin/${folder})
+      elseif(APPLE)
+          # create symbolic link for shaders
+          get_filename_component(SHADERNAME ${SHADER} NAME)
+          makeLink(${SHADER} ${CMAKE_SOURCE_DIR}/bin/${folder}/${SHADERNAME} ${NAME})
+      endif(WIN32)
+  endforeach(SHADER)
+  
+  # if compiling for visual studio, also use configure file for each project (specifically to set up working directory)
+  if(MSVC)
+    # configure_file(${CMAKE_SOURCE_DIR}/configuration/visualstudio.vcxproj.user.in ${CMAKE_CURRENT_BINARY_DIR}/${NAME}.vcxproj.user @ONLY)
+
+    # create filter for shaders
+    foreach(source IN LISTS SHADERS)
+      get_filename_component(source_path "${source}" PATH)
+      file(RELATIVE_PATH pathR "${SAMPLE_PATH_ABS}" "${source_path}")
+      string(REPLACE "/" "\\" source_path_ide "${pathR}")
+      source_group("${source_path_ide}" FILES "${source}")
+    endforeach()
+
+    set_property(TARGET ${NAME} PROPERTY FOLDER "${folder}")
+  endif(MSVC)
 endfunction()
 
 # then create a project file per tutorial
