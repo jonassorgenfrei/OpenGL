@@ -12,15 +12,14 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-#include "shader_m.h"
-#include "camera.h"
-#include "model.h"
 #include "stb_image.h"
 
-#include "light.h"
-#include "material.h"
-#include "filesystem.h"
+#include "modules/shader_m.h"
+#include "modules/camera.h"
+#include "modules/model.h"
+#include "modules/light.h"
+#include "modules/material.h"
+#include "modules/filesystem.h"
 
 #include <iostream>
 
@@ -63,6 +62,7 @@ float lastFrame = 0.0f; // time of last frame
 
 int main()
 {
+	std::cout << "NOTE: THIS PROGRAM IS WORK IN PROGESS AND NOT WORKING YET!" << std::endl;
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();
@@ -121,17 +121,17 @@ int main()
 
 	// build and compile our shader program
 	// ------------------------------------
-	Shader nullShader(FileSystem::getPath("shader/null_technique.vert").c_str(), FileSystem::getPath("shader/null_technique.frag").c_str());
-	Shader shadowVolume(FileSystem::getPath("shader/shadow_volume.vert").c_str(), FileSystem::getPath("shader/shadow_volume.frag").c_str(), FileSystem::getPath("shader/shadow_volume.geom").c_str());
-	//Shader lightShader(FileSystem::getPath("shader/light.vert").c_str(), FileSystem::getPath("shader/light.frag").c_str());
-	Shader shadowVolumeViz(FileSystem::getPath("shader/shadow_volume.vert").c_str(), FileSystem::getPath("shader/const.frag").c_str(), FileSystem::getPath("shader/shadow_volumeVis.geom").c_str());
-	//Shader shadowVolumeViz(FileSystem::getPath("shader/shadow_volume.vert").c_str(), FileSystem::getPath("shader/const.frag").c_str());
+	Shader nullShader(FileSystem::getSamplePath("shader/null_technique.vert").c_str(), FileSystem::getSamplePath("shader/null_technique.frag").c_str());
+	Shader shadowVolume(FileSystem::getSamplePath("shader/shadow_volume.vert").c_str(), FileSystem::getSamplePath("shader/shadow_volume.frag").c_str(), FileSystem::getSamplePath("shader/shadow_volume.geom").c_str());
+	//Shader lightShader(FileSystem::getSamplePath("shader/light.vert").c_str(), FileSystem::getSamplePath("shader/light.frag").c_str());
+	Shader shadowVolumeViz(FileSystem::getSamplePath("shader/shadow_volume.vert").c_str(), FileSystem::getSamplePath("shader/const.frag").c_str(), FileSystem::getSamplePath("shader/shadow_volumeVis.geom").c_str());
+	//Shader shadowVolumeViz(FileSystem::getSamplePath("shader/shadow_volume.vert").c_str(), FileSystem::getSamplePath("shader/const.frag").c_str());
 
 	/*
 	LGL CODE: 
 	// load textures
 	// -------------
-	unsigned int woodTexture = loadTexture(FileSystem::getPath("../../content/images/wood.png").c_str(), false);
+	unsigned int woodTexture = loadTexture(FileSystem::getPath("content/images/wood.png").c_str(), false);
 
 	// configure depth map FBO
 	// -----------------------

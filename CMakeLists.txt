@@ -99,6 +99,7 @@ set(FOLDERS
     Basics
     Model
     PBR
+    Shadows
 )
 
 set(Basics
@@ -119,6 +120,13 @@ set(PBR
     Lighting
     Diffuse_irradiance
     Specular_IBL
+)
+
+set(Shadows
+    Cascaded_Shadow_Mapping
+    Point_Shadows
+    Shadow_Mapping
+    Shadow_Volumes
 )
 
 # configure file paths
@@ -189,7 +197,7 @@ function(create_project_from_sources folder sample)
       set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/bin/${folder}")
   endif(WIN32)
 
-  add_sample_directory(${NAME} ${SAMPLE_PATH_ABS})
+  add_sample_directory(${NAME} ${SAMPLE_PATH})
 
   # copy shader files to build directory
   

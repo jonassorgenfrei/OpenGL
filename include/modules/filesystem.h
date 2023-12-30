@@ -20,7 +20,7 @@ public:
 
   static std::string getSamplePath(const std::string& path)
   {
-      return getSample() + std::string("/") + path;
+      return getRoot() + std::string("/") + getSample() + std::string("/") + path;
   }
 
 

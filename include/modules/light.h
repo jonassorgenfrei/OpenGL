@@ -23,56 +23,6 @@ const float OUTERCTOFF = glm::cos(glm::radians(17.5f));
 const int ID = 1;
 const Lighttypes TYPE = POINTLIGHT;
 
-// set up vertex data (and buffer(s)) and configure vertex attributes
-// Position (x,y,z) | Color (r,g,b) 
-// ------------------------------------------------------------------
-const float vertices[] = {
-	//first & second 
-	-0.5f, -0.5f, -0.5f, // 1.0f, 0.0f, 0.0f,
-	0.5f, -0.5f, -0.5f, // 1.0f, 0.0f, 0.0f,
-	0.5f,  0.5f, -0.5f, // 1.0f, 0.0f, 0.0f,
-	-0.5f,  0.5f, -0.5f, // 1.0f, 0.0f, 0.0f,
-	//third & forth
-	-0.5f, -0.5f,  0.5f, //  0.0f, 1.0f, 0.0f,
-	0.5f, -0.5f,  0.5f, // 0.0f, 1.0f, 0.0f,
-	0.5f,  0.5f,  0.5f, // 0.0f, 1.0f, 0.0f,
-	-0.5f,  0.5f,  0.5f, // 0.0f, 1.0f, 0.0f,
-	//fifth & sixth
-	-0.5f,  0.5f,  0.5f, // 0.0f, 0.0f, 1.0f,
-	-0.5f,  0.5f, -0.5f, // 0.0f, 0.0f, 1.0f,
-	-0.5f, -0.5f, -0.5f, // 0.0f, 0.0f, 1.0f,
-	-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f, 1.0f,
-	//seventh & eights
-	0.5f,  0.5f,  0.5f, // 1.0f, 1.0f, 0.0f,
-	0.5f,  0.5f, -0.5f, // 1.0f, 1.0f, 0.0f,
-	0.5f, -0.5f, -0.5f, // 1.0f, 1.0f, 0.0f,
-	0.5f, -0.5f,  0.5f, // 1.0f, 1.0f, 0.0f,
-	//nineth & tenth
-	-0.5f, -0.5f, -0.5f, // 1.0f, 1.0f, 1.0f,
-	0.5f, -0.5f, -0.5f, // 1.0f, 1.0f, 1.0f,
-	0.5f, -0.5f,  0.5f, // 1.0f, 1.0f, 1.0f,
-	-0.5f, -0.5f,  0.5f, // 1.0f, 1.0f, 1.0f,
-	//eleventh & twelves
-	-0.5f,  0.5f, -0.5f, // 0.0f, 1.0f, 1.0f,
-	0.5f,  0.5f, -0.5f, // 0.0f, 1.0f, 1.0f,
-	0.5f,  0.5f,  0.5f, // 0.0f, 1.0f, 1.0f,
-	-0.5f,  0.5f,  0.5f, // 0.0f, 1.0f, 1.0f,
-};
-
-unsigned int indices[] = {
-	0, 1, 2,    // first triangle
-	2, 3, 0,    // second triangle
-	4, 5, 6,	// third triangle
-	6, 7, 4,    // forth triangle
-	8, 9, 10,    // fifth triangle
-	10, 11, 8,	// sixth triangle
-	12, 13, 14,    // seventh triangle
-	14, 15, 12,    // eights triangle
-	16, 17, 18,	// nineth triangle
-	18, 19, 16,    // tenth triangle
-	20, 21, 22,    // eleventh triangle
-	22, 23, 20,	// twelves triangle
-};
 
 //Light 
 class Light
@@ -183,7 +133,57 @@ public:
 	}
 
 	void initialise() {
-		
+		// set up vertex data (and buffer(s)) and configure vertex attributes
+		// Position (x,y,z) | Color (r,g,b) 
+		// ------------------------------------------------------------------
+		const float vertices[] = {
+			//first & second 
+			-0.5f, -0.5f, -0.5f, // 1.0f, 0.0f, 0.0f,
+			0.5f, -0.5f, -0.5f, // 1.0f, 0.0f, 0.0f,
+			0.5f,  0.5f, -0.5f, // 1.0f, 0.0f, 0.0f,
+			-0.5f,  0.5f, -0.5f, // 1.0f, 0.0f, 0.0f,
+			//third & forth
+			-0.5f, -0.5f,  0.5f, //  0.0f, 1.0f, 0.0f,
+			0.5f, -0.5f,  0.5f, // 0.0f, 1.0f, 0.0f,
+			0.5f,  0.5f,  0.5f, // 0.0f, 1.0f, 0.0f,
+			-0.5f,  0.5f,  0.5f, // 0.0f, 1.0f, 0.0f,
+			//fifth & sixth
+			-0.5f,  0.5f,  0.5f, // 0.0f, 0.0f, 1.0f,
+			-0.5f,  0.5f, -0.5f, // 0.0f, 0.0f, 1.0f,
+			-0.5f, -0.5f, -0.5f, // 0.0f, 0.0f, 1.0f,
+			-0.5f, -0.5f,  0.5f, // 0.0f, 0.0f, 1.0f,
+			//seventh & eights
+			0.5f,  0.5f,  0.5f, // 1.0f, 1.0f, 0.0f,
+			0.5f,  0.5f, -0.5f, // 1.0f, 1.0f, 0.0f,
+			0.5f, -0.5f, -0.5f, // 1.0f, 1.0f, 0.0f,
+			0.5f, -0.5f,  0.5f, // 1.0f, 1.0f, 0.0f,
+			//nineth & tenth
+			-0.5f, -0.5f, -0.5f, // 1.0f, 1.0f, 1.0f,
+			0.5f, -0.5f, -0.5f, // 1.0f, 1.0f, 1.0f,
+			0.5f, -0.5f,  0.5f, // 1.0f, 1.0f, 1.0f,
+			-0.5f, -0.5f,  0.5f, // 1.0f, 1.0f, 1.0f,
+			//eleventh & twelves
+			-0.5f,  0.5f, -0.5f, // 0.0f, 1.0f, 1.0f,
+			0.5f,  0.5f, -0.5f, // 0.0f, 1.0f, 1.0f,
+			0.5f,  0.5f,  0.5f, // 0.0f, 1.0f, 1.0f,
+			-0.5f,  0.5f,  0.5f, // 0.0f, 1.0f, 1.0f,
+		};
+
+		unsigned int indices[] = {
+			0, 1, 2,    // first triangle
+			2, 3, 0,    // second triangle
+			4, 5, 6,	// third triangle
+			6, 7, 4,    // forth triangle
+			8, 9, 10,    // fifth triangle
+			10, 11, 8,	// sixth triangle
+			12, 13, 14,    // seventh triangle
+			14, 15, 12,    // eights triangle
+			16, 17, 18,	// nineth triangle
+			18, 19, 16,    // tenth triangle
+			20, 21, 22,    // eleventh triangle
+			22, 23, 20,	// twelves triangle
+		};
+
 		glGenVertexArrays(1, &VAO);
 		glGenBuffers(1, &VBO);
 		glGenBuffers(1, &EBO);

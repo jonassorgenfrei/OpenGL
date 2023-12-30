@@ -8,15 +8,14 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-#include "shader_m.h"
-#include "camera.h"
-#include "model.h"
 #include "stb_image.h"
 
-#include "light.h"
-#include "material.h"
-#include "filesystem.h"
+#include "modules/shader_m.h"
+#include "modules/camera.h"
+#include "modules/model.h"
+#include "modules/light.h"
+#include "modules/material.h"
+#include "modules/filesystem.h"
 
 #include <iostream>
 #include <random>
@@ -149,15 +148,15 @@ int main()
 	// build and compile shader program(s)
 	// ------------------------------------
 #if IMPLEMENTATION == 0
-	Shader shader(FileSystem::getPath("shader/shadow_mapping.vert").c_str(), FileSystem::getPath("shader/shadow_mapping.frag").c_str());
-	Shader simpleDepthShader(FileSystem::getPath("shader/shadow_mapping_depth.vert").c_str(), FileSystem::getPath("shader/shadow_mapping_depth.frag").c_str(), FileSystem::getPath("shader/shadow_mapping_depth.geom").c_str());
-	Shader debugDepthQuad(FileSystem::getPath("shader/debug_quad.vert").c_str(), FileSystem::getPath("shader/debug_quad_depth.frag").c_str());
-	Shader debugCascadeShader(FileSystem::getPath("shader/debug_cascade.vert").c_str(), FileSystem::getPath("shader/debug_cascade.frag").c_str());
+	Shader shader(FileSystem::getSamplePath("shader/shadow_mapping.vert").c_str(), FileSystem::getSamplePath("shader/shadow_mapping.frag").c_str());
+	Shader simpleDepthShader(FileSystem::getSamplePath("shader/shadow_mapping_depth.vert").c_str(), FileSystem::getSamplePath("shader/shadow_mapping_depth.frag").c_str(), FileSystem::getPath("shader/shadow_mapping_depth.geom").c_str());
+	Shader debugDepthQuad(FileSystem::getSamplePath("shader/debug_quad.vert").c_str(), FileSystem::getSamplePath("shader/debug_quad_depth.frag").c_str());
+	Shader debugCascadeShader(FileSystem::getSamplePath("shader/debug_cascade.vert").c_str(), FileSystem::getSamplePath("shader/debug_cascade.frag").c_str());
 #elif IMPLEMENTATION == 1
-	Shader shader(FileSystem::getPath("shader/lighting.vert").c_str(), FileSystem::getPath("shader/lighting.frag").c_str());
-	Shader simpleDepthShader(FileSystem::getPath("shader/csm.vert").c_str(), FileSystem::getPath("shader/csm.frag").c_str());
-	Shader debugDepthQuad(FileSystem::getPath("shader/debug_quad.vert").c_str(), FileSystem::getPath("shader/debug_quad_depth_multi_tex.frag").c_str());
-	Shader debugCascadeShader(FileSystem::getPath("shader/debug_cascade.vert").c_str(), FileSystem::getPath("shader/debug_cascade.frag").c_str());
+	Shader shader(FileSystem::getSamplePath("shader/lighting.vert").c_str(), FileSystem::getSamplePath("shader/lighting.frag").c_str());
+	Shader simpleDepthShader(FileSystem::getSamplePath("shader/csm.vert").c_str(), FileSystem::getSamplePath("shader/csm.frag").c_str());
+	Shader debugDepthQuad(FileSystem::getSamplePath("shader/debug_quad.vert").c_str(), FileSystem::getSamplePath("shader/debug_quad_depth_multi_tex.frag").c_str());
+	Shader debugCascadeShader(FileSystem::getSamplePath("shader/debug_cascade.vert").c_str(), FileSystem::getSamplePath("shader/debug_cascade.frag").c_str());
 #endif
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
@@ -188,7 +187,7 @@ int main()
 
 	// load textures
 	// -------------
-	unsigned int woodTexture = loadTexture(FileSystem::getPath("../../content/images/wood.png").c_str(), GL_FALSE);
+	unsigned int woodTexture = loadTexture(FileSystem::getPath("content/images/wood.png").c_str(), GL_FALSE);
 
 	// configure light FBO
     // -----------------------
