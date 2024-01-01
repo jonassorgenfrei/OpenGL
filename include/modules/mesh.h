@@ -9,11 +9,10 @@
 #include "shader_m.h"
 
 #include <string>
-#include <fstream>
-#include <sstream>
-#include <iostream>
 #include <vector>
 using namespace std;
+
+#define MAX_BONE_INFLUENCE 4
 
 struct Vertex {
 	/* Position */
@@ -26,6 +25,10 @@ struct Vertex {
 	glm::vec3 Tangent;
 	/* bitangent */
 	glm::vec3 Bitangent;
+	//bone indexes which will influence this vertex
+	int BoneIDs[MAX_BONE_INFLUENCE];
+	//weights from each bone
+	float Weights[MAX_BONE_INFLUENCE];
 };
 
 struct Texture {
@@ -41,7 +44,6 @@ public:
 	vector<unsigned int> indices;
 	vector<Texture> textures;
 	unsigned int VAO;
-	bool print = false;
 
 	/* Functions */
 	// Constructor
@@ -57,10 +59,11 @@ public:
 	void Draw(Shader shader)
 	{
 		// bind appropriate textures
-		unsigned int diffuseNr = 1;
+		unsigned int diffuseNr	= 1;
 		unsigned int specularNr = 1;
-		unsigned int normalNr = 1;
-		unsigned int heightNr = 1;
+		unsigned int normalNr	= 1;
+		unsigned int heightNr	= 1;
+
 		for (unsigned int i = 0; i < textures.size(); i++)
 		{
 			glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
@@ -113,7 +116,7 @@ private:
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
-
+		
 		// set the vertex attribute pointers
 		// vertex Positions
 		glEnableVertexAttribArray(0);
@@ -130,7 +133,13 @@ private:
 		// vertex bitangent
 		glEnableVertexAttribArray(4);
 		glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Bitangent));
-
+		// for Bone Deformation in skeletal animation
+		// NOTE: ids are integer attributes tho using AttribIPointer & pass GL_INT
+		glEnableVertexAttribArray(5);
+		glVertexAttribIPointer(5, 4, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, BoneIDs));
+		// weights
+		glEnableVertexAttribArray(6);
+		glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Weights));
 		glBindVertexArray(0);
 	}
 

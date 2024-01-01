@@ -37,10 +37,11 @@ class Model
 		Model() {}
 
 		// constructor, expects a filepath to a 3D model.
-		Model(const char *path)
+		Model(const char *path, bool gamma = false) : gammaCorrection(gamma)
 		{
 			loadModel(path);
 		}
+
 		void Draw(Shader shader) {
 			for (unsigned int i = 0; i < meshes.size(); i++)
 				meshes[i].Draw(shader);

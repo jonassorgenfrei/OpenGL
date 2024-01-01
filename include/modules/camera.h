@@ -23,10 +23,10 @@ enum Camera_Movement {
 
 // Default camera values
 const float YAW			= -90.0f;
-const float PITCH		= 0.0f;
-const float SPEED		= 2.5f;
-const float SENSITIVITY = 0.05f;
-const float ZOOM		= 45.0f;
+const float PITCH		=   0.0f;
+const float SPEED		=   2.5f;
+const float SENSITIVITY =   0.1f;
+const float ZOOM		=  45.0f;
 
 // An abstract camera class that process input and calculates the corresponding 
 // Eular Angles, Vectors and Matrices for use in OpenGl
@@ -145,8 +145,8 @@ public:
 		xoffset *= MouseSensitivity;
 		yoffset *= MouseSensitivity;
 
-		Yaw += xoffset;
-		Pitch += yoffset;
+		Yaw		+= xoffset;
+		Pitch	+= yoffset;
 
 		// Make sure that when pitch is out of bounds, screen doen't get flipped
 		if (constrainPitch)
@@ -191,8 +191,7 @@ public:
 	// Only requires input on the vertical wheel-axis
 	void ProcessMouseScroll(float yoffset)
 	{
-		if (Zoom >= 1.0f && Zoom <= 45.0f)
-			Zoom -= yoffset;
+		Zoom -= yoffset;
 		if (Zoom <= 1.0f)
 			Zoom = 1.0f;
 		if (Zoom >= 45.0f)
@@ -203,6 +202,7 @@ private:
 	// Calculates the front vector from the Camera's (updated) Eular Angles
 	void updateCameraVectors()
 	{
+		// calculate the new Front vector
 		glm::vec3 front;
 		front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
 		front.y = sin(glm::radians(Pitch));

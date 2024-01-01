@@ -66,6 +66,7 @@ set(Lighting
 set(Model
     Basic
     Advanced_Model
+    Skeletal_Animation
 )
 
 set(PBR
