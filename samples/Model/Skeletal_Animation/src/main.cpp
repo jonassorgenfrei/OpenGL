@@ -148,7 +148,7 @@ int main()
 		// Check and call events
 		processInput(window);
 
-		animator.UpdateAnimation(deltaTime/2);
+		animator.UpdateAnimation(deltaTime);
 
 		// render
 		// ------
