@@ -34,6 +34,8 @@ class Model
 		bool gammaCorrection;
 
 		/* Functions */
+		Model() {}
+
 		// constructor, expects a filepath to a 3D model.
 		Model(const char *path)
 		{
@@ -250,6 +252,7 @@ class Model
 					texture.path = str.C_Str();
 					textures.push_back(texture); // add to loaded textures
 					//stores the information
+					textures_loaded.push_back(texture);  // store it as texture loaded for entire model, to ensure we won't unnecessary load duplicate textures.
 				}
 
 				

@@ -1,10 +1,86 @@
 cmake_minimum_required (VERSION 3.15)
 cmake_policy(VERSION 3.15)
 
+# project name
 project(OpenGLSamples)
 # version number
 set (${PROJECT_NAME}_VERSION_MAJOR 1)
 set (${PROJECT_NAME}_VERSION_MINOR 0)
+
+# Folders 
+set(FOLDERS
+    Advanced_OpenGL
+    Basics
+    Lighting
+    Model
+    PBR
+    Shadows
+)
+
+#Targets
+set(Advanced_OpenGL
+    AdvancedDataGLSL
+    AdvancedOGL
+    Anti_Aliasing_Off_Screen
+    Anti_Aliasing_On_Screen
+    Billboards
+    Compute_Shader
+    Compute_Shader_Particles
+    Geometry_Shader
+    Geometry_Shader_Exploding
+    Instancing
+    no_Instancing_Space
+    Instancing_Space
+    Mesh_Shader
+    Order_Independent_Transparency
+    Stencil_Silhouette
+    Tessellation
+    Tessellation_Terrain
+    Transform_Feedback
+    Transform_Feedback_Particles
+)
+
+set(Basics
+    CoordinateSystem
+    Camera
+    Shader
+    Text
+    Texture
+    Transformation
+)
+
+set(Lighting
+    Advanced_Lighting
+    Bloom
+    Colors
+    Deferred_Shading
+    Forward_Plus
+    Gamma_Correction
+    HDR
+    Lights
+    Normal_Mapping
+    Parallax_Mapping
+    SSAO
+)
+
+set(Model
+    Basic
+    Advanced_Model
+)
+
+set(PBR
+    Lighting
+    Diffuse_irradiance
+    Specular_IBL
+)
+
+set(Shadows
+    Cascaded_Shadow_Mapping
+    Point_Shadows
+    Shadow_Mapping
+    Shadow_Volumes
+)
+
 
 set(CMAKE_CXX_STANDARD 17) # this does nothing for MSVC, use target_compile_options below
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,8 +115,13 @@ FIND_LIBRARY(GLFW3_LIBRARY_DIRS NAMES glfw3 glfw PATHS ${GLFW3_DIR}/../../ )
 message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIRS}")
 
 # ASSIMP
-find_package(ASSIMP REQUIRED)
+find_package(ASSIMP REQUIRED 5.3)
 message(STATUS "Found ASSIMP in ${ASSIMP_ROOT_DIR}")
+if(WIN32)
+    # get dll
+    get_property(ASSIMP_DLL TARGET assimp::assimp PROPERTY IMPORTED_LOCATION_RELEASE)
+    message(STATUS "       dll-path ${ASSIMP_DLL}")
+ENDIF()
 
 # GLAD
 IF(DEFINED ENV{glad_DIR}) 
@@ -95,39 +176,7 @@ else()
   set(LIBS )
 endif(WIN32)
 
-set(FOLDERS
-    Basics
-    Model
-    PBR
-    Shadows
-)
 
-set(Basics
-    CoordinateSystem
-    Camera
-    Shader
-    Text
-    Texture
-    Transformation
-)
-
-set(Model
-    Basic
-    Advanced
-)
-
-set(PBR
-    Lighting
-    Diffuse_irradiance
-    Specular_IBL
-)
-
-set(Shadows
-    Cascaded_Shadow_Mapping
-    Point_Shadows
-    Shadow_Mapping
-    Shadow_Volumes
-)
 
 # configure file paths
 configure_file(configuration/root_directory.h.in configuration/root_directory.h)
@@ -202,10 +251,10 @@ function(create_project_from_sources folder sample)
   # copy shader files to build directory
   
   # copy dlls
-  #if(WIN32)
-  #   file(GLOB DLLS "dlls/*.dll")
-  #   add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${DLLS} $<TARGET_FILE_DIR:${NAME}>)
-  #endif(WIN32)
+  if(WIN32)
+    # Copy assimp dll to target directory
+    add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${ASSIMP_DLL} $<TARGET_FILE_DIR:${NAME}>)
+  endif(WIN32)
 
   foreach(SHADER ${SHADERS})
       if(WIN32)
