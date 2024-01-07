@@ -152,7 +152,16 @@ int main()
 
 	float spacing = 2.5;
 
-	
+	// setup framebuffer
+	// ----------------------
+	unsigned int captureFBO;	// framebuffer object to record each of the 6 times rendering the cube (for each face)
+	unsigned int captureRBO;
+
+	glGenFramebuffers(1, &captureFBO);
+	glGenRenderbuffers(1, &captureRBO);	// RBOs store render data directly into their buffer
+
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
 
 	// ENV MAPS 0-3
 	const int envMaps = 3;
@@ -161,9 +170,9 @@ int main()
 	unsigned int envCubemap[envMaps];
 	
 	vector<std::string> paths;
-	paths.push_back(FileSystem::getPath("content/images/empty_workshop_1k.hdr"));
 	paths.push_back(FileSystem::getPath("content/images/newport_loft.hdr"));
-	paths.push_back(FileSystem::getPath("content/images/thatch_chapel_1k.hdr"));
+	paths.push_back(FileSystem::getPath("content/images/empty_workshop_2k.hdr"));
+	paths.push_back(FileSystem::getPath("content/images/thatch_chapel_2k.hdr"));
 
 	for (int envMap = 0; envMap < envMaps; envMap++) {
 		std::cout << envMap << ": " << paths[envMap] << std::endl;
@@ -191,14 +200,6 @@ int main()
 		else {
 			std::cout << "Failed to load HDR image." << std::endl;
 		}
-
-		// setup framebuffer
-		// ----------------------
-		unsigned int captureFBO;	// framebuffer object to record each of the 6 times rendering the cube (for each face)
-		unsigned int captureRBO;
-
-		glGenFramebuffers(1, &captureFBO);
-		glGenRenderbuffers(1, &captureRBO);	// RBOs store render data directly into their buffer
 
 		glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 		glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
@@ -396,7 +397,10 @@ int main()
 
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
-	
+	glDeleteRenderbuffers(1, &captureRBO);
+	glDeleteFramebuffers(1, &captureFBO);
+
+
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
 	glfwTerminate();
