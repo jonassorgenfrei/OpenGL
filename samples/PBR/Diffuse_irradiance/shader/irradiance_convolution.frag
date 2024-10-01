@@ -23,7 +23,7 @@ void main()
     vec3 right = normalize(cross(up, N));
     up         = normalize(cross(N, right));
        
-    float sampleDelta = 0.025;		// NOTE: Decreasind or increasing will effect the accuracy respectively
+    float sampleDelta = 0.025;		// NOTE: decreasing or increasing will effect the accuracy respectively
     float nrSamples = 0.0;
 	// generate  fixed amount of sample vectors for each cubemap texel along a hemisphere PHI
 	/* Solving the Irradiance Diffuse Integral */
