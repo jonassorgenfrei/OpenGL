@@ -2,7 +2,7 @@
 
 layout(points) in;	// get points as input
 layout(points) out; // provide points as output
-layout(max_vertices = 36320) out;
+layout(max_vertices = 256) out;
 
 in int Type0[];
 in vec3 Position0[];
