@@ -56,6 +56,7 @@ set(Lighting
     Deferred_Shading
     Forward_Plus
     Gamma_Correction
+    Gooch_Model
     HDR
     Lights
     Normal_Mapping
