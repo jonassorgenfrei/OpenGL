@@ -2,7 +2,7 @@
 This Repo contains a collection of annotated OpenGL Examples.
 
 Samples are categorized in: 
-- Basics
+- [Basics](samples/Basics/README.md)
 - Lighting
 - Model
 - PBR
@@ -21,5 +21,5 @@ Required Libraries:
     Assimp - ASSIMP_DIR
     Glad - glad_DIR
     Freetype - Freetype_DIR
-    
+
 NOTE: some Examples (e.g. MeshShader) require Glad to have some extensions enabled.
