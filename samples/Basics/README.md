@@ -3,6 +3,6 @@
 Basic OpenGL Implementations for:
 - Transformation
 - Shader
-- Coordinate Sytem
+- Coordinate System
 - Texture
 - Camera
