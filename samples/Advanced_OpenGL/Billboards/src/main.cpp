@@ -53,6 +53,8 @@ int billboards = 2;
 bool animation = true;
 bool showTexCoords = false;
 
+float alphaThreshold = 0.5f;
+
 // camera
 Camera camera(glm::vec3(-0.1f, 1.1f, 4.3f), glm::vec3(0,1,0), -90, -21);
 float lastX = SCR_WIDTH / 2.0;
@@ -220,7 +222,7 @@ int main()
 		grassShader.setFloat("NormalLength", 0.5f);
 		grassShader.setInt("Subdivs", subdivs);
 		grassShader.setInt("Billboards", billboards);
-		grassShader.setFloat("AlphaThreshold", 0.5f);
+		grassShader.setFloat("alphaThreshold", alphaThreshold);
 		grassShader.setFloat("Time", currentFrame);
 		grassShader.setBool("Animation", animation);
 		grassShader.setBool("DrawTexCoords", showTexCoords);
@@ -232,7 +234,7 @@ int main()
 		triangles.Draw(groundShader);
 
 		// render transparent
-		grassShader.setFloat("AlphaThreshold", 0.0f);
+		grassShader.setFloat("alphaThreshold", 0.0f);
 		glDepthMask(GL_FALSE);
 		glEnable(GL_BLEND);
 
@@ -316,6 +318,13 @@ void processInput(GLFWwindow *window)
 		animation = !animation;
 	}
 
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+		alphaThreshold = min(1.0f, alphaThreshold + 0.1f);
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+		alphaThreshold = max(0.0f, alphaThreshold - 0.1f);
+	}
 }
 
 // glfw: whenever the mouse moves, this callback is called

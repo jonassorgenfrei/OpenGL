@@ -10,7 +10,7 @@ in vec3 fTexCoord;
 out vec4 FragColor;            
 
 
-uniform float AlphaThreshold;   
+uniform float alphaThreshold;   
 
 uniform sampler2D tex;         
 
@@ -34,6 +34,6 @@ void main() {
         FragColor = vec4(invTexCoord, 1);
     }
 
-    if(FragColor.a < AlphaThreshold)
+    if(FragColor.a < alphaThreshold)
         discard;
 }
