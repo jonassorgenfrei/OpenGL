@@ -181,8 +181,7 @@ int main()
 
 	// load image, create texture and generate mipmaps
 	stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
-	// The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
-	//TODO: USE FILE SYSTEM 
+	// The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform
 	int width, height, nrChannels;
 	unsigned char *data = stbi_load(FileSystem::getPath("content/images/container.jpg").c_str(), &width, &height, &nrChannels, 0);
 
@@ -294,9 +293,8 @@ int main()
 		glBindVertexArray(VAOs[1]);
 		glDrawArrays(GL_TRIANGLES, 0, 3);	// this call should output a yellow triangle
 		
-		
-											// bind Texture
-											// bind textures on corresponding texture units
+		// bind Texture
+		// bind textures on corresponding texture units
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture1);
 		glActiveTexture(GL_TEXTURE1);
@@ -308,7 +306,6 @@ int main()
 		textureShader.setFloat("mixValue", mixValue);
 		glBindVertexArray(VAOs[3]);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
