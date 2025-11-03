@@ -1,7 +1,7 @@
 #version 450
 #extension GL_NV_mesh_shader : require
 // same as compute
-layout(local_size_x=32) in;
+layout(local_size_x=1) in;
 //in uvec3 gl_WorkGoupID;
 //in uvec3 gl_LocalInvocationID;
 
@@ -14,7 +14,7 @@ layout(local_size_x=32) in;
 
 
 // new for task shader
-out uint gl_TaskCountNV; // define how many children will be spawn
+// out uint gl_TaskCountNV; // define how many children will be spawn
 
 void main()
 {

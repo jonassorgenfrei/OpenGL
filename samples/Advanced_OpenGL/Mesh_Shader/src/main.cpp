@@ -51,29 +51,36 @@ float lastFrame = 0.0f; // time of last frame
 
 class MeshShader :public Shader {
 public:
-	MeshShader(const char* meshShaderPath, const char* fragmentPath)
+	MeshShader(const char* taskShaderPath, const char* meshShaderPath, const char* fragmentPath)
 	{
 		// 1. retrieve the mesh/fragment source code from filePath
+		std::string taskCode;
 		std::string meshCode;
 		std::string fragmentCode;
+		std::ifstream tShaderFile;
 		std::ifstream mShaderFile;
 		std::ifstream fShaderFile;
 		// ensure ifstream objects can throw exceptions:
+		tShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 		mShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 		fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 		try
 		{
 			// open files
+			tShaderFile.open(taskShaderPath);
 			mShaderFile.open(meshShaderPath);
 			fShaderFile.open(fragmentPath);
-			std::stringstream mShaderStream, fShaderStream;
+			std::stringstream tShaderStream, mShaderStream, fShaderStream;
 			// read file's buffer contents into streams
+			tShaderStream << tShaderFile.rdbuf();
 			mShaderStream << mShaderFile.rdbuf();
 			fShaderStream << fShaderFile.rdbuf();
 			// close file handlers
+			tShaderFile.close();
 			mShaderFile.close();
 			fShaderFile.close();
 			// convert stream into string
+			taskCode = tShaderStream.str();
 			meshCode = mShaderStream.str();
 			fragmentCode = fShaderStream.str();
 		}
@@ -81,17 +88,23 @@ public:
 		{
 			std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
 		}
+		const char* tShaderCode = taskCode.c_str();
 		const char* mShaderCode = meshCode.c_str();
 		const char* fShaderCode = fragmentCode.c_str();
 		// 2. compile shaders
-		unsigned int mesh, fragment;
+		unsigned int task, mesh, fragment;
 		int success;
 		char infoLog[512];
-		// vertex shader
+		// task shader
+		task = glCreateShader(GL_TASK_SHADER_NV);
+		glShaderSource(task, 1, &tShaderCode, NULL);
+		glCompileShader(task);
+		checkCompileErrors(task, "TASK");
+		// mesh shader
 		mesh = glCreateShader(GL_MESH_SHADER_NV);
 		glShaderSource(mesh, 1, &mShaderCode, NULL);
 		glCompileShader(mesh);
-		checkCompileErrors(mesh, "Mesh");
+		checkCompileErrors(mesh, "MESH");
 		// fragment Shader
 		fragment = glCreateShader(GL_FRAGMENT_SHADER);
 		glShaderSource(fragment, 1, &fShaderCode, NULL);
@@ -100,12 +113,14 @@ public:
 
 		// shader Program
 		ID = glCreateProgram();
+		glAttachShader(ID, task);
 		glAttachShader(ID, mesh);
 		glAttachShader(ID, fragment);
 
 		glLinkProgram(ID);
 		checkCompileErrors(ID, "PROGRAM");
 		// delete the shaders as they're linked into our program now and no longer necessary
+		glDeleteShader(task);
 		glDeleteShader(mesh);
 		glDeleteShader(fragment);
 	}
@@ -174,7 +189,7 @@ int main()
 
 	// build and compile shader program(s)
 	// ------------------------------------
-	MeshShader shader(FileSystem::getSamplePath("shader/meshShader.mesh").c_str(), FileSystem::getSamplePath("shader/meshShader.frag").c_str());
+	MeshShader shader(FileSystem::getSamplePath("shader/meshShader.task").c_str(), FileSystem::getSamplePath("shader/meshShader.mesh").c_str(), FileSystem::getSamplePath("shader/meshShader.frag").c_str());
 	
 	// shader configuration
 	// --------------------
