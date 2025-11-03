@@ -168,8 +168,8 @@ int main()
 	{
 		glPolygonMode(GL_FRONT_AND_BACK, (wireframe) ? GL_LINE : GL_FILL);
 
-		//glEnable(GL_CULL_FACE);
-		//glCullFace(GL_BACK);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
 
 		// Set frame time
 		GLfloat currentFrame = glfwGetTime();
@@ -191,7 +191,7 @@ int main()
 
 		glm::mat4 model(1.0f);
 		model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show parallax mapping from multiple directions
-		//model = glm::rotate(model, glm::radians((float)-90), glm::vec3(-1.0, 0.0, 0.0));
+		//model = glm::rotate(model, glm::radians((float)90), glm::vec3(-1.0, 0.0, 0.0));
 		shader.setMat4("model", model);
 		// set Eye 
 		shader.setVec3("viewPos", camera.Position);

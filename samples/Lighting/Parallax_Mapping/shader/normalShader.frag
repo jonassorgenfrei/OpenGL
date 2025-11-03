@@ -120,7 +120,7 @@ vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir){
 /*
  * Blinn-Phong Lightning Model
  */
-vec3 BlinnPhong(vec3 normal, vec3 fragPos, vec3 lightPosition, vec3 lightColor, vec3 viewPos) {
+vec3 BlinnPhong(vec3 normal, vec3 fragPos, vec3 lightPosition, vec3 viewPos, vec3 lightColor) {
 	//diffuse
 	vec3 lightDir = normalize(lightPosition - fragPos);
 	float diff = max(dot(lightDir, normal), 0.0);
@@ -174,8 +174,9 @@ void main()
     // ambient
     vec3 ambient = 0.1 * color;
 
-	vec3 blinnPhong = BlinnPhong(normal, fs_in.FragPos, lightPos, color, fs_in.TangentViewPos);
+	vec3 blinnPhong = BlinnPhong(normal, fs_in.TangentFragPos, fs_in.TangentLightPos, fs_in.TangentViewPos, color);
 	
 	FragColor = vec4(ambient + blinnPhong, 1.0);
-	//FragColor = vec4(tbn*normal,1);
+	// show normal
+	// FragColor = vec4(inverse(tbn)*normal,1);
 }

@@ -19,8 +19,6 @@ out VS_OUT {
 	vec3 TangentFragPos;
 } vs_out;
 
-out mat3 tbn;
-
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
@@ -28,17 +26,26 @@ uniform mat4 model;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
+out mat3 tbn;
+
 void main() {
 	vs_out.FragPos = vec3(model * vec4(aPos, 1.0));
 	vs_out.TexCoords = aTexCoords;
 
+	mat3 normalMatrix = transpose(inverse(mat3(model)));
 	/* 
 	 * Tangent Space 
 	 *	space that's local to the surface of a triangle
 	 *	TBN-Matrix: Tangent, Bitangent, Normal
 	 */
-	vec3 T = normalize(vec3(model*vec4(aTangent, 0.0)));		// transform to coord. System to work in (WORLD SPACE)
-	vec3 N = normalize(vec3(model*vec4(aNormal, 0.0)));			// transform to coord. System to work in (WORLD SPACE)
+	// no normal matrix used, vectors might get scaling and/or translation
+	//vec3 T = normalize(vec3(model*vec4(aTangent, 0.0)));		// transform to coord. System to work in (WORLD SPACE)
+	//vec3 N = normalize(vec3(model*vec4(aNormal, 0.0)));			// transform to coord. System to work in (WORLD SPACE)
+	
+	// normal matrix just includes rotation
+	vec3 T = normalize(normalMatrix*aTangent);		// transform to coord. System to work in (WORLD SPACE)
+	vec3 N = normalize(normalMatrix*aNormal);			// transform to coord. System to work in (WORLD SPACE)
+
 	/* Larger Mesh: tangent vect. are generally averaged (smooth result) 
 	 *		Problem: maybe not perpendicular to each other => matrix wouldn'T be orthogonal anymore
 	 *		Handeling: Using Gram-Schmidt process (re-orthogonalize) 
@@ -59,6 +66,7 @@ void main() {
 	//vec3 B = normalize(vec3(model*vec4(aBitangent, 0.0)));		// transform to coord. System to work in (WORLD SPACE) 
 	mat3 TBN = transpose(mat3(T,B,N)); // same like inverse, cause orthogonal matrix: transpose == inverse. Calc transpose is faster
 	tbn = TBN;
+
 	vs_out.TangentLightPos = TBN * lightPos; // for parallax mapping important to be in tangent space
 	vs_out.TangentViewPos = TBN * viewPos; // for parallax mapping important to be in tangent space
 	vs_out.TangentFragPos = TBN * vs_out.FragPos;
