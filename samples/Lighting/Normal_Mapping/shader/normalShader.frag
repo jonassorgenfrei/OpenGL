@@ -24,14 +24,14 @@ uniform vec3 viewPos;
 /*
  * Blinn-Phong Lightning Model
  */
-vec3 BlinnPhong(vec3 normal, vec3 fragPos, vec3 lightPosition, vec3 lightColor) {
+vec3 BlinnPhong(vec3 normal, vec3 fragPos, vec3 lightPosition, vec3 lightColor, vec3 viewPosition) {
 	//diffuse
 	vec3 lightDir = normalize(lightPosition - fragPos);
 	float diff = max(dot(lightDir, normal), 0.0);
 	vec3 diffuse = diff*lightColor;
 
 	// specular 
-	vec3 viewDir = normalize(viewPos - fragPos);
+	vec3 viewDir = normalize(viewPosition - fragPos);
 	vec3 reflectDir = reflect(-lightDir, normal);
 	
 	float spec = 0.0;
@@ -72,7 +72,11 @@ void main()
 	// transform normal vector to range [-1, 1]
 	normal = normalize(normal * 2.0 - 1.0);
 
-	vec3 blinnPhong = BlinnPhong(normal, fs_in.FragPos, lightPos, color);
+	// use tangent space
+	vec3 blinnPhong = BlinnPhong(normal, fs_in.TangentFragPos, fs_in.TangentLightPos, color, fs_in.TangentViewPos);
+
+	// no tangent space, not this leads to wrong lightng
+	//vec3 blinnPhong = BlinnPhong(normal, fs_in.FragPos, lightPos, color, viewPos);
 	
 	FragColor = vec4(ambient + blinnPhong, 1.0);
 
