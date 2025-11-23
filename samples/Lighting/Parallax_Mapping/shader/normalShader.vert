@@ -39,12 +39,8 @@ void main() {
 	 *	TBN-Matrix: Tangent, Bitangent, Normal
 	 */
 	// no normal matrix used, vectors might get scaling and/or translation
-	//vec3 T = normalize(vec3(model*vec4(aTangent, 0.0)));		// transform to coord. System to work in (WORLD SPACE)
-	//vec3 N = normalize(vec3(model*vec4(aNormal, 0.0)));			// transform to coord. System to work in (WORLD SPACE)
-	
-	// normal matrix just includes rotation
-	vec3 T = normalize(normalMatrix*aTangent);		// transform to coord. System to work in (WORLD SPACE)
-	vec3 N = normalize(normalMatrix*aNormal);			// transform to coord. System to work in (WORLD SPACE)
+	vec3 T = normalize(vec3(model*vec4(aTangent, 0.0)));		// transform to coord. System to work in (WORLD SPACE)
+	vec3 N = normalize(vec3(model*vec4(aNormal, 0.0)));			// transform to coord. System to work in (WORLD SPACE)
 
 	/* Larger Mesh: tangent vect. are generally averaged (smooth result) 
 	 *		Problem: maybe not perpendicular to each other => matrix wouldn'T be orthogonal anymore

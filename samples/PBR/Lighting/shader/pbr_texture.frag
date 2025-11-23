@@ -22,9 +22,6 @@ const float PI = 3.14159265359;
 
 // ----------------------------------------------------------------------------
 // Easy trick to get tangent-normals to world-space to keep PBR code simplified.
-// Don't worry if you don't get what's going on; you generally want to do normal 
-// mapping the usual way for performance anways; I do plan make a note of this 
-// technique somewhere later in the normal mapping tutorial.
 vec3 getNormalFromMap()
 {
 	vec3 tangentNormal = texture(normalMap, TexCoords).xyz * 2.0 - 1.0;
