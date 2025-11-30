@@ -1,6 +1,6 @@
 /*
  * Stencil Shadow Volumes (depth-fail / Carmack's reverse)
- * Renders a rotating cube casting a stencil shadow onto a plane.
+ * Renders cube casting a stencil shadow onto a plane.
  */
 
 #include <glad/glad.h>
@@ -194,6 +194,8 @@ int main()
 		// render entire scene into depth buffer, without touching the color buffer
 		glDepthMask(GL_TRUE);
 		glDisable(GL_STENCIL_TEST);
+		glEnable(GL_POLYGON_OFFSET_FILL);
+		glPolygonOffset(1.1f, 4.0f);
 
 		nullShader.use();
 		nullShader.setMat4("projection", projection);
@@ -204,6 +206,7 @@ int main()
 		glDisable(GL_CULL_FACE);
 		renderPlane();
 		glEnable(GL_CULL_FACE);
+		glDisable(GL_POLYGON_OFFSET_FILL);
 
 		// 1. RenderShadowVolIntoStencil
 		// --------------------------------------------
