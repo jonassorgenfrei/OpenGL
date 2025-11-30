@@ -1,5 +1,6 @@
 /* 
- *	Order Independent Transparency
+ * Order Independent Transparency
+ * Weighted Blended
  */
 
 #include <glad/glad.h>
@@ -218,9 +219,6 @@ int main()
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
-		//glEnable(GL_CULL_FACE);
-		//glCullFace(GL_BACK);
-	
 		// Set frame time
 		GLfloat currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame; // time per frame 
@@ -501,59 +499,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	
 }
 
-Mesh createTerrain(int width, int height, int nrChannels, stbi_us* data) {
-
-	// time intensive O(n2) & memory intensive ~72mb 
-	// fixed resolution
-	std::vector<Vertex> vertices;
-	// reserve data
-	vertices.reserve(height * width*sizeof(Vertex));
-
-	float yScale = 64.0f / 256.0f, yShift = 16.0f;
-	unsigned int bytePerPixel = nrChannels;
-	for (int i = 0; i < height; i++)
-	{
-		for (int j = 0; j < width; j++)
-		{
-			stbi_us* texel = data + (j + width * i) * bytePerPixel;	// calculating the pointer offset
-			const stbi_us y = *texel; // derefernce the pointer to a value, use first channel, convert short to 
-
-			Vertex vertex;
-
-			vertex.Position.x = -width / 2.0f + j;   // vx
-			vertex.Position.y = (float)y*0.0025f * yScale - yShift;   // vy
-			vertex.Position.z = -height / 2.0f + i;   // vz
-
-			vertices.push_back(vertex);
-		}
-	}
-	std::cout << "Loaded " << vertices.size() / 3 << " vertices" << std::endl;
-
-	// create mesh as triangle stripes
-	std::vector<unsigned int> indices;
-	for (unsigned int i = 0; i < height - 1; i += 1)
-	{
-		for (unsigned int j = 0; j < width; j += 1)
-		{
-			for (unsigned int k = 0; k < 2; k++)
-			{
-				indices.push_back(j + width * (i + k));
-			}
-		}
-	}
-	std::cout << "Loaded " << indices.size() << " indices" << std::endl;
-
-	const int numStrips = (height - 1);
-	const int numTrisPerStrip = (width) * 2 - 2;
-	std::cout << "Created lattice of " << numStrips << " strips with " << numTrisPerStrip << " triangles each" << std::endl;
-	std::cout << "Created " << numStrips * numTrisPerStrip << " triangles total" << std::endl;
-
-	std::vector<Texture> tex = std::vector<Texture>();
-
-	return Mesh(vertices, indices, tex);
-}
-
-
 // generate a model matrix
 // ---------------------------------------------------------------------------------------------------------
 glm::mat4 calculate_model_matrix(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
@@ -584,7 +529,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	// height will be significantly larger than specified on retina displays.
 	glViewport(0, 0, width, height);
 }
-
 
 void icon(GLFWwindow* window) {
 	//GLFW ICON

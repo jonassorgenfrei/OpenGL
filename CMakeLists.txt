@@ -32,7 +32,8 @@ set(Advanced_OpenGL
     no_Instancing_Space
     Instancing_Space
     Mesh_Shader
-    Order_Independent_Transparency
+    Order_Independent_Transparency_Depth_Peeling
+    Order_Independent_Transparency_Weighted_Blended
     Stencil_Silhouette
     Tessellation
     Tessellation_Terrain
