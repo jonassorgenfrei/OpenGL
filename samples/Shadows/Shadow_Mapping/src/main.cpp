@@ -45,15 +45,18 @@ const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
 //const unsigned int SHADOW_WIDTH = 1024 / 2, SHADOW_HEIGHT = 1024 / 2;
-const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+const unsigned int SHADOW_WIDTH = 1024*2, SHADOW_HEIGHT = 1024*2;
 
 bool d_pressed = false;
 bool p_pressed = false;
 bool w_pressed = false;
+bool t_pressed = false;
+bool h_pressed = false;
 
 bool debug = false;
 bool peterPanning = true;
 bool wireframe = false;
+int technic = 0;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -265,6 +268,7 @@ int main()
 		shadowShader.setVec3("viewPos", camera.Position);
 		shadowShader.setVec3("lightPos", lightPos);
 		shadowShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+		shadowShader.setInt("technic", technic);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, woodTexture);
 		glActiveTexture(GL_TEXTURE1);
@@ -446,6 +450,18 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
+	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
+		h_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE && h_pressed) {
+		std::cout << "Help:" << std::endl;
+		std::cout << " F2: Toggle FullScreen" << std::endl;
+		std::cout << " D: Toggle Debug Show Shadow map" << std::endl;
+		std::cout << " P: Toggle Peter Pannig" << std::endl;
+		std::cout << " W: Toggle Wireframe" << std::endl;
+		std::cout << " T: Toggle Technic (default, biased, pcf)" << std::endl;
+		h_pressed = false;
+	}
 
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
@@ -478,6 +494,21 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE && w_pressed) {
 		wireframe = !wireframe;
 		w_pressed = false;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+		t_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE && t_pressed) {
+		technic += 1;
+		technic = technic % 3;
+		if (technic == 0)
+			std::cout << "default shadow" << std::endl;
+		else if (technic == 1)
+			std::cout << "biased shadow" << std::endl;
+		if (technic == 2)
+			std::cout << "pcf shadow" << std::endl;
+		t_pressed = false;
 	}
 
 }
