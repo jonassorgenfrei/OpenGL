@@ -44,8 +44,8 @@ void icon(GLFWwindow* window);
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
-//const unsigned int SHADOW_WIDTH = 1024 / 2, SHADOW_HEIGHT = 1024 / 2;
-const unsigned int SHADOW_WIDTH = 1024*2, SHADOW_HEIGHT = 1024*2;
+const unsigned int SHADOW_WIDTH = 1024 / 2, SHADOW_HEIGHT = 1024 / 2;
+//const unsigned int SHADOW_WIDTH = 1024*2, SHADOW_HEIGHT = 1024*2;
 
 bool d_pressed = false;
 bool p_pressed = false;

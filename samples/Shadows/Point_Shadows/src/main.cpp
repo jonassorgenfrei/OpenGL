@@ -40,9 +40,11 @@ const unsigned int SCR_HEIGHT = 720;
 
 bool visLight = false;
 bool shadows = true;
+int technic = 0;
 
 bool space_pressed = false;
 bool l_pressed = false;
+bool t_pressed = false;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -231,6 +233,7 @@ int main()
 		// set lighting uniforms
 		shader.setVec3("lightPos", lightPos);
 		shader.setVec3("viewPos", camera.Position);
+		shader.setInt("technic", technic);
 		shader.setInt("shadows", shadows); // enable/disable shadows by pressing 'SPACE'
 		shader.setFloat("far_plane", far_plane);
 		
@@ -422,6 +425,22 @@ void processInput(GLFWwindow *window)
 	{
 		l_pressed = false;
 	}
+
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+		t_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE && t_pressed) {
+		technic += 1;
+		technic = technic % 3;
+		if (technic == 0)
+			std::cout << "default shadow no pcf" << std::endl;
+		else if (technic == 1)
+			std::cout << "pcf 64 samples" << std::endl;
+		if (technic == 2)
+			std::cout << "pcf 20 samples, random distribution, viewdistance based offset" << std::endl;
+		t_pressed = false;
+	}
+
 
 }
 

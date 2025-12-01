@@ -15,6 +15,7 @@ uniform vec3 viewPos;
 
 uniform float far_plane;
 uniform bool shadows;
+uniform int technic; 
 
 // array of offset direction for sampling
 vec3 gridSamplingDisk[20] = vec3[]
@@ -63,7 +64,6 @@ float ShadowCalculation(vec3 fragPos)
 }
 
 /**
- * NO PCF
  * @param fragPos - Fragment Position
  * @return 1.0 when the fragment is in the shadow
  *		   0.0 when the fragment is not in the shadow
@@ -203,9 +203,15 @@ void main()
 	vec3 specular = spec * lightColor;
 	// calcuate shadow
 	
-	float shadow = shadows ? ShadowCalculation(fs_in.FragPos) : 0.0;  // calc shadow factor 
-	//float shadow = shadows ? ShadowCalculationPCF1(fs_in.FragPos) : 0.0;  // calc shadow factor 
-	//float shadow = shadows ? ShadowCalculationPCF2(fs_in.FragPos) : 0.0;  // calc shadow factor 
+	// calculate shadow
+	float shadow = 0;
+	if (technic==0){
+		shadow = shadows ? ShadowCalculation(fs_in.FragPos) : 0.0;  // calc shadow factor     
+	} else if(technic ==1) {
+		shadow = shadows ? ShadowCalculationPCF1(fs_in.FragPos) : 0.0;  // calc shadow factor 
+	} else {
+		shadow = shadows ? ShadowCalculationPCF2(fs_in.FragPos) : 0.0;  // calc shadow factor 
+	}
 
 	vec3 lighting = (ambient + (1.0-shadow) * (diffuse + specular))*color;
 	// influence the lighting's diffuse & specular component by the shadow factor
