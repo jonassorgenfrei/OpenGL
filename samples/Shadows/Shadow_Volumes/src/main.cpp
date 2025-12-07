@@ -34,8 +34,6 @@ void renderVolumeCube();
 void renderPlane();
 void renderSphere();
 
-void icon(GLFWwindow* window);
-
 struct EdgeKey {
 	unsigned int a;
 	unsigned int b;

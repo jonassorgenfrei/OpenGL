@@ -43,8 +43,6 @@ void drawScene(Shader shader);
 void renderQuad();
 void renderCube();
 
-void icon(GLFWwindow* window);
-
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
