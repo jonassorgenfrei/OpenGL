@@ -8,13 +8,17 @@ uniform sampler2D gNormal;
 uniform sampler2D texNoise;
 
 uniform vec3 samples[64];
+uniform bool use_hammersley;
+uniform mat4 projection;
+uniform float radius;
 
 // parameters (probably usefull as uniforms to more easily tweak the effect)
 uint kernelSize = uint(64);
-float radius = 0.5;
+
 float bias = 0.025;
 const float PI  = 3.14159265358979;
-// tile noise texture over sceen based on screen 
+
+// tile noise texture over screen based on screen 
 // dimensions divided by noise sizeof
 const vec2 noiseScale = vec2(1280.0/4.0, 720.0/4.0); // screen = 1280x720
 // tile the noise texture all over the screen, but as the 
@@ -38,8 +42,6 @@ float radicalInverse_VdC(uint bits) {
         bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
         return float(bits) * 2.3283064365386963e-10; // / 0x100000000
 }
-
-uniform mat4 projection;
 
 /**
  * Calculates a 2d random vector
@@ -106,15 +108,23 @@ void main()
 	float occlusion = 0.0;
 	for(uint i = uint(0); i < kernelSize; i++)
 	{
-		vec2 xi = hammersley(i, kernelSize);
-
-        float random = rand(vec2(gl_FragCoord)*xi);
-
-        vec3 sam = sampleHemisphereCos(xi.x, xi.y);
-
+		
 		// get sample position
 		// either use hamerslay calculations or pre calulated samples
-		vec3 _sample = TBN * sam;//samples[i];	// from tangent to view-space
+		vec3 _sample;
+		if(use_hammersley){
+			vec2 xi = hammersley(i, kernelSize);
+
+			float random = rand(vec2(gl_FragCoord)*xi);
+
+			vec3 sam = sampleHemisphereCos(xi.x, xi.y);
+
+			// hammersley
+			_sample = TBN * sam;	// from tangent to view-space
+		} else {
+			_sample = TBN * samples[i]; // from tangent to view-space
+		}
+
 		_sample = fragPos + _sample * radius;
 		// we then add the view-space kernel offset sample to the view-space
 		// fragment position

@@ -48,16 +48,27 @@ const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
 int shaderTypeOGLDev = 0;
-bool aKeyPressed = false;
+
+bool a_pressed = false;
+bool d_pressed = false;
+bool b_pressed = false;
+bool h_pressed = false;
+bool n_pressed = false;
 
 bool debug = false;
-bool d_keyPressed = false;
-
 bool blur = false;
-bool b_keyPressed = false;
+bool hammersley = false;
+
+#if LEARNOPENGL == 1
+	float radius = 0.5f;
+#else 
+	float radius = 1.5f;
+#endif
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 5.0f));
+Camera camera(glm::vec3(0.0f, 8.0f, 8.0f));
+
+
 float lastX = SCR_WIDTH / 2.0;
 float lastY = SCR_HEIGHT / 2.0;
 bool firstMouse = true;
@@ -179,7 +190,7 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
-	// color (+ spec) color buffer
+	// color buffer
 	glGenTextures(1, &gAlbedo);
 	glBindTexture(GL_TEXTURE_2D, gAlbedo);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
@@ -256,7 +267,7 @@ int main()
 		ssaoKernel.push_back(sample);
 	}
 #else 
-		// ogldev
+	// ogldev
 	glm::vec3 kernel[KERNEL_SIZE];
 	for (unsigned int i = 0; i < KERNEL_SIZE; i++) {
 		float scale = (float)i / (float)(KERNEL_SIZE);
@@ -283,7 +294,7 @@ int main()
 		glm::vec3 noise(
 			randomFloats(generator) * 2.0f - 1.0f,
 			randomFloats(generator) * 2.0f - 1.0f,
-			0.0f // leave z component at 0.0 so we rotate around the z axis
+			0.0f // leave z component at 0.0 so we rotate around the z axis (in tangent space)
 		);
 		ssaoNoise.push_back(noise);
 	}
@@ -305,13 +316,21 @@ int main()
 
 	// lighting info
 	// -------------
+#if LEARNOPENGL == 0
 	glm::vec3 lightDir = glm::vec3(0.0f, -1.0f, 0.0f);
+	glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+#else
+	glm::vec3 lightDir = glm::vec3(2.0f, 4.0f, -2.0f);
+	glm::vec3 lightColor = glm::vec3(0.2f, 0.2f, 0.7f);
+#endif
 
 	glm::vec3 lightPos = glm::vec3(2.0f, 4.0f, -2.0f);
-	glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-	//glm::vec3 lightColor = glm::vec3(0.2f, 0.2f, 0.7f);
+	
 	float lightAmbientIntensity = 0.5f;
 	float lightDiffuseIntensity = 0.6f;
+
+	// set initial camera rotation
+	camera.rotate(0, -45 * 10);
 
 	// shader configuration
 	// --------------------
@@ -327,6 +346,7 @@ int main()
 	shaderSSAO.setInt("texNoise", 2);
 	shaderSSAOBlur.use();
 	shaderSSAOBlur.setInt("ssaoInput", 0);
+
 #else 
 	shaderSSAO.use();
 	shaderSSAO.setInt("gPositionMap", 0);
@@ -386,6 +406,8 @@ int main()
 			for (unsigned int i = 0; i < 64; ++i)
 				shaderSSAO.setVec3("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
 			shaderSSAO.setMat4("projection", projection);
+			shaderSSAO.setBool("use_hammersley", hammersley);
+			shaderSSAO.setFloat("radius", radius);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, gPosition);
 			glActiveTexture(GL_TEXTURE1);
@@ -472,7 +494,7 @@ int main()
 					for (unsigned int i = 0; i < KERNEL_SIZE; ++i)
 						shaderSSAO.setVec3("gKernel[" + std::to_string(i) + "]", kernel[i]);
 					shaderSSAO.setMat4("projection", projection);
-					shaderSSAO.setFloat("gSampleRad", 1.5f);
+					shaderSSAO.setFloat("gSampleRad", radius);
 					shaderSSAO.setInt("gPositionMap", 0);
 					glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, gPosition);
@@ -699,40 +721,84 @@ void processInput(GLFWwindow *window)
 
 	float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
 
-	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
-	{
-		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-		glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
-	}
+// this make issues due to code requires screen size
+//	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
+//	{
+//		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+//		glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
+//	}
 
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-		aKeyPressed = true;
+		a_pressed = true;
 	}
 
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE && aKeyPressed) {
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE && a_pressed) {
 		shaderTypeOGLDev++;
 		shaderTypeOGLDev %= 3;
-		aKeyPressed = false;
+		a_pressed = false;
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-		d_keyPressed = true;
+		d_pressed = true;
 	}
 
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE && d_keyPressed) {
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE && d_pressed) {
 		debug = !debug;
-		d_keyPressed = false;
+		d_pressed = false;
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS) {
-		b_keyPressed = true;
+		b_pressed = true;
 	}
 
-	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE && b_keyPressed) {
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE && b_pressed) {
 		blur = !blur;
-		b_keyPressed = false;
+		b_pressed = false;
+		if (blur) {
+			std::cout << "Blur Enabled" << std::endl;
+		}
 	}
 
+	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS) {
+		n_pressed = true;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE && n_pressed) {
+		hammersley = !hammersley;
+		n_pressed = false;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+		if (radius > 0.0f) {
+			radius -= 0.005f;
+		}
+		else {
+			radius = 0.0f;
+		}
+		std::cout << "Radius:" << radius << std::endl;
+	}
+	else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+		radius += 0.005f;
+		std::cout << "Radius:" << radius << std::endl;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
+		h_pressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE && h_pressed) {
+		std::cout << "Help:" << std::endl;
+//		std::cout << " F2: Toggle Fullscreen" << std::endl;
+#if LEARNOPENGL == 1
+		std::cout << " N: Toggle Hammersley" << std::endl;
+#endif
+		std::cout << " D: Toggle Debug" << std::endl;
+		std::cout << " E: Increase Sample Radius" << std::endl;
+		std::cout << " Q: Decrease Sample Radius" << std::endl;
+#if LEARNOPENGL == 0
+		std::cout << " A: Shader Type" << std::endl;
+#endif
+		h_pressed = false;
+	}
 
 }
 
