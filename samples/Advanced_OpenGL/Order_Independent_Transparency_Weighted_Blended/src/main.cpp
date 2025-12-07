@@ -18,9 +18,9 @@
 #include "modules/filesystem.h"
 #include "modules/light.h"
 #include "modules/material.h"
+#include "modules/window.h"
 
 #include <iostream>
-
 
 // callbacks
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -30,9 +30,6 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 
 glm::mat4 calculate_model_matrix(const glm::vec3& position, const glm::vec3& rotation = glm::vec3(0.0f), const glm::vec3& scale = glm::vec3(1.0f));
-
-void icon(GLFWwindow* window);
-
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
@@ -528,57 +525,4 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	// make sure the viewport matches the new window dimensions; note that width and 
 	// height will be significantly larger than specified on retina displays.
 	glViewport(0, 0, width, height);
-}
-
-void icon(GLFWwindow* window) {
-	//GLFW ICON
-	// a simple glfw logo
-	const char* const logo[] =
-	{
-		"................",
-		"................",
-		"...0000..0......",
-		"...0.....0......",
-		"...0.00..0......",
-		"...0..0..0......",
-		"...0000..0000...",
-		"................",
-		"................",
-		"...1111..1111...",
-		"......1..1......",
-		"......1..1111...",
-		"...1..1.....1...",
-		"...1111..1111...",
-		"................",
-		"................"
-	};
-
-	const unsigned char icon_colors[5][4] =
-	{
-		{ 0,   0,   0, 255 }, // black
-		{ 255,   0,   0, 255 }, // red
-		{ 0, 255,   0, 255 }, // green
-		{ 0,   0, 255, 255 }, // blue
-		{ 255, 255, 255, 255 }  // white
-	};
-	int x, y;
-	unsigned char pixels[16 * 16 * 4];
-	unsigned char* target = pixels;
-	GLFWimage img = { 16, 16, pixels };
-
-	for (y = 0; y < img.width; y++)
-	{
-		for (x = 0; x < img.height; x++)
-		{
-			if (logo[y][x] == '0')
-				memcpy(target, icon_colors[0], 4);
-			else if (logo[y][x] == '1')
-				memcpy(target, icon_colors[1], 4);
-			else
-				memset(target, 0, 4);
-			target += 4;
-		}
-	}
-
-	glfwSetWindowIcon(window, 1, &img);
 }

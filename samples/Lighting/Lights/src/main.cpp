@@ -12,6 +12,7 @@
 #include "modules/light.h"
 #include "modules/material.h"
 #include "modules/filesystem.h"
+#include "modules/window.h"
 
 #include <iostream>
 
@@ -35,7 +36,6 @@ Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 bool firstMouse = true;
 float lastX = SCR_WIDTH / 2.0;
 float lastY = SCR_HEIGHT / 2.0;
-
 
 // timing 
 float deltaTime = 0.0f; // time between current frame and last frame
@@ -80,6 +80,8 @@ int main()
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return -1;
 	}
+
+	icon(window);
 
 	// configure global opengl state
 	// -----------------------------

@@ -13,6 +13,7 @@
 #include "modules/font.h"
 #include "modules/shader_m.h"
 #include "modules/filesystem.h"
+#include "modules/window.h"
 
 #include <iostream>
 #include <string>
@@ -62,6 +63,8 @@ int main()
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return -1;
 	}
+
+	icon(window);
 
 	// configure global opengl state
 	// -----------------------------
