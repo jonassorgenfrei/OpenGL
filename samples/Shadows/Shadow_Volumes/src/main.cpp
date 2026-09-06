@@ -87,6 +87,8 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+	// The depth-fail algorithm stores front/back volume crossings here.
+	glfwWindowHint(GLFW_STENCIL_BITS, 8);
 
 	#ifdef __APPLE__
 		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -121,7 +123,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -183,6 +185,9 @@ int main()
 		glm::mat4 cubeModel(1.0f);
 		cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, -0.25f, 0.0f));
 		cubeModel = glm::rotate(cubeModel, currentFrame * glm::radians(20.0f), glm::vec3(0.4f, 1.0f, 0.2f));
+		// The volume geometry shader operates on object-local vertices, so its
+		// light position must be in that same coordinate space.
+		glm::vec3 cubeLocalLightPos = glm::vec3(glm::inverse(cubeModel) * glm::vec4(lightPos, 1.0f));
 
 		glm::mat4 planeModel(1.0f);
 		planeModel = glm::translate(planeModel, glm::vec3(0.0f, -1.5f, 0.0f));
@@ -193,8 +198,6 @@ int main()
 		// render entire scene into depth buffer, without touching the color buffer
 		glDepthMask(GL_TRUE);
 		glDisable(GL_STENCIL_TEST);
-		glEnable(GL_POLYGON_OFFSET_FILL);
-		glPolygonOffset(1.1f, 4.0f);
 
 		nullShader.use();
 		nullShader.setMat4("projection", projection);
@@ -205,7 +208,6 @@ int main()
 		glDisable(GL_CULL_FACE);
 		renderPlane();
 		glEnable(GL_CULL_FACE);
-		glDisable(GL_POLYGON_OFFSET_FILL);
 
 		// 1. RenderShadowVolIntoStencil
 		// --------------------------------------------
@@ -234,7 +236,7 @@ int main()
 			shadowVolume.use();
 			glm::mat4 wvp = projection * view * cubeModel;
 			shadowVolume.setMat4("gWVP", wvp);
-			shadowVolume.setVec3("gLightPos", lightPos);
+			shadowVolume.setVec3("gLightPos", cubeLocalLightPos);
 			renderVolumeCube();
 
 			// Restore local stuff
@@ -320,7 +322,7 @@ int main()
 			shadowVolumeViz.use();
 			glm::mat4 wvpViz = projection * view * cubeModel;
 			shadowVolumeViz.setMat4("gWVP", wvpViz);
-			shadowVolumeViz.setVec3("gLightPos", lightPos);
+			shadowVolumeViz.setVec3("gLightPos", cubeLocalLightPos);
 			renderVolumeCube();
 			glPolygonMode(GL_FRONT_AND_BACK, polygonMode);
 		}

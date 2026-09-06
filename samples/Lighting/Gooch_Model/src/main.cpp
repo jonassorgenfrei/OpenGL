@@ -80,7 +80,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
 
@@ -90,7 +90,7 @@ int main()
 	Shader lightShader(FileSystem::getSamplePath("shader/light.vert").c_str(), FileSystem::getSamplePath("shader/light.frag").c_str());
 	
 	// set up vertex data (and buffer(s)) and configure vertex attributes
-	// Position (x,y,z) | Color (r,g,b) | Texturcoordinate (x,y) | Normal (x,y,z)
+	// Position (x, y, z) | color (r, g, b) | texture coordinate (x, y) | normal (x, y, z)
 	// ------------------------------------------------------------------
 	float vertices[] = {
 		//first 
@@ -227,7 +227,7 @@ int main()
 	// load and create a texture 
 	
 	
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	goochShader.use();
 	goochShader.setVec3("lightColor", light.diffuse);
@@ -258,7 +258,7 @@ int main()
 		light.position.y = std::sin(glfwGetTime())*4;
 		goochShader.setVec3("lightPos", light.position);
 
-		// pass projection matrix to shader (note that in this cas it could change every frame)
+		// pass projection matrix to shader (it can change every frame in this sample)
 		glm::mat4 projection = glm::mat4(1.0f);
 		projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 		goochShader.setMat4("projection", projection);

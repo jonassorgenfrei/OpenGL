@@ -2,10 +2,10 @@
 // Final blit shader: copies a texture to the framebuffer.
 
 
-// shader inputs
+// Shader inputs
 in vec2 texture_coords;
 
-// shader outputs
+// Shader outputs
 layout (location = 0) out vec4 frag;
 
 // screen image

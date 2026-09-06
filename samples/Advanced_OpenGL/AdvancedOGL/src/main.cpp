@@ -96,7 +96,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -465,10 +465,10 @@ int main()
 
 	unsigned int cubemapTexture = loadCubemap(faces, GL_CLAMP_TO_EDGE);
 
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	shader.use();
 	shader.setInt("texture1", 0);
@@ -516,7 +516,7 @@ int main()
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); 
-		// also clear the depth buffer & stencile buffer now!
+		// Clear the depth and stencil buffers as well.
 		glEnable(GL_DEPTH_TEST);
 		//reenable depth test
 

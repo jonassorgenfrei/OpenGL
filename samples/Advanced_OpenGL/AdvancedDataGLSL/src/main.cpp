@@ -89,7 +89,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -266,10 +266,10 @@ int main()
 	/*unsigned int frontTexture = loadTexture(FileSystem::getPath("content/images/container.jpg").c_str(), GL_REPEAT);
 	unsigned int backTexture = loadTexture(FileSystem::getPath("content/images/wall.jpg").c_str(), GL_REPEAT);*/
 
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	/*glm::mat4 projection = glm::perspective(45.0f, (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 	shaderVariables.use();
@@ -287,7 +287,7 @@ int main()
 	//whenever update or insert data into buffer (memory) -> bind to uboMatrices & use glBufferSubData 
 
 
-	// TODO: HERE AND AT DIAGRAMM SHADER A B @ https://learnopengl.com/Advanced-OpenGL/Advanced-GLSL
+	// TODO: HERE AND AT DIAGRAMM SHADER A B @ https://learnOpenGL.com/Advanced-OpenGL/Advanced-GLSL
 
 
 	// draw as wireframe

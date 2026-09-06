@@ -86,7 +86,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -167,7 +167,7 @@ int main()
 		glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glVertexAttribDivisor(2, 1);		//This function tells OpenGl when to update the content of a vertex attribute to the next element.
+		glVertexAttribDivisor(2, 1);		//This function tells OpenGL when to update the content of a vertex attribute to the next element.
 		//first attribute vertex attribute in question
 		//second parameter the attribute divisor
 		// default: 0 -> update the vertex attribute each iteration of the vertex shader

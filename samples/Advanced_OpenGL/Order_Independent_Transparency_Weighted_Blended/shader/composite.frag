@@ -4,7 +4,7 @@
 // the accumulation buffer has infos about the color
 // the revealage buffer determines the visibility of the underlying pixel
 
-// shader outputs
+// Shader outputs
 layout (location = 0) out vec4 frag;	// paint over the base (opaque) buffer
 
 // color accumulation buffer
@@ -34,7 +34,7 @@ void main()
 {
 	// NOTE: the composition needs raw color values for calculating transparent pixels
 
-	// fragment coordination
+	// Accumulated transparent-fragment color
 	ivec2 coords = ivec2(gl_FragCoord.xy);
 	
 	// fragment revealage

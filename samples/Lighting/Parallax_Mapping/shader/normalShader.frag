@@ -38,7 +38,8 @@ vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir){
 
 	//	takes multiple samples to better pinpoint vector
 	//		divides total depth range into multiple layers of the same height/depthMap
-	//		for each of these layers we sample the depthmap shifting the tex coordinante along the dir P (until we find a sampled depth value that is below the d. value of the cur. layer)
+	// Sample successive depth-map layers while shifting the texture coordinates
+	// along P, stopping when the sampled depth falls below the current layer.
 	//		Problem: based on finite number of samples: getting: aliasing effects and clear distinctions between layers 
 
 	const float minLayers = 8.0;
@@ -118,7 +119,7 @@ vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir){
 }
 
 /*
- * Blinn-Phong Lightning Model
+ * Blinn-Phong lighting model
  */
 vec3 BlinnPhong(vec3 normal, vec3 fragPos, vec3 lightPosition, vec3 viewPos, vec3 lightColor) {
 	//diffuse

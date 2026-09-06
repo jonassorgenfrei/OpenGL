@@ -152,7 +152,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 
 	// Disable V-Sync 
@@ -235,7 +235,7 @@ int main()
 
 	repareTilesMemory(SCR_WIDTH, SCR_HEIGHT);
 
-	// shader configuration
+	// Shader configuration
 	// --------------------
 
 	// Timer Queries
@@ -358,8 +358,8 @@ int main()
 		mainProgram.setMat4("ModelMatrix", model);
 		mainProgram.setMat4("NormalMatrix", normal);
 
-		// Synchronization direkt vor dem Rendern des Modells, damit der Compute Shader so lange wie möglich unabhängig von dem
-		// Draw Command arbeiten kann.
+		// Synchronize immediately before drawing so the compute shader can run
+		// independently of the draw command for as long as possible.
 		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 		object.Draw(mainProgram);
 

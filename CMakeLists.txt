@@ -53,6 +53,7 @@ set(Basics
 set(Lighting
     Advanced_Lighting
     Bloom
+    Physically_Based_Bloom
     Colors
     Deferred_Shading
     Forward_Plus

@@ -97,7 +97,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -141,7 +141,7 @@ int main()
 	glBindVertexArray(0);
 
 
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	shader.use();
 	shader.setInt("diffuseMap", 0);
@@ -478,7 +478,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 unsigned int loadTexture(char const *path, bool gammaCorrection)
 {
 	/*
-	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
+	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
 	 */
 	unsigned int textureID;
 	glGenTextures(1, &textureID);

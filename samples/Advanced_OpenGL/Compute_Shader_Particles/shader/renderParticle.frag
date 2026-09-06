@@ -3,14 +3,14 @@
 
 // ----------------------------------------------------------------------------
 //
-// Attribute
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
 in vec2 fVelocity;
 in vec2 fPosition;
 
-out vec4 FragColor;                             /**< Farbe des Fragments */
+out vec4 FragColor;                             /**< Fragment color */
 
 // ----------------------------------------------------------------------------
 //
@@ -22,23 +22,23 @@ layout (binding = 0) uniform sampler1D ColorLookup;
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
 /**
- * Berechnet auf Basis eines 2D-Vektors einen Zufallswert
+ * Computes a pseudo-random value from a 2D vector
  *
- * @param xi                    2D-Vektor als Grundlage des Zufallswertes
+ * @param xi                    2D vector used as the random seed
  *
- * @return Zufallswert
+ * @return Pseudo-random value
  */
 float rand(vec2 xi){
     return fract(sin(dot(xi.xy, vec2(12.9898,78.233))) * 43758.5453);
 }
 
 /**
- * Einsprungpunkt für den Fragment-Shader
+ * Entry point for the fragment shader
  */
 void main() {
     float texCoord = smoothstep(0, 200, length(fVelocity));

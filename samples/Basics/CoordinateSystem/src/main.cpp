@@ -73,7 +73,7 @@ int main()
 	currentHeight = mode->height;
 #endif
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
 	// build and compile our shader program
@@ -315,7 +315,7 @@ int main()
 	// uncomment this call to draw in wireframe polygons.
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	//textureShader.use(); // don't forget to activate/use the shader before setting uniforms!
 					 // either set it manually like so:

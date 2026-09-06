@@ -17,6 +17,6 @@ void main() {
 	gPosition = FragPos;
 	// also store the per-fragment normals into the gbuffer
 	gNormal = normalize(Normal);
-	// and the diffuse per-framgent color 
+	// Store the diffuse color for each fragment.
 	gAlbedoSpec.rgb = vec3(0.95); // NOTE: albedo/diff color hard coded here
 }

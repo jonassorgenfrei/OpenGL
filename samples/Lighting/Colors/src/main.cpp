@@ -78,7 +78,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
 
@@ -290,7 +290,7 @@ int main()
 	stbi_image_free(data);
 
 	
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 
 
@@ -327,7 +327,7 @@ int main()
 		// activate shader 
 		ourShader.use();
 
-		// pass projection matrix to shader (note that in this cas it could change every frame)
+		// pass projection matrix to shader (it can change every frame in this sample)
 		glm::mat4 projection = glm::mat4(1.0f);
 		projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 		ourShader.setMat4("projection", projection);

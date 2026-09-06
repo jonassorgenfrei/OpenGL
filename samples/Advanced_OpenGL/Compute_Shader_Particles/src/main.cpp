@@ -107,7 +107,7 @@ int main()
 
 	std::cout << "OpenGL-Version: " << glGetString(GL_VERSION) << std::endl;
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	glClearColor(0, 0, 0, 1);
 	glEnable(GL_CULL_FACE);
@@ -188,7 +188,7 @@ int main()
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, particlePositionBuffer);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, particleVelocityBuffer);
 
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	renderParticleShader.use();
 	glActiveTexture(GL_TEXTURE0);
@@ -595,7 +595,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 unsigned int loadTexture(char const *path, bool gammaCorrection)
 {
 	/*
-	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
+	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
 	 */
 	unsigned int textureID;
 	glGenTextures(1, &textureID);

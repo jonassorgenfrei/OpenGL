@@ -29,7 +29,7 @@ const float SENSITIVITY = 0.05f;
 const float ZOOM	  = 45.0f;
 
 // An abstract camera class that process input and calculates the corresponding 
-// Eular Angles, Vectors and Matrices for use in OpenGl
+// Euler angles, vectors, and matrices used by the OpenGL camera
 class Camera
 {
 public:

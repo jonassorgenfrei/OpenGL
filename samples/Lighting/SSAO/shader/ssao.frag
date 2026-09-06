@@ -62,7 +62,7 @@ float rand(vec2 xi){
  *
  * @return vector in the Hemisphere around the Y-axis
  */
-vec3 sampleHemisphereCos(float u, float v) { // Y ist oben
+vec3 sampleHemisphereCos(float u, float v) { // The positive y-axis points upward.
         float phi = v * 2.0 * PI;
         float cosTheta = sqrt(1.0 - u);
         float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
@@ -100,7 +100,7 @@ void main()
 	mat3 TBN = mat3(tangent, bitangent, normal);
 	// there is no need to have the TBN matrix exactly aligned to the geometry's 
 	// surface (because of the rand. vector), 
-	// no need for per-vertex tangent (and bitangent) vectors
+	// no need for per-Vertex tangent (and bitangent) vectors
 		
 	// iterate over each of the kernel samples, transform the samples form tangent
 	// to view-space, add them to the current fragment position and compare the fragment

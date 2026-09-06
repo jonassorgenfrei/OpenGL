@@ -207,7 +207,7 @@ public:
 		glEnableVertexAttribArray(0);
 	}
 
-	//Benutzung des Shaders
+	// Upload this light's properties to the shader.
 	void use(Shader shader) {
 		switch (type) {
 			used = true;

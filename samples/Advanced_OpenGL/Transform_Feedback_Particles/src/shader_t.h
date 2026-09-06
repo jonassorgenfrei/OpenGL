@@ -52,7 +52,7 @@ public:
 				gShaderFile.close();
 				geometryCode = gShaderStream.str();
 			}
-			// if tessellations Control shader path is present also load a tessellation control shader 
+			// If a tessellation control shader path is present, load that stage as well.
 			if (tessellationControlPath != nullptr)
 			{
 				tcShaderFile.open(tessellationControlPath);
@@ -61,7 +61,7 @@ public:
 				tcShaderFile.close();
 				tessContCode = tcShaderStream.str();
 			}
-			// if tessellations Control shader path is present also load a tessellation control shader 
+			// If a tessellation evaluation shader path is present, load that stage as well.
 			if (tessellatioEvaluationPath != nullptr)
 			{
 				teShaderFile.open(tessellatioEvaluationPath);

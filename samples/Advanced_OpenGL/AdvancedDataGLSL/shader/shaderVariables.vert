@@ -17,14 +17,13 @@ layout (std140) uniform Matrices //std140 => current defined uniform block uses 
 // we need to tell OpenGL what parts of the memory corresponds to which variables in the shader
 // knowing: size (bytes) & offset (from the start of the block): place them in the buffer in their respective order
 
-//by default: opengl uses a uniform memory layout called a shared layout (shared -> once the offsets 
-// are defined by the hardware, they are consistently shared between multiple programs)
-// => GLSL is allowed to reposition the uniform variables for optimization as long as the variables' order remains intact
-// more complicated e.g. glGetUniformIndices .> query information about offset of each uniform variable
-// => some space-saving optimizations !!!
+// By default, OpenGL uses the shared uniform-block layout. The implementation
+// may optimize member positions while preserving their order, but compatible
+// blocks share the same layout across programs. Use glGetUniformIndices and
+// related queries to obtain the actual offsets.
 
 
-//std140 => explicitly states the memory layout for each variable type by stating their respective offsets 
+// std140 defines a predictable alignment and layout for each member type.
 // governed by a set of rules
 // since this is explictly mentioned we can manually figure out the offsets for each variable
 // each variable has a base alignment => equal to the space a variable takes (including padding) within a uniform block

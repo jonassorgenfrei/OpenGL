@@ -1,7 +1,7 @@
 #version 330
-// topology type triangle with adgacencies, 
-// if vertex buffer with adjacency information is provided,
-// load it correctly in the GS, adjacency is created by it's location 
+// Use triangle-adjacency input topology.
+// The index buffer supplies one opposite vertex per triangle edge,
+// allowing the geometry shader to identify silhouette edges.
 layout (triangles_adjacency) in;    // six vertices in
 layout (triangle_strip, max_vertices = 18) out; // 4 per quad * 3 triangle vertices + 6 for near/far caps
 
@@ -48,7 +48,7 @@ void main()
     vec3 e5 = PosL[4] - PosL[2];
     vec3 e6 = PosL[5] - PosL[0];
 
-    // calulcate normal of the current triangle
+    // Calculate the current triangle normal.
     vec3 Normal = normalize(cross(e1,e2));
     vec3 LightDir = normalize(gLightPos - PosL[0]);
 
