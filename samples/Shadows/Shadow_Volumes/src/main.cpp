@@ -127,7 +127,8 @@ int main()
 	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
-	glDepthFunc(GL_LEQUAL);
+	// Use the regular strict comparison when initially filling the depth buffer.
+	glDepthFunc(GL_LESS);
 
 	// build and compile our shader program
 	// ------------------------------------
@@ -192,19 +193,22 @@ int main()
 		glm::mat4 planeModel(1.0f);
 		planeModel = glm::translate(planeModel, glm::vec3(0.0f, -1.5f, 0.0f));
 		planeModel = glm::scale(planeModel, glm::vec3(8.0f, 1.0f, 8.0f));
+		// Reuse these exact matrices in every pass that draws the corresponding
+		// object. Recomputing equivalent products can produce different low bits.
+		const glm::mat4 cubeMVP = projection * view * cubeModel;
+		const glm::mat4 planeMVP = projection * view * planeModel;
 
 		// 0. Depth pre-pass
 		// -----------------------------------------------
 		// render entire scene into depth buffer, without touching the color buffer
 		glDepthMask(GL_TRUE);
+		glDepthFunc(GL_LESS);
 		glDisable(GL_STENCIL_TEST);
 
 		nullShader.use();
-		nullShader.setMat4("projection", projection);
-		nullShader.setMat4("view", view);
-		nullShader.setMat4("model", cubeModel);
+		nullShader.setMat4("mvp", cubeMVP);
 		renderCube();
-		nullShader.setMat4("model", planeModel);
+		nullShader.setMat4("mvp", planeMVP);
 		glDisable(GL_CULL_FACE);
 		renderPlane();
 		glEnable(GL_CULL_FACE);
@@ -218,6 +222,14 @@ int main()
 			// disable writes to the depth buffer (NOTE: writes to color are still disabled from the previous step)
 			// only update stencil buffer
 			glDepthMask(GL_FALSE);
+			// Depth-fail requires a strict comparison. In particular, fragments on
+			// the caster's near volume cap must fail at the stored surface depth so
+			// that the near and far cap operations cancel on the caster itself.
+			glDepthFunc(GL_LESS);
+			// Bias the complete volume away by one depth-buffer unit. Unlike an
+			// object-space epsilon, this remains meaningful as camera distance changes.
+			glEnable(GL_POLYGON_OFFSET_FILL);
+			glPolygonOffset(0.0f, 1.0f);
 			// avoid near/far clipping of the volume
 			glEnable(GL_DEPTH_CLAMP);
 			// disable back face culling, algorithm depends on rendering all the triangles of the volume
@@ -234,12 +246,12 @@ int main()
 			glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
 
 			shadowVolume.use();
-			glm::mat4 wvp = projection * view * cubeModel;
-			shadowVolume.setMat4("gWVP", wvp);
+			shadowVolume.setMat4("gWVP", cubeMVP);
 			shadowVolume.setVec3("gLightPos", cubeLocalLightPos);
 			renderVolumeCube();
 
 			// Restore local stuff
+			glDisable(GL_POLYGON_OFFSET_FILL);
 			glDisable(GL_DEPTH_CLAMP);
 			glEnable(GL_CULL_FACE);
 		}
@@ -248,8 +260,10 @@ int main()
 		// --------------------------------------------
 		glDrawBuffer(GL_BACK);
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		// Depth test against the pre-pass and allow tiny fp error to avoid z-flicker; keep depth writes disabled like the reference
+		// Test against the invariant depth pre-pass and keep depth writes disabled.
 		glDepthMask(GL_FALSE);
+		// The scene is deliberately redrawn at the depth written by the pre-pass.
+		glDepthFunc(GL_LEQUAL);
 		glPolygonMode(GL_FRONT_AND_BACK, polygonMode);
 		if (enable_shadows) {
 			// Draw only if the corresponding stencil value is zero
@@ -265,8 +279,6 @@ int main()
 		}
 
 		sceneShader.use();
-		sceneShader.setMat4("projection", projection);
-		sceneShader.setMat4("view", view);
 		sceneShader.setVec3("lightPos", lightPos);
 		sceneShader.setVec3("viewPos", camera.Position);
 		sceneShader.setInt("ambientOnly", 0);
@@ -275,12 +287,14 @@ int main()
 		sceneShader.setFloat("shininess", 32.0f);
 
 		sceneShader.setMat4("model", planeModel);
+		sceneShader.setMat4("mvp", planeMVP);
 		sceneShader.setVec3("baseColor", glm::vec3(0.55f, 0.55f, 0.6f));
 		glDisable(GL_CULL_FACE);
 		renderPlane();
 		glEnable(GL_CULL_FACE);
 
 		sceneShader.setMat4("model", cubeModel);
+		sceneShader.setMat4("mvp", cubeMVP);
 		sceneShader.setVec3("baseColor", glm::vec3(0.85f, 0.3f, 0.2f));
 		renderCube();
 
@@ -300,12 +314,14 @@ int main()
 			sceneShader.setFloat("ambientStrength", 0.2f);
 
 			sceneShader.setMat4("model", planeModel);
+			sceneShader.setMat4("mvp", planeMVP);
 			sceneShader.setVec3("baseColor", glm::vec3(0.55f, 0.55f, 0.6f));
 			glDisable(GL_CULL_FACE);
 			renderPlane();
 			glEnable(GL_CULL_FACE);
 
 			sceneShader.setMat4("model", cubeModel);
+			sceneShader.setMat4("mvp", cubeMVP);
 			sceneShader.setVec3("baseColor", glm::vec3(0.85f, 0.3f, 0.2f));
 			renderCube();
 
@@ -320,8 +336,7 @@ int main()
 		if (showVolumes) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			shadowVolumeViz.use();
-			glm::mat4 wvpViz = projection * view * cubeModel;
-			shadowVolumeViz.setMat4("gWVP", wvpViz);
+			shadowVolumeViz.setMat4("gWVP", cubeMVP);
 			shadowVolumeViz.setVec3("gLightPos", cubeLocalLightPos);
 			renderVolumeCube();
 			glPolygonMode(GL_FRONT_AND_BACK, polygonMode);

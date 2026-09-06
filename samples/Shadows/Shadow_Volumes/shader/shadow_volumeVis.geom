@@ -10,21 +10,18 @@ in vec3 PosL[]; // an array of 6 vertices (triangle with adjacency)
 uniform vec3 gLightPos;
 uniform mat4 gWVP;
 
-// match the primary shadow volume shader to avoid visualization offsets
-const float EPSILON = 0.0001;
-
 void EmitQuad(vec3 StartVertex, vec3 EndVertex)
 {
     vec3 startDir = normalize(StartVertex - gLightPos);
     vec3 endDir   = normalize(EndVertex   - gLightPos);
 
-    gl_Position = gWVP * vec4((StartVertex + startDir * EPSILON), 1.0);
+    gl_Position = gWVP * vec4(StartVertex, 1.0);
     EmitVertex();
 
     gl_Position = gWVP * vec4(startDir, 0.0);
     EmitVertex();
 
-    gl_Position = gWVP * vec4((EndVertex + endDir * EPSILON), 1.0);
+    gl_Position = gWVP * vec4(EndVertex, 1.0);
     EmitVertex();
 
     gl_Position = gWVP * vec4(endDir, 0.0);
@@ -66,17 +63,15 @@ void main()
             EmitQuad(PosL[4], PosL[0]);
         }
 
-        // front cap
-        LightDir = normalize(PosL[0] - gLightPos);
-        gl_Position = gWVP * vec4((PosL[0] + LightDir * EPSILON), 1.0);
+        // Front cap at the occluder surface. The stencil pass applies its
+        // rasterization offset separately, so the wireframe shows true geometry.
+        gl_Position = gWVP * vec4(PosL[0], 1.0);
         EmitVertex();
 
-        LightDir = normalize(PosL[2] - gLightPos);
-        gl_Position = gWVP * vec4((PosL[2] + LightDir * EPSILON), 1.0);
+        gl_Position = gWVP * vec4(PosL[2], 1.0);
         EmitVertex();
 
-        LightDir = normalize(PosL[4] - gLightPos);
-        gl_Position = gWVP * vec4((PosL[4] + LightDir * EPSILON), 1.0);
+        gl_Position = gWVP * vec4(PosL[4], 1.0);
         EmitVertex();
         EndPrimitive();
  
