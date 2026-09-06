@@ -128,21 +128,48 @@ if(WIN32)
 ENDIF()
 
 # GLAD
-IF(DEFINED ENV{glad_DIR}) 
-	set(GLAD_SRC_DIR $ENV{glad_DIR})
-	set(GLAD_INCLUDE_DIRS ${GLAD_SRC_DIR}/include )
-	message(STATUS "Found GLAD in ${GLAD_SRC_DIR}")
-ELSE()
-	message(FATAL_ERROR "GLAD ENVIRONMENT VARIABLE NOT SET")
-ENDIF()
+set(glad_DIR "$ENV{glad_DIR}" CACHE PATH
+    "Path to a GLAD 1.x source tree containing include/glad/glad.h and src/glad.c")
+
+if(NOT glad_DIR)
+    message(FATAL_ERROR
+        "GLAD directory not set. Configure with -Dglad_DIR=<path-to-glad> "
+        "or set the glad_DIR environment variable.")
+endif()
+
+get_filename_component(GLAD_SRC_DIR "${glad_DIR}" ABSOLUTE
+                       BASE_DIR "${CMAKE_SOURCE_DIR}")
+
+if(NOT EXISTS "${GLAD_SRC_DIR}/include/glad/glad.h" OR
+   NOT EXISTS "${GLAD_SRC_DIR}/src/glad.c")
+    message(FATAL_ERROR
+        "Invalid glad_DIR: '${GLAD_SRC_DIR}'. Expected a GLAD 1.x source tree "
+        "containing include/glad/glad.h and src/glad.c.")
+endif()
+
+set(GLAD_INCLUDE_DIRS "${GLAD_SRC_DIR}/include")
+message(STATUS "Found GLAD in ${GLAD_SRC_DIR}")
 
 # STB
-IF(DEFINED ENV{stb_DIR}) 
-	set(STB_INCLUDE_DIRS $ENV{stb_DIR})
-	message(STATUS "Found STB in $ENV{stb_DIR}")
-ELSE()
-	message(FATAL_ERROR "STB ENVIRONMENT VARIABLE NOT SET")
-ENDIF()
+set(stb_DIR "$ENV{stb_DIR}" CACHE PATH
+    "Path to the stb headers, including stb_image.h")
+
+if(NOT stb_DIR)
+    message(FATAL_ERROR
+        "stb directory not set. Configure with -Dstb_DIR=<path-to-stb> "
+        "or set the stb_DIR environment variable.")
+endif()
+
+get_filename_component(STB_INCLUDE_DIRS "${stb_DIR}" ABSOLUTE
+                       BASE_DIR "${CMAKE_SOURCE_DIR}")
+
+if(NOT EXISTS "${STB_INCLUDE_DIRS}/stb_image.h")
+    message(FATAL_ERROR
+        "Invalid stb_DIR: '${STB_INCLUDE_DIRS}'. Expected stb_image.h in "
+        "that directory.")
+endif()
+
+message(STATUS "Found STB in ${STB_INCLUDE_DIRS}")
 
 # Freetype
 find_package(Freetype REQUIRED)
