@@ -2,7 +2,7 @@
 
 // ----------------------------------------------------------------------------
 //
-// Typen
+// Types
 //
 // ----------------------------------------------------------------------------
 
@@ -10,26 +10,26 @@
  * Material-Parameter
  */
 struct Material {
-    vec4 color;                 /**< Beleuchtungsunabhängige Farbe */
-    float ambientReflection;    /**< Ambienter Reflexionskoeffizient */
-    float diffuseReflection;    /**< Diffuser Reflexionskoeffizient */
-    float specularReflection;   /**< Spekularer Reflexionskoeffizient */
-    float shininess;            /**< Wahrgenommene Glattheit der Oberfläche */
-    bool hasTexture;            /**< Gibt an, ob das Material Reflexionskoeffizienten aus einer Textur bezieht */
+    vec4 color;                 /**< Unlit base color */
+    float ambientReflection;    /**< Ambient reflection coefficient */
+    float diffuseReflection;    /**< Diffuse reflection coefficient */
+    float specularReflection;   /**< Specular reflection coefficient */
+    float shininess;            /**< Perceived surface smoothness */
+    bool hasTexture;            /**< Whether the material reads reflection coefficients from a texture */
 };
 
 // ----------------------------------------------------------------------------
 //
-// Attribute
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
-in vec3 fWorldNormal;                               /**< Normale des Vertexes im Welt-Koordinatensystem */
-in vec2 fTexCoord;                                  /**< Textur-Koordinate */
+in vec3 fWorldNormal;                               /**< Vertex normal in world space */
+in vec2 fTexCoord;                                  /**< Texture coordinate */
 
-layout (location = 0) out vec3 FragColor;           /**< Farbe des Fragments (auf Attachment 0) */
-layout (location = 1) out vec4 FragReflection;      /**< Reflexionseigenschaften des Materials */
-layout (location = 2) out vec3 FragNormal;          /**< Normale des Fragments im Welt-Koordinatensystem */
+layout (location = 0) out vec3 FragColor;           /**< Fragment color written to attachment 0 */
+layout (location = 1) out vec4 FragReflection;      /**< Material reflection properties */
+layout (location = 2) out vec3 FragNormal;          /**< Fragment normal in world space */
 
 // ----------------------------------------------------------------------------
 //
@@ -37,18 +37,18 @@ layout (location = 2) out vec3 FragNormal;          /**< Normale des Fragments i
 //
 // ----------------------------------------------------------------------------
 
-/* auto location */  uniform Material ObjectMaterial;           /**< Material das gerendert werden soll */
+/* auto location */  uniform Material ObjectMaterial;           /**< Material to render */
 
-layout (binding = 0) uniform sampler2D ObjectMaterialTexture;   /**< Textur mit Reflexionskoeffizienten */
+layout (binding = 0) uniform sampler2D ObjectMaterialTexture;   /**< Texture containing reflection coefficients */
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
 /**
- * Einsprungpunkt für den Fragment-Shader
+ * Entry point for the fragment shader
  */
 void main() {
     vec2 texCoords = vec2(fTexCoord.x, 1 - fTexCoord.y);

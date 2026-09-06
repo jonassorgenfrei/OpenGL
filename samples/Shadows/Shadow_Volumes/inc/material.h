@@ -33,7 +33,7 @@ public:
 		shininess = shine;
 	}
 
-	// Benutzung des Shaders
+	// Upload this material's properties to the shader.
 	void use(Shader shader) {
 		//shader.setVec3("material.ambient", ambient);
 		//shader.setVec3("material.diffuse", diffuse);

@@ -1,22 +1,15 @@
-/* 
- *	Tesselation
- *		Vertex-basiertes Displacement Mapping
- *		2 Shader und eine Fixed-Function Stufe => unterteilung von Patches
- *		Es muss mind. der Tessellation Evaluation Shader implementiert werden.
- *		=> dynamische Erzeugung von Geometrien (nur Zusammenhangend)
- *		Ausgabe lasst sich nicht auf vers. Layer/Viewports umleiten
- *		Erstellung auf Grund von Kontrollpunkten, die in Patches organisiert sind
- *		TYPISCH: Betrachterabhangige Unterteilung von Dreiecken.
+/*
+ * Tessellation and vertex-based terrain displacement
  *
- *		Datenfluss:
- *			ohne TCS : Tessllationsstaerke durch Standardwerte bestimmt
- *			mit TCS : TCS kann Tessllationsstraerke steuern Vertex - Anzahlen muessen nicht uebereinstimmen(Spline Flachen)
+ * Tessellation adds two programmable shader stages and one fixed-function
+ * primitive generator. Control points are grouped into patches. The
+ * tessellation control shader (TCS) optionally selects tessellation levels and
+ * produces an output patch; the tessellation evaluation shader (TES) evaluates
+ * every generated vertex. A TES is therefore required, while a TCS is optional.
  *
- *		Tessellation Primitive Generation Stufe 
- *			Fixed-Function Stuffe - kann Menge von Primitiven nach einem vorgegebenen Muster erzeugen 
- *			Arbeitet auf abstraketem Path
- *
- *		Die St‰rke der Tessellation kann innerhalb und an den Auﬂenkanten des Patches seperat gesteuert werden.
+ * This sample uses view-dependent subdivision: nearby terrain patches receive
+ * more triangles than distant patches. Matching outer levels on shared edges
+ * prevents cracks between neighboring patches.
  */
 
 // USE TESSELLATION SHADER
@@ -128,7 +121,7 @@ int main()
 	std::cout << "Max available tess level: " << maxTessLevel << std::endl;
 #endif
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -294,7 +287,7 @@ int main()
 #if USE_TESSELLATION
 		glBindVertexArray(terrainVAO);
 		// draw patches
-		// patches will be size of 4 and amount will be mutliplied by rez*rez 
+		// Each patch contains four control points, and the grid contains rez * rez patches.
 		glDrawArrays(GL_PATCHES, 0, NUM_PATCH_PTS* rez* rez);
 #else
 		glBindVertexArray(terrain.VAO);
@@ -534,7 +527,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 unsigned int loadTexture(char const *path, bool gammaCorrection)
 {
 	/*
-	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
+	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
 	 */
 	unsigned int textureID;
 	glGenTextures(1, &textureID);

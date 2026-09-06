@@ -102,7 +102,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	// Setup OpenGL options
 	glEnable(GL_MULTISAMPLE); // Enabled by default on some drivers, but not all so always enable to make sure

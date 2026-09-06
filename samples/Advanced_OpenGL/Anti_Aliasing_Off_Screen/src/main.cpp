@@ -99,7 +99,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	
 	/* DEPTH BUFFER */
@@ -238,7 +238,7 @@ int main()
 		cout << "ERROR::FRAMEBUFFER:: Intermediate framebuffer is not complete!" << endl;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	shader.use();
 	screenShader.setInt("screenTexture", 0);

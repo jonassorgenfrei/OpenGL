@@ -53,7 +53,7 @@ int main()
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();
-	// needs opengl 4.0 to use blending to multiple render targets
+	// needs OpenGL 4.0 to use blending to multiple render targets
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -94,7 +94,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	//glEnable(GL_DEPTH_TEST);
@@ -142,7 +142,7 @@ int main()
 
 	// set up attachments for opaque/solid framebuffer color & depth buffer
 	// it's possible to use a backbuffer instead or a single framebugger with four attachments all together
-	// (opaque, accumulation, revealage, depth) and render to differnt render targets at each pass
+	// (opaque, accumulation, revealage, depth) and render to different render targets at each pass
 	unsigned int opaqueTexture;
 	glGenTextures(1, &opaqueTexture);
 	glBindTexture(GL_TEXTURE_2D, opaqueTexture);
@@ -310,7 +310,7 @@ int main()
 
 		// set render states
 		glDepthFunc(GL_ALWAYS);	// overwriting the solid buffer, so depth function should always pass
-		glEnable(GL_BLEND);	// using opengl's color blending featue
+		glEnable(GL_BLEND);	// using OpenGL's color-blending feature
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // blend func: GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA
 
 		// bind opaque framebuffer

@@ -4,10 +4,10 @@
 // Pass 0 peels the nearest transparent layer in front of the opaque depth.
 // Subsequent passes peel progressively deeper layers by comparing against the previous peel depth.
 
-// shader outputs
+// Shader outputs
 out vec4 FragColor;
 
-// shader inputs
+// Shader inputs
 in vec4 fragPos; // clip-space position
 
 // uniforms

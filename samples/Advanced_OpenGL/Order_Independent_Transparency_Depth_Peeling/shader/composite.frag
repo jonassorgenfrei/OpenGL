@@ -5,7 +5,7 @@
 // Composite a single peeled transparent layer into the accumulation buffer.
 // Input colors are premultiplied; alpha carries remaining visibility.
 
-// shader outputs
+// Shader outputs
 out vec4 FragColor;
 
 // Uniforms

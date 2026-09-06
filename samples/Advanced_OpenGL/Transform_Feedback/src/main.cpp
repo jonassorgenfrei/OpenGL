@@ -1,4 +1,4 @@
-﻿/*
+/*
 	SRC-CODE FOR
 	- Transform Feedback
 	
@@ -99,7 +99,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 
 	// specify transform feedback variables

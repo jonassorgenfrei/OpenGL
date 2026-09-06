@@ -86,7 +86,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
 	// Depth test function
@@ -463,7 +463,7 @@ int main()
 
 	unsigned int cubemapTexture = loadCubemap(faces, GL_CLAMP_TO_EDGE);
 
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	
 	modelShader.use();

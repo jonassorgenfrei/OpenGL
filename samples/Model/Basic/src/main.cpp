@@ -85,7 +85,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
 	// Depth test function
@@ -434,7 +434,7 @@ int main()
 	unsigned int emissionMap= loadTexture(FileSystem::getPath("content/images/smoke.jpg").c_str());
 	//unsigned int face = loadTexture(FileSystem::getPath("content/images/awesomeface.png").c_str());
 
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	
 	ourShader.use();
@@ -521,7 +521,7 @@ int main()
 
 		ourShader.setVec3("viewPos", camera.Position);
 
-		// pass projection matrix to shader (note that in this cas it could change every frame)
+		// pass projection matrix to shader (it can change every frame in this sample)
 		ourShader.setMat4("projection", projection);
 
 		// camera/view transformation 

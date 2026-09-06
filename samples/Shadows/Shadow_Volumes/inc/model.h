@@ -67,7 +67,7 @@ class Model
 			// more: http://assimp.sourceforge.net/lib_html/postprocess_8h.html
 
 			//check if scene and the root node are not null
-			//check if returned data of flag ist incomplete
+			// Abort if Assimp reports incomplete scene data or a missing root node.
 			if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 			{
 				//return error

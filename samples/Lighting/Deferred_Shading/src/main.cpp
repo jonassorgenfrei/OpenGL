@@ -99,7 +99,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -178,9 +178,9 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
 	// Store Albedo & specular in a single texture!! 
-	// it's possible to combine data in single tex. espac. in a complex pipeline
+	// Multiple values can share one texture, which is especially useful in complex pipelines.
 
-	// explicitly tell OpenGl which color attachments to be used (of. FB)
+	// explicitly tell OpenGL which color attachments to be used (of. FB)
 	unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 	glDrawBuffers(3, attachments);
 
@@ -224,7 +224,7 @@ int main()
         lightColors.push_back(glm::vec3(rColor, gColor, bColor));
 	}
 
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	lightingPassShader.use();
 	lightingPassShader.setInt("gPosition", 0);
@@ -260,7 +260,7 @@ int main()
 		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the current FBO (G buffer)
 #else 
-		//opengldev
+		//OpenGLdev
 		gBuffer.startFrame(); // inform GBuffer about the start of new Frames
 
 		// only geometry pass updates the depth buffer
@@ -271,7 +271,7 @@ int main()
 		
 		// prevent anything but this pass from writing into the depth buffer
 		// needs the depth buffer in order to populate the G-Buffer with closest pixels
-		// in lightpass we have a single texel per screen pixel so we don't have anything to write into the deoth buffer
+		// The lighting pass processes one texel per screen pixel and does not write geometry depth.
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the current FBO (G buffer)
 	
 				 
@@ -304,7 +304,7 @@ int main()
 			// 2. lighting pass: use g-buffer to calculate the scene's lighting
 #if LEARNOPENGL
 			
-			//learnopengl.com
+			//learnOpenGL.com
 			/*
 				Problem unnessary Function calls
 			 */
@@ -364,18 +364,13 @@ int main()
 			gBuffer.bindForReading(); // set Buffer for reading
 			glClear(GL_COLOR_BUFFER_BIT); // clear color buffer
 
-			/*
-			 * Its better to use separate shaders than adding banch inside the shader 
-			 */
+			/* Separate pass-specific shaders avoid a runtime branch in one large shader. */
 
 			/*
-			 * Problems with current implementation:
-			 *	-> when camera enters the light volume the light disappears
-			 *			reas: only render front face of the bounding sphere 
-			 *				if disable Backface cull. due to blending we will get an increased light (render twice)
-			 *				and only half of it when inse 
-			 *	-> second problem is that the bounding sphere doesn't really bound the light and sometimes obj. that are outside of it are also lit beause the sphere covers them in screen space so we calc. lighting on them
-			 *
+			 * A simple front-face-only light volume disappears when the camera enters
+			 * the sphere. Rendering both faces would apply additive lighting twice.
+			 * The stencil pass below instead identifies the visible pixels inside each
+			 * light volume before the corresponding point-light pass.
 			 */
 
 			// For POINT LIGHTS
@@ -408,7 +403,7 @@ int main()
 				model = glm::scale(model, glm::vec3(radius));
 
 
-				// 2.5 BEGINN Stencil Pass
+				// 2.5 Begin the stencil pass.
 				stencilTestShader.use();
 				// Disable color/depth write and enable stencil
 				gBuffer.bindForStencilPass(); // only bind stencil buffer
@@ -419,7 +414,7 @@ int main()
 
 				glClear(GL_STENCIL_BUFFER_BIT); // clear stencil buffer
 
-				// enable Stencil test, but succeed always (only dpeth test matters)
+				// Always pass the stencil test; only the depth test determines updates.
 				glStencilFunc(GL_ALWAYS, 0, 0);
 
 				glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
@@ -431,10 +426,8 @@ int main()
 				
 				// END Stencil Pass
 
-				// for each light we do a stencil pass (marks the relevant pixel)
-				// for each, becuase if stencil vlaue gets greater than zero due to one of the lights, we cannt tell whether another light src
-				// which also overlaps the sampe pixel is relevant or not
-				// point light pass, depends on the stencil value
+				// Clear and rebuild stencil for every light. Reusing values would make it
+				// impossible to tell which overlapping light volume marked a pixel.
 
 				gBuffer.bindForLightPass(); // setup GBuffer
 				pointLightShader.use();
@@ -944,7 +937,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 unsigned int loadTexture(char const *path, bool gammaCorrection)
 {
 	/*
-	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
+	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
 	 */
 	unsigned int textureID;
 	glGenTextures(1, &textureID);

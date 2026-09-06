@@ -24,7 +24,7 @@ uniform int blinn;
 uniform int gamma;
 
 /*
- * Blinn-Phong Lightning Model
+ * Blinn-Phong lighting model
  */
 vec3 BlinnPhong(vec3 normal, vec3 fragPos, vec3 lightPos, vec3 lightColor) {
 	//diffuse

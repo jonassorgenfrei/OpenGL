@@ -1,6 +1,6 @@
 /* 
  *	Advanced Lighting
- *		-> Blinn-Phong Lighting (Extension to the Phong shading) [handeling nuances of Phong model] -- exact shading model,used in the earlier ffp of OpenGL
+ *		-> Blinn-Phong Lighting (Extension to the Phong shading) handles nuances of the Phong model; this is the shading model used by the legacy OpenGL fixed-function pipeline
  *			-> largely similar
  *			-> different approach for the specular model
  *				instead using a reflection vector -> halfway vector (between view dir. and light dir.); [adding lights dir. vect. and view vec together & normalize res.]
@@ -103,7 +103,7 @@ int main()
 
 	icon(window);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -144,7 +144,7 @@ int main()
 
 	unsigned int floorTexture = loadTexture(FileSystem::getPath("content/images/wood.png").c_str());
 
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	shader.use();
 	shader.setInt("texture1", 0);

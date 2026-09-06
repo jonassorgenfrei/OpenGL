@@ -2,22 +2,22 @@
 
 // ----------------------------------------------------------------------------
 //
-// Attribute
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
-layout (location = 0) in vec4 vPosition;                    /**< Position des Vertex im Modell-Koordinatensystem */
+layout (location = 0) in vec4 vPosition;                    /**< Vertex position in model space */
 
-out vec4 fDcPosition;                                       /**< Position des Vertex im Clipping Koordinatensystem */
+out vec4 fDcPosition;                                       /**< Vertex position in clip space */
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
 /**
- * Einsprungpunkt für den Vertex-Shader
+ * Entry point for the vertex shader
  */
 void main() {
     fDcPosition = vPosition;

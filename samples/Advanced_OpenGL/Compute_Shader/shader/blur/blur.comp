@@ -8,21 +8,21 @@ layout (local_size_x = 1, local_size_y = 1) in;
 //
 // ----------------------------------------------------------------------------
 
-layout (binding = 0, r8) uniform image2D Src;                    /**< Quellbild */
-layout (binding = 1, r8) uniform image2D Dst;                    /**< Zielbild */
+layout (binding = 0, r8) uniform image2D Src;                    /**< Source image */
+layout (binding = 1, r8) uniform image2D Dst;                    /**< Destination image */
 
-layout (binding = 0) uniform sampler2D DepthBuffer;                 /**< Depth-Buffer der Szene */
-layout (binding = 1) uniform sampler2D NormalBuffer;                /**< Buffer für die Normalen der Szene */
+layout (binding = 0) uniform sampler2D DepthBuffer;                 /**< Scene depth buffer */
+layout (binding = 1) uniform sampler2D NormalBuffer;                /**< Buffer containing scene normals */
 
-layout (location = 0) uniform ivec2 Direction;                      /**< Richtung, in die der Blur ausgeführt wird */
-layout (location = 1) uniform mat4 InverseProjectionMatrix;         /**< Inverse Projektions-Matrix */
+layout (location = 0) uniform ivec2 Direction;                      /**< Direction of the blur pass */
+layout (location = 1) uniform mat4 InverseProjectionMatrix;         /**< Inverse projection matrix */
 
 /**
- * Inverse Depth-Range Transformation
+ * Inverse depth-range transformation
  *
- * @param depth                 Tiefe aus dem Depth-Buffer
+ * @param depth                 Depth sampled from the depth buffer
  *
- * @return Tiefe im Clipping-Koordinatensystem
+ * @return Depth in clip space
  */
 float inverseDepthRangeTransformation(float depth) {
     return (2.0 * depth - gl_DepthRange.near - gl_DepthRange.far) /
@@ -31,12 +31,12 @@ float inverseDepthRangeTransformation(float depth) {
 
 
 /**
- * @brief Gibt die Weltnormale an der Position invocationID in Screen-Space zurück.
+ * @brief Returns the world-space normal at the screen-space invocation ID.
  *
- * @param invocationID      Position im Screen-Space
- * @param size              Auflösung des Framebuffers
+ * @param invocationID      Position in screen space
+ * @param size              Framebuffer resolution
  *
- * @return Normale im Weltkoordinatensystem
+ * @return Normal in world space
  */
 vec3 normalAt(uvec2 invocationID, vec2 size) {
     vec2 texCoord = 2*vec2(invocationID.xy) / size;
@@ -44,12 +44,12 @@ vec3 normalAt(uvec2 invocationID, vec2 size) {
 }
 
 /**
- * @brief Gibt die Tiefe in Clipping-Koordinaten an der Position invocationID im Screen-Space zurück.
+ * @brief Returns the clip-space depth at the screen-space invocation ID.
  *
- * @param invocationID      Position im Screen-Space
- * @param size              Auflösung des Framebuffers
+ * @param invocationID      Position in screen space
+ * @param size              Framebuffer resolution
  *
- * @return Tiefe im Clipping-Koordinatensystem
+ * @return Depth in clip space
  */
 float ndcDepthAt(uvec2 invocationID, vec2 size) {
     vec2 texCoord = vec2(2*vec2(invocationID.xy)) / size;
@@ -58,12 +58,12 @@ float ndcDepthAt(uvec2 invocationID, vec2 size) {
 }
 
 /**
- * @brief Gibt die Position des Pixels im Betrachter-Koordinatensystem zurück
+ * @brief Returns the pixel position in view space.
  *
- * @param invocationID      Position im Screen-Space
- * @param size              Auflösung des Framebuffers
+ * @param invocationID      Position in screen space
+ * @param size              Framebuffer resolution
  *
- * @return Position des Pixels im Betrachter-Koordinatensystem
+ * @return Pixel position in view space
  */
 vec3 viewPositionAt(uvec2 invocationID, vec2 size) {
     float ndcDepth = ndcDepthAt(invocationID, size);
@@ -76,7 +76,7 @@ vec3 viewPositionAt(uvec2 invocationID, vec2 size) {
 }
 
 /**
- * Einsprungpunkt für den Compute Shader
+ * Entry point for the compute shader
  */
 void main() {
     ivec2 position = ivec2(gl_GlobalInvocationID.xy);

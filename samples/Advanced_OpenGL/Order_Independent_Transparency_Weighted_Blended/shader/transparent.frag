@@ -1,8 +1,8 @@
 #version 430 core
 
-// shader collects pixel infromation for the composite pass
+// Collect transparent-fragment information for the composite pass.
 
-// shader outputs
+// Shader outputs
 
 // first render target which is used to accumulate pre-multiplied color values
 layout (location = 0) out vec4 accum; // must have at least RGBA16F precision

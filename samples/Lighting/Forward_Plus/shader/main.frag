@@ -2,7 +2,7 @@
 
 // ----------------------------------------------------------------------------
 //
-// Attributes
+// Attributess
 //
 // ----------------------------------------------------------------------------
 
@@ -81,12 +81,10 @@ layout (std430, binding = 0) buffer LightsBuffer {
  * | N | 0 | 1 | 2 | ... | K | ...
  * +---+---+---+---+-----+---+-------
  *
- * N - amount of light sources
- * [0...(K)] - indicies of the lights 
- * The Capacity (K) is equal for each Tile and is the number of overall light sources.
- * This avoids the need for an atomic counter to reserve a unique memory-amount 
- * for each tile.
- * This avoids the need for Indice pointers in a seperate texture/buffer.
+ * N is the number of visible lights in the tile.
+ * Entries [0, K) contain their light indices. Every tile reserves the same
+ * capacity K, equal to the total light count. Fixed-size regions avoid an
+ * atomic allocator and a separate indirection buffer.
  *
  * [0] Since GLSL doesn't have pointer types, pointer structures are implemented as indices into 
  * array elements (buffers).
@@ -201,7 +199,7 @@ void main() {
     if(materialColor.a < 0.1)
         discard;
 
-    // calculate position of the light indicies in the buffer object
+    // calculate position of the light indices in the buffer object
     ivec2 tilePosition = ivec2(gl_FragCoord.xy) / TileSize.xy;
     uint linearWorkGroupIndex = uint(NumTiles.x*tilePosition.y + tilePosition.x);
 
