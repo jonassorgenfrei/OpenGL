@@ -24,8 +24,12 @@ void processInput(GLFWwindow *window);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-// camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+// Keep both implementations synchronized so C can switch between them
+// without changing the current view.
+QuaternionCamera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+EulerCamera eulerCamera(glm::vec3(0.0f, 0.0f, 3.0f));
+bool useQuaternionCamera = true;
+bool cameraModeKeyPressed = false;
 bool firstMouse = true;
 float lastX = SCR_WIDTH / 2.0;
 float lastY = SCR_HEIGHT / 2.0;
@@ -51,7 +55,7 @@ int main()
 
 	// glfw window creation
 	// --------------------
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL - Quaternion Camera", NULL, NULL);
 	//Vollbild
 	
 	if (window == NULL)
@@ -271,12 +275,13 @@ int main()
 
 		// pass projection matrix to shader (it can change every frame in this sample)
 		glm::mat4 projection = glm::mat4(1.0f);
-		projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+		const float zoom = useQuaternionCamera ? camera.Zoom : eulerCamera.Zoom;
+		projection = glm::perspective(glm::radians(zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 		ourShader.setMat4("projection", projection);
 
 		// camera/view transformation 
 		glm::mat4 view = glm::mat4(1.0f);
-		view = camera.GetViewMatrix();
+		view = useQuaternionCamera ? camera.GetViewMatrix() : eulerCamera.GetViewMatrix();
 		ourShader.setMat4("view", view);
 
 		//render boxes
@@ -321,16 +326,41 @@ void processInput(GLFWwindow *window)
 	float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
 
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+	{
 		camera.ProcessKeyboard(FORWARD, deltaTime);
+		eulerCamera.ProcessKeyboard(FORWARD, deltaTime);
+	}
 
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+	{
 		camera.ProcessKeyboard(BACKWARD, deltaTime);
+		eulerCamera.ProcessKeyboard(BACKWARD, deltaTime);
+	}
 	
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+	{
 		camera.ProcessKeyboard(LEFT, deltaTime);
+		eulerCamera.ProcessKeyboard(LEFT, deltaTime);
+	}
 
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+	{
 		camera.ProcessKeyboard(RIGHT, deltaTime);
+		eulerCamera.ProcessKeyboard(RIGHT, deltaTime);
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS && !cameraModeKeyPressed)
+	{
+		useQuaternionCamera = !useQuaternionCamera;
+		cameraModeKeyPressed = true;
+		glfwSetWindowTitle(window, useQuaternionCamera
+			? "LearnOpenGL - Quaternion Camera"
+			: "LearnOpenGL - Euler Camera");
+		std::cout << "Camera mode: "
+			<< (useQuaternionCamera ? "Quaternion" : "Euler") << std::endl;
+	}
+	if (glfwGetKey(window, GLFW_KEY_C) == GLFW_RELEASE)
+		cameraModeKeyPressed = false;
 
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
@@ -358,6 +388,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	lastY = ypos;
 
 	camera.ProcessMouseMovement(xoffset, yoffset);
+	eulerCamera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
@@ -365,6 +396,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	camera.ProcessMouseScroll(yoffset);
+	eulerCamera.ProcessMouseScroll(yoffset);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
