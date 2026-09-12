@@ -18,6 +18,9 @@
 
 namespace
 {
+// The source image is deliberately small enough to compare formats directly.
+// The virtual image is larger, but only CACHE_PAGES squared pages ever reside
+// in GPU memory. Each physical page includes a one-texel filtering gutter.
 constexpr int WINDOW_WIDTH = 1000;
 constexpr int WINDOW_HEIGHT = 700;
 constexpr int IMAGE_SIZE = 256;
@@ -35,7 +38,11 @@ enum class Mode { Source, Dxt1, Astc, Virtual };
 
 struct VirtualTexture
 {
+    // Logical pages point into the physical cache. A value of -1 means that
+    // the shader renders the missing-page diagnostic until the page is streamed.
     struct Page { int slot = -1; };
+
+    // Cache slots track ownership and age for least-recently-used replacement.
     struct Slot { int page = -1; std::uint64_t lastUsed = 0; };
 
     GLuint cache = 0;
@@ -65,6 +72,8 @@ std::uint8_t toByte(float value)
     return static_cast<std::uint8_t>(clampFloat(value, 0.0f, 1.0f) * 255.0f + 0.5f);
 }
 
+// Gradients, a grid, a checker, and rings expose compression artifacts and
+// virtual page boundaries more clearly than a smooth source image would.
 std::array<std::uint8_t, 4> proceduralColor(int x, int y, int size)
 {
     x = std::max(0, std::min(size - 1, x));
@@ -102,6 +111,8 @@ std::vector<std::uint8_t> makeSourceImage()
     return pixels;
 }
 
+// DXT1 stores two RGB565 endpoints and sixteen two-bit palette indices per
+// 4x4 block. This teaching encoder favors clarity over exhaustive endpoint search.
 std::uint16_t packRgb565(const std::uint8_t* color)
 {
     return static_cast<std::uint16_t>(((color[0] >> 3) << 11) |
@@ -128,6 +139,7 @@ std::vector<std::uint8_t> encodeDxt1(const std::vector<std::uint8_t>& rgba, int 
     {
         for (int bx = 0; bx < blocksX; ++bx)
         {
+            // Select a bounding-box endpoint pair for this 4x4 footprint.
             std::array<std::uint8_t, 3> minimum{ 255, 255, 255 };
             std::array<std::uint8_t, 3> maximum{ 0, 0, 0 };
             for (int py = 0; py < 4; ++py)
@@ -153,6 +165,7 @@ std::vector<std::uint8_t> encodeDxt1(const std::vector<std::uint8_t>& rgba, int 
                 else color1 = static_cast<std::uint16_t>(color0 - 1);
             }
 
+            // Four-color mode derives two palette entries between the endpoints.
             const auto c0 = unpackRgb565(color0);
             const auto c1 = unpackRgb565(color1);
             std::array<std::array<int, 3>, 4> palette{ c0, c1,
@@ -160,6 +173,7 @@ std::vector<std::uint8_t> encodeDxt1(const std::vector<std::uint8_t>& rgba, int 
                 std::array<int, 3>{ (c0[0] + 2 * c1[0]) / 3, (c0[1] + 2 * c1[1]) / 3, (c0[2] + 2 * c1[2]) / 3 }
             };
 
+            // Assign each texel to its least-squares palette match.
             std::uint32_t indices = 0;
             for (int py = 0; py < 4; ++py)
             {
@@ -201,6 +215,9 @@ std::vector<std::uint8_t> encodeDxt1(const std::vector<std::uint8_t>& rgba, int 
 }
 
 // A compact educational ASTC encoder using valid LDR void-extent blocks.
+// ASTC stores 128 bits per block; this representation averages each 4x4
+// footprint into one RGBA16 constant. Production endpoint/weight searches
+// belong in an offline compressor such as astcenc.
 std::vector<std::uint8_t> encodeAstc4x4(const std::vector<std::uint8_t>& rgba, int width, int height)
 {
     const int blocksX = (width + ASTC_BLOCK - 1) / ASTC_BLOCK;
@@ -223,6 +240,8 @@ std::vector<std::uint8_t> encodeAstc4x4(const std::vector<std::uint8_t>& rgba, i
                 }
             }
 
+            // Bits 10..63 are one, leaving the void extent unspecified.
+            // Bytes 8..15 contain little-endian RGBA UNORM16 values.
             std::uint8_t* block = &output[(by * blocksX + bx) * 16];
             block[0] = 0xfc; // bits 8..0: ASTC void-extent marker
             block[1] = 0xfd; // LDR, reserved bits and all extent bits set
@@ -261,6 +280,8 @@ GLuint createCompressedTexture(GLenum format, const std::vector<std::uint8_t>& b
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // Extension presence is only the first check. The upload and the texture's
+    // reported storage state confirm that the driver accepted the format.
     while (glGetError() != GL_NO_ERROR) {}
     glCompressedTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0,
                            static_cast<GLsizei>(blocks.size()), blocks.data());
@@ -276,6 +297,8 @@ GLuint createCompressedTexture(GLenum format, const std::vector<std::uint8_t>& b
 
 void initializeVirtualTexture(VirtualTexture& virtualTexture)
 {
+    // The physical cache owns texels. The smaller RGBA8 page table maps each
+    // logical page to cache-slot XY and carries a residency flag in blue.
     virtualTexture.tablePixels.assign(VIRTUAL_PAGES * VIRTUAL_PAGES * 4, 0);
 
     glGenTextures(1, &virtualTexture.cache);
@@ -299,6 +322,8 @@ void initializeVirtualTexture(VirtualTexture& virtualTexture)
 
 void uploadPage(VirtualTexture& virtualTexture, int pageIndex)
 {
+    // Prefer a free slot; once full, replace the globally least-recently-used
+    // slot and invalidate the evicted page's table entry.
     int selectedSlot = -1;
     std::uint64_t oldest = std::numeric_limits<std::uint64_t>::max();
     for (int slotIndex = 0; slotIndex < static_cast<int>(virtualTexture.slots.size()); ++slotIndex)
@@ -326,6 +351,8 @@ void uploadPage(VirtualTexture& virtualTexture, int pageIndex)
         ++virtualTexture.residentCount;
     }
 
+    // Generate the requested page and its border texels on demand. A real
+    // streamer would usually obtain this payload from disk or a worker thread.
     const int pageX = pageIndex % VIRTUAL_PAGES;
     const int pageY = pageIndex / VIRTUAL_PAGES;
     std::vector<std::uint8_t> pixels(SLOT_SIZE * SLOT_SIZE * 4);
@@ -340,12 +367,14 @@ void uploadPage(VirtualTexture& virtualTexture, int pageIndex)
         }
     }
 
+    // Update only one atlas slot instead of reallocating the physical cache.
     const int slotX = selectedSlot % CACHE_PAGES;
     const int slotY = selectedSlot / CACHE_PAGES;
     glBindTexture(GL_TEXTURE_2D, virtualTexture.cache);
     glTexSubImage2D(GL_TEXTURE_2D, 0, slotX * SLOT_SIZE, slotY * SLOT_SIZE,
                     SLOT_SIZE, SLOT_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
 
+    // Publish the new mapping after its texels have reached the cache.
     slot.page = pageIndex;
     slot.lastUsed = virtualTexture.frame;
     virtualTexture.pages[pageIndex].slot = selectedSlot;
@@ -366,11 +395,13 @@ void updateVirtualTexture(VirtualTexture& virtualTexture)
     const int minY = std::max(0, static_cast<int>(std::floor((gCenterY - halfSpan) * VIRTUAL_PAGES)) - 1);
     const int maxY = std::min(VIRTUAL_PAGES - 1, static_cast<int>(std::floor((gCenterY + halfSpan) * VIRTUAL_PAGES)) + 1);
 
+    // Request the visible rectangle plus a one-page prefetch border.
     std::vector<int> requested;
     for (int y = minY; y <= maxY; ++y)
         for (int x = minX; x <= maxX; ++x)
             requested.push_back(y * VIRTUAL_PAGES + x);
 
+    // Stream center-first so the most noticeable holes fill first.
     std::sort(requested.begin(), requested.end(), [](int a, int b)
     {
         const float ax = (a % VIRTUAL_PAGES + 0.5f) / VIRTUAL_PAGES - gCenterX;
@@ -380,6 +411,8 @@ void updateVirtualTexture(VirtualTexture& virtualTexture)
         return ax * ax + ay * ay < bx * bx + by * by;
     });
 
+    // Touch resident pages for LRU accounting and cap misses to avoid a camera
+    // jump causing an unbounded upload hitch in one frame.
     for (int pageIndex : requested)
     {
         VirtualTexture::Page& page = virtualTexture.pages[pageIndex];
@@ -394,6 +427,7 @@ void updateVirtualTexture(VirtualTexture& virtualTexture)
         }
     }
 
+    // At 32x32 texels the complete page table is cheap to upload each frame.
     glBindTexture(GL_TEXTURE_2D, virtualTexture.pageTable);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, VIRTUAL_PAGES, VIRTUAL_PAGES,
                     GL_RGBA, GL_UNSIGNED_BYTE, virtualTexture.tablePixels.data());
@@ -401,6 +435,7 @@ void updateVirtualTexture(VirtualTexture& virtualTexture)
 
 bool pressedOnce(GLFWwindow* window, int key)
 {
+    // Edge detection prevents a held key from repeatedly changing modes.
     const bool pressed = glfwGetKey(window, key) == GLFW_PRESS;
     const bool result = pressed && !gPreviousKeys[key];
     gPreviousKeys[key] = pressed;
@@ -478,6 +513,8 @@ void scrollCallback(GLFWwindow*, double, double yOffset)
 
 int main()
 {
+    // Compressed formats are optional even though the sample uses a portable
+    // OpenGL 3.3 context, so all compressed allocations are capability-checked.
     if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -506,6 +543,8 @@ int main()
     }
     icon(window);
 
+    // Encode the same source into every comparison format. A rejected upload
+    // safely aliases the original RGBA8 texture as its fallback.
     const bool dxtExtension = GLAD_GL_EXT_texture_compression_s3tc != 0;
     const bool astcExtension = GLAD_GL_KHR_texture_compression_astc_ldr != 0;
     const std::vector<std::uint8_t> sourcePixels = makeSourceImage();
@@ -531,9 +570,12 @@ int main()
               << "Generated payloads: RGBA8=" << sourcePixels.size() << " bytes, DXT1=" << dxtBlocks.size()
               << " bytes, ASTC=" << astcBlocks.size() << " bytes\n";
 
+    // This software-managed indirection does not require a hardware sparse-
+    // texture extension, which keeps the residency algorithm visible and portable.
     VirtualTexture virtualTexture;
     initializeVirtualTexture(virtualTexture);
 
+    // A full-screen quad compares the sampling paths without scene distractions.
     const float vertices[] = {
         -1.0f, -1.0f, 0.0f, 0.0f,
          1.0f, -1.0f, 1.0f, 0.0f,
@@ -564,6 +606,8 @@ int main()
 
     double previousTime = glfwGetTime();
     double nextTitleUpdate = 0.0;
+    // Residency is updated before drawing so a new mapping is visible in the
+    // same frame as its cache upload.
     while (!glfwWindowShouldClose(window))
     {
         const double time = glfwGetTime();
@@ -600,6 +644,8 @@ int main()
         glfwPollEvents();
     }
 
+    // Fallback textures alias sourceTexture; only successful compressed
+    // allocations own a separate object and may be deleted independently.
     if (dxtSupported) glDeleteTextures(1, &dxtTexture);
     if (astcSupported) glDeleteTextures(1, &astcTexture);
     glDeleteTextures(1, &sourceTexture);

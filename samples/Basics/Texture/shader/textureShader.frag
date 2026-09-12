@@ -23,13 +23,17 @@ void main()
         return;
     }
 
+    // Resolve the screen coordinate into logical texture and page space.
     vec2 virtualUv = viewCenter + (texCoord - 0.5) * viewSpan;
     vec2 pagePosition = virtualUv * virtualPages;
     ivec2 page = clamp(ivec2(floor(pagePosition)), ivec2(0), ivec2(31));
     vec4 entry = texelFetch(pageTable, page, 0);
+    // Logical-space derivatives keep filtering stable across discontinuous
+    // physical cache addresses.
     vec2 gradientX = dFdx(virtualUv) * (virtualPages * pageSize / cacheSize);
     vec2 gradientY = dFdy(virtualUv) * (virtualPages * pageSize / cacheSize);
 
+    // Show missing residency while the bounded uploader fills the cache.
     if (entry.b < 0.5)
     {
         vec2 checkerCell = floor(pagePosition * 4.0);
@@ -38,12 +42,15 @@ void main()
         return;
     }
 
+    // Remap the texel into its physical slot. Sampling inside the one-texel
+    // gutter prevents linear filtering from leaking neighboring cache slots.
     vec2 slot = floor(entry.rg * 255.0 + 0.5);
     vec2 localUv = fract(pagePosition);
     vec2 cachePixel = slot * slotSize + vec2(1.5) + localUv * (pageSize - 1.0);
     vec2 cacheUv = cachePixel / cacheSize;
     vec3 color = textureGrad(physicalCache, cacheUv, gradientX, gradientY).rgb;
 
+    // A subtle border makes page granularity visible for teaching and debugging.
     float edgeDistance = min(min(localUv.x, localUv.y), min(1.0 - localUv.x, 1.0 - localUv.y));
     float pageBorder = 1.0 - smoothstep(0.0, 0.018, edgeDistance);
     color = mix(color, vec3(0.02), pageBorder * 0.4);
