@@ -24,8 +24,8 @@ void processInput(GLFWwindow *window);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-// Keep both implementations synchronized so C can switch between them
-// without changing the current view.
+// Keep both implementations synchronized so C can compare their orientation
+// math without introducing a position, zoom, or input-history discontinuity.
 QuaternionCamera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 EulerCamera eulerCamera(glm::vec3(0.0f, 0.0f, 3.0f));
 bool useQuaternionCamera = true;
@@ -42,6 +42,7 @@ int main()
 {
 	std::cout << "Basics - Camera" << std::endl;
 	std::cout << "ESC - Exit" << std::endl;
+	std::cout << "C - Compare quaternion / Euler camera" << std::endl;
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();
@@ -275,6 +276,8 @@ int main()
 
 		// pass projection matrix to shader (it can change every frame in this sample)
 		glm::mat4 projection = glm::mat4(1.0f);
+		// Only the selected implementation contributes matrices; both continue to
+		// receive input below so switching remains a meaningful A/B comparison.
 		const float zoom = useQuaternionCamera ? camera.Zoom : eulerCamera.Zoom;
 		projection = glm::perspective(glm::radians(zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 		ourShader.setMat4("projection", projection);
@@ -349,6 +352,7 @@ void processInput(GLFWwindow *window)
 		eulerCamera.ProcessKeyboard(RIGHT, deltaTime);
 	}
 
+	// Toggle on the press edge so holding C cannot flip modes every frame.
 	if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS && !cameraModeKeyPressed)
 	{
 		useQuaternionCamera = !useQuaternionCamera;
@@ -387,6 +391,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	lastX = xpos;
 	lastY = ypos;
 
+	// Feed identical deltas to both cameras to preserve comparison state.
 	camera.ProcessMouseMovement(xoffset, yoffset);
 	eulerCamera.ProcessMouseMovement(xoffset, yoffset);
 }
@@ -395,6 +400,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
+	// Zoom is synchronized for the same reason as position and orientation.
 	camera.ProcessMouseScroll(yoffset);
 	eulerCamera.ProcessMouseScroll(yoffset);
 }

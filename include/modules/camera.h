@@ -11,6 +11,11 @@
 #include <algorithm>
 #include <cmath>
 
+/**
+ * Window-system-independent movement commands understood by both camera types.
+ * Callers supply either an explicit distance through translate() or a frame
+ * delta through ProcessKeyboard().
+ */
 enum Camera_Movement
 {
 	FORWARD,
@@ -21,13 +26,18 @@ enum Camera_Movement
 	DOWN
 };
 
+// Defaults preserve the orientation and controls used by the existing samples.
 constexpr float YAW = -90.0f;
 constexpr float PITCH = 0.0f;
 constexpr float SPEED = 2.5f;
 constexpr float SENSITIVITY = 0.1f;
 constexpr float ZOOM = 45.0f;
 
-/** The original yaw/pitch camera, retained for teaching and comparison. */
+/**
+ * Conventional yaw/pitch camera retained for teaching and direct comparison.
+ * Its public fields and method names match the historical Camera API so the
+ * Camera sample can switch implementations without changing render code.
+ */
 class EulerCamera
 {
 public:
@@ -60,6 +70,7 @@ public:
 
 	glm::mat4 GetViewMatrix() const
 	{
+		// glm::lookAt builds the inverse camera transform from its local basis.
 		return glm::lookAt(Position, Position + Front, Up);
 	}
 
@@ -102,6 +113,7 @@ private:
 
 	void updateCameraVectors()
 	{
+		// Reconstruct an orthonormal basis after either Euler angle changes.
 		glm::vec3 front;
 		front.x = std::cos(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
 		front.y = std::sin(glm::radians(Pitch));
@@ -114,9 +126,11 @@ private:
 };
 
 /**
- * Quaternion-backed camera. Rotations are accumulated as normalized
- * quaternion deltas; Yaw and Pitch remain available for compatibility and
- * diagnostics in the existing samples.
+ * Quaternion-backed camera used by default throughout the repository.
+ *
+ * Rotations accumulate as normalized quaternion deltas, avoiding an Euler
+ * matrix as the authoritative orientation. Yaw and Pitch remain available for
+ * API compatibility, diagnostics, and the optional vertical-look constraint.
  */
 class QuaternionCamera
 {
@@ -150,11 +164,14 @@ public:
 
 	glm::mat4 GetViewMatrix() const
 	{
+		// A view matrix is the inverse camera transform: inverse rotation first,
+		// followed by translation of the world opposite the camera position.
 		const glm::mat4 rotation = glm::mat4_cast(glm::conjugate(orientation_));
 		const glm::mat4 translation = glm::translate(glm::mat4(1.0f), -Position);
 		return rotation * translation;
 	}
 
+	/** Returns the normalized world-space camera orientation. */
 	const glm::quat& Orientation() const { return orientation_; }
 
 	void translate(Camera_Movement direction, float velocity) { move(direction, velocity); }
@@ -185,6 +202,8 @@ public:
 		}
 		Yaw += yawDelta;
 
+		// Yaw is world-relative, while pitch is applied around the camera's newly
+		// rotated local right axis. Normalization limits accumulated drift.
 		const glm::quat yawRotation = glm::angleAxis(glm::radians(-yawDelta), WorldUp);
 		orientation_ = glm::normalize(yawRotation * orientation_);
 		updateCameraVectors();
@@ -213,6 +232,8 @@ private:
 
 	void setOrientationFromAngles()
 	{
+		// Convert legacy constructor angles once; subsequent updates are quaternion
+		// deltas. The +90 degree offset maps historical yaw=-90 to forward -Z.
 		const glm::quat yawRotation = glm::angleAxis(glm::radians(-(Yaw + 90.0f)), WorldUp);
 		const glm::vec3 initialRight = yawRotation * glm::vec3(1.0f, 0.0f, 0.0f);
 		const glm::quat pitchRotation = glm::angleAxis(glm::radians(Pitch), initialRight);
@@ -222,6 +243,8 @@ private:
 
 	void updateCameraVectors()
 	{
+		// Derive the complete basis from one normalized orientation so the axes
+		// remain mutually orthogonal after long input sequences.
 		Front = glm::normalize(orientation_ * glm::vec3(0.0f, 0.0f, -1.0f));
 		Right = glm::normalize(orientation_ * glm::vec3(1.0f, 0.0f, 0.0f));
 		Up = glm::normalize(orientation_ * glm::vec3(0.0f, 1.0f, 0.0f));
@@ -229,7 +252,8 @@ private:
 	}
 };
 
-// Regular samples use quaternion orientation without call-site changes.
+// Preserve the repository's Camera name while changing its implementation.
+// The explicit EulerCamera type remains available to the Camera sample.
 using Camera = QuaternionCamera;
 
 #endif
