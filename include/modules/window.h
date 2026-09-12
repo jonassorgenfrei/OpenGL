@@ -5,6 +5,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include "help_overlay.h"
+
 void icon(GLFWwindow* window) {
 	//GLFW ICON
 	// a simple glfw logo
@@ -56,6 +58,14 @@ void icon(GLFWwindow* window) {
 	}
 
 	glfwSetWindowIcon(window, 1, &img);
+	// icon() is called after GLAD initialization by every sample, making it the
+	// common point where an active context is guaranteed for overlay resources.
+	sample_help::initialize(window);
 }
+
+// Present every sample through the shared on-scene keyboard help overlay.
+// This macro is intentionally declared after renderAndSwap, so its internal
+// glfwSwapBuffers call still resolves to GLFW's original function.
+#define glfwSwapBuffers(window) sample_help::renderAndSwap(window)
 
 #endif
