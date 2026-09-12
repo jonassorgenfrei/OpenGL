@@ -50,7 +50,6 @@ bool d_pressed = false;
 bool p_pressed = false;
 bool w_pressed = false;
 bool t_pressed = false;
-bool h_pressed = false;
 
 bool debug = false;
 bool peterPanning = true;
@@ -448,19 +447,6 @@ void processInput(GLFWwindow *window)
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
-
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
-		h_pressed = true;
-	}
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE && h_pressed) {
-		std::cout << "Help:" << std::endl;
-		std::cout << " F2: Toggle FullScreen" << std::endl;
-		std::cout << " D: Toggle Debug Show Shadow map" << std::endl;
-		std::cout << " P: Toggle Peter Pannig" << std::endl;
-		std::cout << " W: Toggle Wireframe" << std::endl;
-		std::cout << " T: Toggle Technic (default, biased, pcf)" << std::endl;
-		h_pressed = false;
-	}
 
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{

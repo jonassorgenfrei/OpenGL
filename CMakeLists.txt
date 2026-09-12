@@ -261,6 +261,7 @@ function(create_project_from_sources folder sample)
   endif()
   
   add_executable(${NAME} ${SOURCE} ${SHADERS})
+  target_compile_definitions(${NAME} PRIVATE OPENGL_SAMPLE_NAME="${folder}/${sample}")
   target_link_libraries(${NAME} ${LIBS})
   if(MSVC)
   target_compile_options(${NAME} PRIVATE /std:c++17 /MP)

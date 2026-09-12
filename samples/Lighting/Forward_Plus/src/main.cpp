@@ -60,7 +60,6 @@ double lastY = SCR_HEIGHT / 2.0;
 
 bool firstMouse = true;
 
-bool h_pressed = false;
 bool w_pressed = false;
 bool m_pressed = false;
 bool t_pressed = false;
@@ -547,18 +546,6 @@ void processInput(GLFWwindow *window)
 	{
 		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 		glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
-	}
-
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
-		h_pressed = true;
-	}
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE && h_pressed) {
-		std::cout << "Help:" << std::endl;
-		std::cout << " W: Toggle Wireframe" << std::endl;
-		std::cout << " M: Toggle Heatmap" << std::endl;
-		std::cout << " T: Toggle Show Tiles" << std::endl;
-		std::cout << " L: Toggle Show Lights" << std::endl;
-		h_pressed = false;
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {

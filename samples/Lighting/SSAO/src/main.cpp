@@ -52,7 +52,6 @@ int shaderTypeOGLDev = 0;
 bool a_pressed = false;
 bool d_pressed = false;
 bool b_pressed = false;
-bool h_pressed = false;
 bool n_pressed = false;
 
 bool debug = false;
@@ -780,24 +779,6 @@ void processInput(GLFWwindow *window)
 	else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
 		radius += 0.005f;
 		std::cout << "Radius:" << radius << std::endl;
-	}
-
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
-		h_pressed = true;
-	}
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE && h_pressed) {
-		std::cout << "Help:" << std::endl;
-//		std::cout << " F2: Toggle Fullscreen" << std::endl;
-#if LEARNOPENGL == 1
-		std::cout << " N: Toggle Hammersley" << std::endl;
-#endif
-		std::cout << " D: Toggle Debug" << std::endl;
-		std::cout << " E: Increase Sample Radius" << std::endl;
-		std::cout << " Q: Decrease Sample Radius" << std::endl;
-#if LEARNOPENGL == 0
-		std::cout << " A: Shader Type" << std::endl;
-#endif
-		h_pressed = false;
 	}
 
 }
