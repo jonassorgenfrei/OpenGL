@@ -261,6 +261,7 @@ function(create_project_from_sources folder sample)
   endif()
   
   add_executable(${NAME} ${SOURCE} ${SHADERS})
+  # Feed the shared help overlay a stable sample identifier for shortcut lookup.
   target_compile_definitions(${NAME} PRIVATE OPENGL_SAMPLE_NAME="${folder}/${sample}")
   target_link_libraries(${NAME} ${LIBS})
   if(MSVC)

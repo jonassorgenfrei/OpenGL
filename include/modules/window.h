@@ -58,6 +58,8 @@ void icon(GLFWwindow* window) {
 	}
 
 	glfwSetWindowIcon(window, 1, &img);
+	// icon() is called after GLAD initialization by every sample, making it the
+	// common point where an active context is guaranteed for overlay resources.
 	sample_help::initialize(window);
 }
 

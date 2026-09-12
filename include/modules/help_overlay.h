@@ -20,14 +20,23 @@
 #define OPENGL_SAMPLE_NAME "OpenGL Sample"
 #endif
 
+/**
+ * Shared keyboard-help UI for all samples.
+ *
+ * The overlay is header-only because every sample is a separate executable.
+ * It initializes after a sample creates its OpenGL context, renders immediately
+ * before buffer presentation, and restores the sample's OpenGL state afterward.
+ */
 namespace sample_help
 {
+/** One display-ready keyboard binding. */
 struct Shortcut
 {
 	std::string key;
 	std::string action;
 };
 
+/** Returns whether a CMake-provided sample path belongs to a named group. */
 inline bool isOneOf(const std::string& name, std::initializer_list<const char*> names)
 {
 	for (const char* candidate : names)
@@ -36,6 +45,13 @@ inline bool isOneOf(const std::string& name, std::initializer_list<const char*> 
 	return false;
 }
 
+/**
+ * Builds the shortcut list for a sample.
+ *
+ * Common bindings are added first, followed by camera-family controls and the
+ * sample-specific controls. Keeping this catalog here gives every executable a
+ * consistent vocabulary and one place to update a binding description.
+ */
 inline std::vector<Shortcut> shortcutsFor(const std::string& name)
 {
 	std::vector<Shortcut> result = {
@@ -200,14 +216,22 @@ inline std::vector<Shortcut> shortcutsFor(const std::string& name)
 	return result;
 }
 
+/**
+ * Owns the small shader, dynamic quad, and ASCII glyph atlas used by the UI.
+ * Resources intentionally live for the process lifetime and disappear with the
+ * sample's OpenGL context; initialization failures disable the overlay safely.
+ */
 class HelpOverlay
 {
 public:
+	/** Initializes resources once, after the caller has made its context current. */
 	void initialize(GLFWwindow* window, std::string sampleName)
 	{
 		if (initialized_ || failed_)
 			return;
 
+		// Resource creation changes bindings, so preserve the sample's state even
+		// during initialization and error exits.
 		State state;
 		state.capture();
 		window_ = window;
@@ -241,6 +265,7 @@ public:
 		state.restore();
 	}
 
+	/** Handles the H-key edge and draws either the full panel or compact hint. */
 	void render()
 	{
 		if (!initialized_ || !window_)
@@ -257,6 +282,8 @@ public:
 		if (width <= 0 || height <= 0)
 			return;
 
+		// The overlay must be transparent to the scene renderer. Capture every GL
+		// state value changed below and restore it before buffer presentation.
 		State state;
 		state.capture();
 
@@ -301,6 +328,7 @@ private:
 		unsigned int advance = 0;
 	};
 
+	/** Snapshot of the mutable OpenGL state touched by overlay rendering. */
 	struct State
 	{
 		GLint program = 0, vao = 0, arrayBuffer = 0, activeTexture = 0, texture = 0;
@@ -365,6 +393,7 @@ private:
 		}
 	};
 
+	/** Compiles one embedded overlay shader and reports diagnostics to stderr. */
 	static GLuint compile(GLenum type, const char* source)
 	{
 		GLuint shader = glCreateShader(type);
@@ -383,6 +412,7 @@ private:
 		return shader;
 	}
 
+	/** Creates the minimal pixel-space shader shared by boxes and glyph quads. */
 	static GLuint createProgram()
 	{
 		static const char* vertexSource = R"GLSL(#version 330 core
@@ -432,6 +462,7 @@ void main()
 		return program;
 	}
 
+	/** Rasterizes printable ASCII once and uploads each glyph as an R8 texture. */
 	bool loadFont(const std::string& path, unsigned int pixelSize)
 	{
 		FT_Library library = nullptr;
@@ -478,6 +509,7 @@ void main()
 		return !glyphs_.empty();
 	}
 
+	/** Lays out a responsive panel and clips shortcut rows to the framebuffer. */
 	void renderPanel(int width, int height)
 	{
 		const float scale = width < 900 ? 0.72f : 0.82f;
@@ -504,6 +536,7 @@ void main()
 		}
 	}
 
+	/** Streams and draws a solid six-vertex screen-space rectangle. */
 	void renderBox(float x, float y, float width, float height, const std::array<float, 4>& color)
 	{
 		const float vertices[6][4] = {
@@ -517,6 +550,7 @@ void main()
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 	}
 
+	/** Draws text one glyph quad at a time using FreeType metrics for spacing. */
 	void renderText(const std::string& text, float x, float y, float scale, const std::array<float, 4>& color)
 	{
 		glUniform1i(glGetUniformLocation(program_, "textured"), GL_TRUE);
@@ -556,6 +590,7 @@ void main()
 	bool hDown_ = false;
 };
 
+/** Returns the one overlay owned by each sample executable. */
 inline HelpOverlay& overlay()
 {
 	static HelpOverlay instance;
@@ -567,6 +602,7 @@ inline void initialize(GLFWwindow* window)
 	overlay().initialize(window, OPENGL_SAMPLE_NAME);
 }
 
+/** Injects overlay rendering at the final point before GLFW presents a frame. */
 inline void renderAndSwap(GLFWwindow* window)
 {
 	overlay().render();
