@@ -1,8 +1,11 @@
 # Basic Examples
 
 Basic OpenGL Implementations for:
+
 - Transformation
 - Shader
 - Coordinate System
-- Texture
+- Texture Basics
+- Texture Compression
+- Virtual Texturing
 - Camera

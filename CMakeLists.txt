@@ -46,7 +46,9 @@ set(Basics
     Camera
     Shader
     Text
-    Texture
+    Texture_Basics
+    Texture_Compression
+    Texture_VirtualTexturing
     Transformation
 )
 
