@@ -28,7 +28,10 @@ constexpr int ASTC_BLOCK = 4;
 constexpr int VIRTUAL_SIZE = 2048;
 constexpr int PAGE_SIZE = 64;
 constexpr int VIRTUAL_PAGES = VIRTUAL_SIZE / PAGE_SIZE;
-constexpr int CACHE_PAGES = 10;
+constexpr int VIRTUAL_MIP_LEVELS = 6; // 32, 16, 8, 4, 2, and 1 pages per axis
+constexpr int PINNED_MIP = 4;         // 2x2 and 1x1 fallbacks never leave memory
+constexpr int PAGE_TABLE_HEIGHT = 63; // sum of all mip dimensions
+constexpr int CACHE_PAGES = 11;
 constexpr int PAGE_GUTTER = 1;
 constexpr int SLOT_SIZE = PAGE_SIZE + PAGE_GUTTER * 2;
 constexpr int CACHE_SIZE = CACHE_PAGES * SLOT_SIZE;
@@ -39,20 +42,37 @@ enum class Mode { Source, Dxt1, Astc, Virtual };
 struct VirtualTexture
 {
     // Logical pages point into the physical cache. A value of -1 means that
-    // the shader renders the missing-page diagnostic until the page is streamed.
-    struct Page { int slot = -1; };
+    // the shader falls back to a coarser resident mip until this page streams.
+    struct Page
+    {
+        int slot = -1;
+        int mip = 0;
+        int x = 0;
+        int y = 0;
+    };
 
     // Cache slots track ownership and age for least-recently-used replacement.
     struct Slot { int page = -1; std::uint64_t lastUsed = 0; };
 
     GLuint cache = 0;
     GLuint pageTable = 0;
-    std::array<Page, VIRTUAL_PAGES * VIRTUAL_PAGES> pages{};
+    std::vector<Page> pages;
     std::array<Slot, CACHE_PAGES * CACHE_PAGES> slots{};
     std::vector<std::uint8_t> tablePixels;
     std::uint64_t frame = 0;
     int residentCount = 0;
     int uploadsThisFrame = 0;
+    int activeMip = 0;
+};
+
+struct PageRect
+{
+    int minX = 0;
+    int maxX = 0;
+    int minY = 0;
+    int maxY = 0;
+
+    int count() const { return (maxX - minX + 1) * (maxY - minY + 1); }
 };
 
 Mode gMode = Mode::Virtual;
@@ -65,6 +85,52 @@ std::array<bool, GLFW_KEY_LAST + 1> gPreviousKeys{};
 float clampFloat(float value, float minimum, float maximum)
 {
     return std::max(minimum, std::min(maximum, value));
+}
+
+int mipPageDimension(int mip)
+{
+    return std::max(1, VIRTUAL_PAGES >> mip);
+}
+
+int pageTableYOffset(int mip)
+{
+    int offset = 0;
+    for (int level = 0; level < mip; ++level) offset += mipPageDimension(level);
+    return offset;
+}
+
+int mipPageOffset(int mip)
+{
+    int offset = 0;
+    for (int level = 0; level < mip; ++level)
+    {
+        const int dimension = mipPageDimension(level);
+        offset += dimension * dimension;
+    }
+    return offset;
+}
+
+int pageIndex(int mip, int x, int y)
+{
+    return mipPageOffset(mip) + y * mipPageDimension(mip) + x;
+}
+
+std::size_t pageTablePixelOffset(const VirtualTexture::Page& page)
+{
+    const int tableY = pageTableYOffset(page.mip) + page.y;
+    return static_cast<std::size_t>((tableY * VIRTUAL_PAGES + page.x) * 4);
+}
+
+PageRect requestedPageRect(int mip)
+{
+    const int dimension = mipPageDimension(mip);
+    const float halfSpan = gViewSpan * 0.5f;
+    return {
+        std::max(0, static_cast<int>(std::floor((gCenterX - halfSpan) * dimension)) - 1),
+        std::min(dimension - 1, static_cast<int>(std::floor((gCenterX + halfSpan) * dimension)) + 1),
+        std::max(0, static_cast<int>(std::floor((gCenterY - halfSpan) * dimension)) - 1),
+        std::min(dimension - 1, static_cast<int>(std::floor((gCenterY + halfSpan) * dimension)) + 1)
+    };
 }
 
 std::uint8_t toByte(float value)
@@ -297,9 +363,16 @@ GLuint createCompressedTexture(GLenum format, const std::vector<std::uint8_t>& b
 
 void initializeVirtualTexture(VirtualTexture& virtualTexture)
 {
-    // The physical cache owns texels. The smaller RGBA8 page table maps each
-    // logical page to cache-slot XY and carries a residency flag in blue.
-    virtualTexture.tablePixels.assign(VIRTUAL_PAGES * VIRTUAL_PAGES * 4, 0);
+    // The physical cache owns texels. All mip page tables are stacked vertically
+    // in one RGBA8 texture; entries store cache-slot XY and residency in blue.
+    virtualTexture.tablePixels.assign(VIRTUAL_PAGES * PAGE_TABLE_HEIGHT * 4, 0);
+    for (int mip = 0; mip < VIRTUAL_MIP_LEVELS; ++mip)
+    {
+        const int dimension = mipPageDimension(mip);
+        for (int y = 0; y < dimension; ++y)
+            for (int x = 0; x < dimension; ++x)
+                virtualTexture.pages.push_back({ -1, mip, x, y });
+    }
 
     glGenTextures(1, &virtualTexture.cache);
     glBindTexture(GL_TEXTURE_2D, virtualTexture.cache);
@@ -316,7 +389,7 @@ void initializeVirtualTexture(VirtualTexture& virtualTexture)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, VIRTUAL_PAGES, VIRTUAL_PAGES, 0,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, VIRTUAL_PAGES, PAGE_TABLE_HEIGHT, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, virtualTexture.tablePixels.data());
 }
 
@@ -333,18 +406,24 @@ void uploadPage(VirtualTexture& virtualTexture, int pageIndex)
             selectedSlot = slotIndex;
             break;
         }
+        if (virtualTexture.pages[virtualTexture.slots[slotIndex].page].mip >= PINNED_MIP)
+            continue;
         if (virtualTexture.slots[slotIndex].lastUsed < oldest)
         {
             oldest = virtualTexture.slots[slotIndex].lastUsed;
             selectedSlot = slotIndex;
         }
     }
+    // The caller limits streaming pages to the non-pinned capacity, so this
+    // guard can only trigger if those cache invariants are changed later.
+    if (selectedSlot < 0) return;
 
     VirtualTexture::Slot& slot = virtualTexture.slots[selectedSlot];
     if (slot.page >= 0)
     {
-        virtualTexture.pages[slot.page].slot = -1;
-        std::fill_n(&virtualTexture.tablePixels[slot.page * 4], 4, 0);
+        VirtualTexture::Page& evictedPage = virtualTexture.pages[slot.page];
+        evictedPage.slot = -1;
+        std::fill_n(&virtualTexture.tablePixels[pageTablePixelOffset(evictedPage)], 4, 0);
     }
     else
     {
@@ -353,15 +432,17 @@ void uploadPage(VirtualTexture& virtualTexture, int pageIndex)
 
     // Generate the requested page and its border texels on demand. A real
     // streamer would usually obtain this payload from disk or a worker thread.
-    const int pageX = pageIndex % VIRTUAL_PAGES;
-    const int pageY = pageIndex / VIRTUAL_PAGES;
+    VirtualTexture::Page& requestedPage = virtualTexture.pages[pageIndex];
+    const int mipScale = 1 << requestedPage.mip;
     std::vector<std::uint8_t> pixels(SLOT_SIZE * SLOT_SIZE * 4);
     for (int y = 0; y < SLOT_SIZE; ++y)
     {
         for (int x = 0; x < SLOT_SIZE; ++x)
         {
-            const int virtualX = pageX * PAGE_SIZE + x - PAGE_GUTTER;
-            const int virtualY = pageY * PAGE_SIZE + y - PAGE_GUTTER;
+            // Sample the center of the source footprint represented by this
+            // mip texel. Gutter coordinates naturally fetch adjacent pages.
+            const int virtualX = (requestedPage.x * PAGE_SIZE + x - PAGE_GUTTER) * mipScale + mipScale / 2;
+            const int virtualY = (requestedPage.y * PAGE_SIZE + y - PAGE_GUTTER) * mipScale + mipScale / 2;
             const auto color = proceduralColor(virtualX, virtualY, VIRTUAL_SIZE);
             std::copy(color.begin(), color.end(), pixels.begin() + (y * SLOT_SIZE + x) * 4);
         }
@@ -377,8 +458,8 @@ void uploadPage(VirtualTexture& virtualTexture, int pageIndex)
     // Publish the new mapping after its texels have reached the cache.
     slot.page = pageIndex;
     slot.lastUsed = virtualTexture.frame;
-    virtualTexture.pages[pageIndex].slot = selectedSlot;
-    std::uint8_t* entry = &virtualTexture.tablePixels[pageIndex * 4];
+    requestedPage.slot = selectedSlot;
+    std::uint8_t* entry = &virtualTexture.tablePixels[pageTablePixelOffset(requestedPage)];
     entry[0] = static_cast<std::uint8_t>(slotX);
     entry[1] = static_cast<std::uint8_t>(slotY);
     entry[2] = 255;
@@ -389,47 +470,87 @@ void updateVirtualTexture(VirtualTexture& virtualTexture)
 {
     ++virtualTexture.frame;
     virtualTexture.uploadsThisFrame = 0;
-    const float halfSpan = gViewSpan * 0.5f;
-    const int minX = std::max(0, static_cast<int>(std::floor((gCenterX - halfSpan) * VIRTUAL_PAGES)) - 1);
-    const int maxX = std::min(VIRTUAL_PAGES - 1, static_cast<int>(std::floor((gCenterX + halfSpan) * VIRTUAL_PAGES)) + 1);
-    const int minY = std::max(0, static_cast<int>(std::floor((gCenterY - halfSpan) * VIRTUAL_PAGES)) - 1);
-    const int maxY = std::min(VIRTUAL_PAGES - 1, static_cast<int>(std::floor((gCenterY + halfSpan) * VIRTUAL_PAGES)) + 1);
 
-    // Request the visible rectangle plus a one-page prefetch border.
+    // Keep the 2x2 and 1x1 mip levels permanently resident. Until a detailed
+    // page arrives, the shader walks up to one of these complete fallbacks.
+    if (virtualTexture.frame == 1)
+    {
+        for (int mip = PINNED_MIP; mip < VIRTUAL_MIP_LEVELS; ++mip)
+        {
+            const int dimension = mipPageDimension(mip);
+            for (int y = 0; y < dimension; ++y)
+                for (int x = 0; x < dimension; ++x)
+                    uploadPage(virtualTexture, pageIndex(mip, x, y));
+        }
+    }
+
+    int pinnedPageCount = 0;
+    for (int mip = PINNED_MIP; mip < VIRTUAL_MIP_LEVELS; ++mip)
+    {
+        const int dimension = mipPageDimension(mip);
+        pinnedPageCount += dimension * dimension;
+    }
+    const int streamingCapacity = static_cast<int>(virtualTexture.slots.size()) - pinnedPageCount;
+
+    // Choose the finest level whose visible rectangle and prefetch border fit
+    // in the streaming portion of the cache. This prevents visible-page churn
+    // when zooming out instead of blindly requesting hundreds of mip-0 pages.
+    virtualTexture.activeMip = PINNED_MIP - 1;
+    PageRect requestedRect = requestedPageRect(virtualTexture.activeMip);
+    for (int mip = 0; mip < PINNED_MIP; ++mip)
+    {
+        const PageRect candidate = requestedPageRect(mip);
+        if (candidate.count() <= streamingCapacity)
+        {
+            virtualTexture.activeMip = mip;
+            requestedRect = candidate;
+            break;
+        }
+    }
+
+    const int activeDimension = mipPageDimension(virtualTexture.activeMip);
     std::vector<int> requested;
-    for (int y = minY; y <= maxY; ++y)
-        for (int x = minX; x <= maxX; ++x)
-            requested.push_back(y * VIRTUAL_PAGES + x);
+    requested.reserve(static_cast<std::size_t>(requestedRect.count()));
+    for (int y = requestedRect.minY; y <= requestedRect.maxY; ++y)
+        for (int x = requestedRect.minX; x <= requestedRect.maxX; ++x)
+            requested.push_back(pageIndex(virtualTexture.activeMip, x, y));
 
     // Stream center-first so the most noticeable holes fill first.
-    std::sort(requested.begin(), requested.end(), [](int a, int b)
+    std::sort(requested.begin(), requested.end(), [&](int a, int b)
     {
-        const float ax = (a % VIRTUAL_PAGES + 0.5f) / VIRTUAL_PAGES - gCenterX;
-        const float ay = (a / VIRTUAL_PAGES + 0.5f) / VIRTUAL_PAGES - gCenterY;
-        const float bx = (b % VIRTUAL_PAGES + 0.5f) / VIRTUAL_PAGES - gCenterX;
-        const float by = (b / VIRTUAL_PAGES + 0.5f) / VIRTUAL_PAGES - gCenterY;
+        const VirtualTexture::Page& pageA = virtualTexture.pages[a];
+        const VirtualTexture::Page& pageB = virtualTexture.pages[b];
+        const float ax = (pageA.x + 0.5f) / activeDimension - gCenterX;
+        const float ay = (pageA.y + 0.5f) / activeDimension - gCenterY;
+        const float bx = (pageB.x + 0.5f) / activeDimension - gCenterX;
+        const float by = (pageB.y + 0.5f) / activeDimension - gCenterY;
         return ax * ax + ay * ay < bx * bx + by * by;
     });
 
-    // Touch resident pages for LRU accounting and cap misses to avoid a camera
-    // jump causing an unbounded upload hitch in one frame.
+    // Touch the whole working set before choosing victims. This ensures a new
+    // center page cannot evict a still-visible page encountered later below.
     for (int pageIndex : requested)
     {
         VirtualTexture::Page& page = virtualTexture.pages[pageIndex];
         if (page.slot >= 0)
-        {
             virtualTexture.slots[page.slot].lastUsed = virtualTexture.frame;
-        }
-        else if (virtualTexture.uploadsThisFrame < UPLOADS_PER_FRAME)
+    }
+
+    // Cap misses to avoid a camera jump causing an unbounded upload hitch in
+    // one frame. Missing detail is covered by the pinned fallback mip.
+    for (int pageIndex : requested)
+    {
+        VirtualTexture::Page& page = virtualTexture.pages[pageIndex];
+        if (page.slot < 0 && virtualTexture.uploadsThisFrame < UPLOADS_PER_FRAME)
         {
             uploadPage(virtualTexture, pageIndex);
             ++virtualTexture.uploadsThisFrame;
         }
     }
 
-    // At 32x32 texels the complete page table is cheap to upload each frame.
+    // The complete stacked page table is still only 32x63 texels.
     glBindTexture(GL_TEXTURE_2D, virtualTexture.pageTable);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, VIRTUAL_PAGES, VIRTUAL_PAGES,
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, VIRTUAL_PAGES, PAGE_TABLE_HEIGHT,
                     GL_RGBA, GL_UNSIGNED_BYTE, virtualTexture.tablePixels.data());
 }
 
@@ -494,6 +615,7 @@ void updateTitle(GLFWwindow* window, const VirtualTexture& virtualTexture,
     {
         title << " | cache " << virtualTexture.residentCount << "/" << virtualTexture.slots.size()
               << ", uploads " << virtualTexture.uploadsThisFrame << "/frame"
+              << ", mip " << virtualTexture.activeMip
               << ", view " << std::fixed << std::setprecision(1) << gViewSpan * 100.0f << "%";
     }
     title << " | [1-4] mode [WASD/arrows] pan [wheel/Q/E] zoom [R] reset [Esc] quit";
@@ -562,11 +684,19 @@ int main()
     if (!dxtTexture) dxtTexture = sourceTexture;
     if (!astcTexture) astcTexture = sourceTexture;
 
+    const char* dxtStatus = dxtSupported ? "yes"
+        : (dxtExtension ? "no (compressed upload rejected; using RGBA8 fallback)"
+                        : "no (extension unavailable; using RGBA8 fallback)");
+    const char* astcStatus = astcSupported ? "yes"
+        : (astcExtension ? "no (compressed upload rejected; using RGBA8 fallback)"
+                         : "no (extension unavailable; using RGBA8 fallback)");
+
     std::cout << "Texture Lab controls:\n"
               << "  1: RGBA8 source  2: DXT1/BC1  3: ASTC 4x4  4: virtual texture\n"
               << "  WASD/arrows: pan  mouse wheel or Q/E: zoom  R: reset  Esc: quit\n\n"
-              << "GPU DXT/S3TC support: " << (dxtSupported ? "yes" : "no (using RGBA8 fallback)") << '\n'
-              << "GPU ASTC LDR support: " << (astcSupported ? "yes" : "no (using RGBA8 fallback)") << '\n'
+              << "OpenGL renderer: " << reinterpret_cast<const char*>(glGetString(GL_RENDERER)) << '\n'
+              << "GPU DXT/S3TC support: " << dxtStatus << '\n'
+              << "GPU ASTC LDR support: " << astcStatus << '\n'
               << "Generated payloads: RGBA8=" << sourcePixels.size() << " bytes, DXT1=" << dxtBlocks.size()
               << " bytes, ASTC=" << astcBlocks.size() << " bytes\n";
 
@@ -620,6 +750,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
         shader.use();
         shader.setInt("virtualMode", gMode == Mode::Virtual ? 1 : 0);
+        shader.setInt("activeMip", virtualTexture.activeMip);
         glUniform2f(glGetUniformLocation(shader.ID, "viewCenter"), gCenterX, gCenterY);
         shader.setFloat("viewSpan", gViewSpan);
 
