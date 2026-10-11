@@ -28,6 +28,7 @@ set(Advanced_OpenGL
     Compute_Shader_Particles
     Geometry_Shader
     Geometry_Shader_Exploding
+    Gaussian_Splatting
     Instancing
     no_Instancing_Space
     Instancing_Space
