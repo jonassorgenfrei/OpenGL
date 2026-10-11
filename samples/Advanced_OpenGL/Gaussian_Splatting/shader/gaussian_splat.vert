@@ -1,25 +1,31 @@
 #version 330 core
 
+// One unit quad is instanced for every Gaussian. Locations 1-5 contain the
+// corresponding fields from the standard 3DGS PLY vertex record.
 layout (location = 0) in vec2 quadPosition;
 layout (location = 1) in vec3 splatCenter;
-layout (location = 2) in vec3 splatLogScale;
-layout (location = 3) in vec4 splatRotation; // w, x, y, z
-layout (location = 4) in float splatOpacityLogit;
+layout (location = 2) in vec3 splatLogScale; // Stored logarithmically in the PLY.
+layout (location = 3) in vec4 splatRotation; // Quaternion order: w, x, y, z.
+layout (location = 4) in float splatOpacityLogit; // Inverse-sigmoid opacity.
 layout (location = 5) in uint splatShIndex;
 
 uniform mat4 view;
 uniform mat4 projection;
 uniform mat4 model;
 uniform bool pointMode;
+uniform int shDegree;
 uniform vec3 cameraPosition;
 uniform vec2 viewportSize;
 uniform samplerBuffer shData;
 
 out vec2 gaussianPosition;
-out vec4 color;
+// Color and opacity are constant across a splat. "flat" avoids interpolating
+// values which are identical for all six vertices of the instance.
+flat out vec4 color;
 
 float shCoefficient(uint coefficient)
 {
+    // Each splat occupies 48 floats = 12 RGBA texels in the buffer texture.
     uint scalarIndex = splatShIndex * 48u + coefficient;
     vec4 values = texelFetch(shData, int(scalarIndex / 4u));
     return values[int(scalarIndex % 4u)];
@@ -27,6 +33,8 @@ float shCoefficient(uint coefficient)
 
 vec3 shVector(uint order)
 {
+    // The PLY stores three DC values first. Its remaining coefficients are
+    // channel-major: 15 red, then 15 green, then 15 blue values.
     if (order == 0u)
         return vec3(shCoefficient(0u), shCoefficient(1u), shCoefficient(2u));
 
@@ -38,6 +46,9 @@ vec3 shVector(uint order)
 
 vec3 evaluateSphericalHarmonics(vec3 direction)
 {
+    // Real SH normalization constants used by the original 3DGS renderer.
+    // Degree 0 is view independent; degrees 1-3 introduce progressively finer
+    // directional variation. The number keys select the highest active degree.
     const float C0 = 0.28209479177387814;
     const float C1 = 0.4886025119029199;
     const float C2_0 = 1.0925484305920792;
@@ -60,13 +71,25 @@ vec3 evaluateSphericalHarmonics(vec3 direction)
     float yy = y * y;
     float zz = z * z;
 
+    // A trained 3DGS stores color relative to -0.5, hence the +0.5 before
+    // returning. Negative radiance is clamped, while the framebuffer clamps
+    // values above one.
     vec3 result = C0 * shVector(0u);
+    if (shDegree == 0)
+        return max(result + 0.5, vec3(0.0));
+
     result += -C1 * y * shVector(1u) + C1 * z * shVector(2u) - C1 * x * shVector(3u);
+    if (shDegree == 1)
+        return max(result + 0.5, vec3(0.0));
+
     result += C2_0 * x * y * shVector(4u);
     result += C2_1 * y * z * shVector(5u);
     result += C2_2 * (2.0 * zz - xx - yy) * shVector(6u);
     result += C2_3 * x * z * shVector(7u);
     result += C2_4 * (xx - yy) * shVector(8u);
+    if (shDegree == 2)
+        return max(result + 0.5, vec3(0.0));
+
     result += C3_0 * y * (3.0 * xx - yy) * shVector(9u);
     result += C3_1 * x * y * z * shVector(10u);
     result += C3_2 * y * (4.0 * zz - xx - yy) * shVector(11u);
@@ -79,6 +102,7 @@ vec3 evaluateSphericalHarmonics(vec3 direction)
 
 mat3 quaternionRotation(vec4 quaternion)
 {
+    // The three scale axes live in the local frame described by this rotation.
     vec4 q = normalize(quaternion);
     float w = q.x;
     float x = q.y;
@@ -100,9 +124,12 @@ void main()
     // the view direction back into that system before evaluating the basis.
     vec3 worldViewDirection = normalize(worldCenter - cameraPosition);
     vec3 splatViewDirection = transpose(modelRotation) * worldViewDirection;
-    color = vec4(evaluateSphericalHarmonics(splatViewDirection),
-                 1.0 / (1.0 + exp(-splatOpacityLogit)));
+    // Convert the stored logit back to an opacity in [0, 1].
+    float opacity = 1.0 / (1.0 + exp(-splatOpacityLogit));
+    color = vec4(evaluateSphericalHarmonics(splatViewDirection), opacity);
 
+    // The covariance projection becomes unstable at or behind the near plane.
+    // Moving the generated vertices outside clip space discards the instance.
     if (centerInView.z >= -0.1)
     {
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
@@ -119,6 +146,8 @@ void main()
         return;
     }
 
+    // Sigma = R * S^2 * R^T converts the PLY's oriented scale ellipsoid into
+    // a 3D covariance matrix. It is then transformed into camera space.
     mat3 rotation = quaternionRotation(splatRotation);
     vec3 scale = exp(splatLogScale);
     mat3 scaleSquared = mat3(scale.x * scale.x, 0.0, 0.0,
@@ -129,6 +158,8 @@ void main()
     mat3 viewRotation = mat3(view);
     mat3 viewCovariance = viewRotation * covariance * transpose(viewRotation);
 
+    // Perspective division is nonlinear. Its Jacobian locally approximates
+    // that projection so a 3D Gaussian remains a 2D Gaussian on screen.
     float inverseDepth = -1.0 / centerInView.z;
     float inverseDepthSquared = inverseDepth * inverseDepth;
     vec3 jacobianX = vec3(projection[0][0] * inverseDepth, 0.0,
@@ -139,10 +170,19 @@ void main()
     float a = dot(jacobianX, viewCovariance * jacobianX);
     float b = dot(jacobianX, viewCovariance * jacobianY);
     float d = dot(jacobianY, viewCovariance * jacobianY);
-    // Guarantee at least a half-pixel footprint on either screen axis.
-    a += 1.0 / (viewportSize.x * viewportSize.x);
-    d += 1.0 / (viewportSize.y * viewportSize.y);
 
+    // Low-pass filtering stabilizes sub-pixel splats. Compensating by the
+    // determinant ratio preserves their integrated opacity (Mip-Splatting).
+    float originalDeterminant = max(a * d - b * b, 0.0);
+    vec2 ndcPixel = 2.0 / viewportSize;
+    vec2 filterVariance = 0.3 * ndcPixel * ndcPixel;
+    a += filterVariance.x;
+    d += filterVariance.y;
+    float filteredDeterminant = max(a * d - b * b, 1e-16);
+    color.a *= sqrt(originalDeterminant / filteredDeterminant);
+
+    // Diagonalize the symmetric 2x2 covariance. The eigenvectors give the
+    // ellipse axes and sqrt(eigenvalue) gives one standard deviation.
     float midpoint = 0.5 * (a + d);
     float radius = sqrt(max(0.0, 0.25 * (a - d) * (a - d) + b * b));
     float lambda1 = max(midpoint + radius, 1e-8);
@@ -151,11 +191,16 @@ void main()
         ? normalize(vec2(b, lambda1 - a))
         : (a >= d ? vec2(1.0, 0.0) : vec2(0.0, 1.0));
     vec2 axis2 = vec2(-axis1.y, axis1.x);
+    // The quad extends to three standard deviations along each ellipse axis.
     vec2 ndcOffset = 3.0 * (quadPosition.x * sqrt(lambda1) * axis1 +
                             quadPosition.y * sqrt(lambda2) * axis2);
 
+    // ndcOffset is in normalized-device coordinates. Multiplying by clip W
+    // lets us add it before OpenGL performs the perspective divide.
     gl_Position = projection * centerInView;
     gl_Position.xy += ndcOffset * gl_Position.w;
 
+    // The fragment shader evaluates the Gaussian in this standardized frame,
+    // where the projected covariance has become the identity matrix.
     gaussianPosition = quadPosition * 3.0;
 }

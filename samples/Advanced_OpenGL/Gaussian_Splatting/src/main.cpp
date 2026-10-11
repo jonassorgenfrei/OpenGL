@@ -69,6 +69,7 @@ float lastFrame = 0.0f;
 bool firstMouse = true;
 bool pointMode = false;
 bool pointKeyPressed = false;
+int shDegree = 3;
 
 void framebufferSizeCallback(GLFWwindow*, int width, int height)
 {
@@ -167,6 +168,15 @@ void processInput(GLFWwindow* window)
     }
     if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE)
         pointKeyPressed = false;
+
+    for (int degree = 0; degree <= 3; ++degree)
+    {
+        if (glfwGetKey(window, GLFW_KEY_0 + degree) == GLFW_PRESS && shDegree != degree)
+        {
+            shDegree = degree;
+            std::cout << "Spherical harmonics degree: " << shDegree << '\n';
+        }
+    }
 }
 
 float readLittleEndianFloat(std::istream& file)
@@ -408,6 +418,8 @@ int main()
     shader.use();
     shader.setInt("shData", 0);
 
+    glm::mat4 lastSortedView(0.0f);
+
     // All geometry is transparent and sorted back-to-front. A depth test would
     // incorrectly hide overlapping splats, so blending alone determines their
     // visibility in this minimal scene.
@@ -423,16 +435,21 @@ int main()
         lastFrame = currentFrame;
         processInput(window);
 
-        // Conventional alpha blending requires far-to-near ordering.
-        std::sort(splats.begin(), splats.end(), [](const Splat& a, const Splat& b) {
-            const glm::vec3 aCenter = glm::vec3(SPLAT_TO_OPENGL * glm::vec4(a.center, 1.0f));
-            const glm::vec3 bCenter = glm::vec3(SPLAT_TO_OPENGL * glm::vec4(b.center, 1.0f));
-            const glm::vec3 aToCamera = aCenter - camera.Position;
-            const glm::vec3 bToCamera = bCenter - camera.Position;
-            return glm::dot(aToCamera, aToCamera) > glm::dot(bToCamera, bToCamera);
-        });
-        glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, splats.size() * sizeof(Splat), splats.data());
+        const glm::mat4 view = camera.GetViewMatrix();
+        if (view != lastSortedView)
+        {
+            // Alpha blending requires far-to-near camera-plane depth, not
+            // Euclidean distance from the camera.
+            const glm::mat4 viewModel = view * SPLAT_TO_OPENGL;
+            std::sort(splats.begin(), splats.end(), [&viewModel](const Splat& a, const Splat& b) {
+                const float aDepth = (viewModel * glm::vec4(a.center, 1.0f)).z;
+                const float bDepth = (viewModel * glm::vec4(b.center, 1.0f)).z;
+                return aDepth < bDepth;
+            });
+            glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, splats.size() * sizeof(Splat), splats.data());
+            lastSortedView = view;
+        }
 
         int width = 1;
         int height = 1;
@@ -443,10 +460,11 @@ int main()
         const glm::mat4 projection = glm::perspective(
             glm::radians(camera.Zoom), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
         shader.use();
-        shader.setMat4("view", camera.GetViewMatrix());
+        shader.setMat4("view", view);
         shader.setMat4("projection", projection);
         shader.setMat4("model", SPLAT_TO_OPENGL);
         shader.setBool("pointMode", pointMode);
+        shader.setInt("shDegree", shDegree);
         shader.setVec3("cameraPosition", camera.Position);
         shader.setVec2("viewportSize", static_cast<float>(width), static_cast<float>(height));
 

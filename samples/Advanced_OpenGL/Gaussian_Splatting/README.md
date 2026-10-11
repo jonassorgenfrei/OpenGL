@@ -8,14 +8,16 @@ view direction; the fragment shader evaluates the Gaussian falloff.
 
 This sample illustrates the rendering and compositing stages rather than the
 training pipeline. CPU sorting is intentionally retained to keep the code
-readable; production renderers generally use a GPU sort.
+readable; it uses camera-plane depth and only runs when the view changes.
+Production renderers generally use a GPU sort.
 
 Camera controls match the `Diffuse_irradiance` sample: `Alt` + left mouse
 rotates, `Alt` + middle mouse pans, `Alt` + right mouse dollies, and the mouse
 wheel changes the field of view. `P` switches between Gaussian splats and the
-raw PLY points, `F2` enters fullscreen, and `Esc` or the normal window close
-button quits. The cursor is not captured and remains available outside the
-window.
+raw PLY points. Number keys `0` through `3` select the spherical-harmonic
+degree, making the view-dependent terms easy to compare. `F2` enters
+fullscreen, and `Esc` or the normal window close button quits. The cursor is
+not captured and remains available outside the window.
 
 Point mode deliberately draws one small circle for every PLY vertex without
 the Gaussian footprint or alpha reconstruction. It makes the relationship
