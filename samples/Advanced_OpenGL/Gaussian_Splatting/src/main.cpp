@@ -292,29 +292,6 @@ SplatScene loadSplats(const std::string& path)
     return scene;
 }
 
-void configureInstanceAttributes(unsigned int instanceVbo)
-{
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
-
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Splat),
-                          reinterpret_cast<void*>(offsetof(Splat, center)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Splat),
-                          reinterpret_cast<void*>(offsetof(Splat, logScale)));
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Splat),
-                          reinterpret_cast<void*>(offsetof(Splat, rotation)));
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(Splat),
-                          reinterpret_cast<void*>(offsetof(Splat, opacityLogit)));
-    glEnableVertexAttribArray(5);
-    glVertexAttribIPointer(5, 1, GL_UNSIGNED_INT, sizeof(Splat),
-                           reinterpret_cast<void*>(offsetof(Splat, shIndex)));
-
-    for (unsigned int attribute = 1; attribute <= 5; ++attribute)
-        glVertexAttribDivisor(attribute, 1);
-}
 } // namespace
 
 int main()
@@ -397,7 +374,26 @@ int main()
 
     glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
     glBufferData(GL_ARRAY_BUFFER, splats.size() * sizeof(Splat), nullptr, GL_STREAM_DRAW);
-    configureInstanceAttributes(instanceVbo);
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Splat),
+                          reinterpret_cast<void*>(offsetof(Splat, center)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Splat),
+                          reinterpret_cast<void*>(offsetof(Splat, logScale)));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Splat),
+                          reinterpret_cast<void*>(offsetof(Splat, rotation)));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(Splat),
+                          reinterpret_cast<void*>(offsetof(Splat, opacityLogit)));
+    glEnableVertexAttribArray(5);
+    glVertexAttribIPointer(5, 1, GL_UNSIGNED_INT, sizeof(Splat),
+                           reinterpret_cast<void*>(offsetof(Splat, shIndex)));
+
+    for (unsigned int attribute = 1; attribute <= 5; ++attribute)
+        glVertexAttribDivisor(attribute, 1);
+
     glBindVertexArray(0);
 
     // Buffer textures make all 48 coefficients available without consuming
