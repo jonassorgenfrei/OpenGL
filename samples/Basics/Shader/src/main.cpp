@@ -20,7 +20,6 @@ const unsigned int SCR_HEIGHT = 600;
 int main()
 {
 	std::cout << "Basics - Shader" << std::endl;
-	std::cout << "ESC - Exit" << std::endl;
 
 	// glfw: initialize and configure
 	// ------------------------------

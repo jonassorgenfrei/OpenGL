@@ -58,8 +58,6 @@ float lastFrame = 0.0f; // time of last frame
 int main()
 {
 	std::cout << "Advanced Lighting" << std::endl;
-	std::cout << "B - Toggle BlinnPhong" << std::endl;
-	std::cout << "O - Togle Oren Nayar" << std::endl;
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();

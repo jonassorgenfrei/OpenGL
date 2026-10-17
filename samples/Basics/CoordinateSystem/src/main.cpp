@@ -30,7 +30,6 @@ float mixValue = 0.0f;
 int main()
 {
 	std::cout << "Basics - Coordinate System" << std::endl;
-	std::cout << "ESC - Exit" << std::endl;
 
 	// glfw: initialize and configure
 	// ------------------------------

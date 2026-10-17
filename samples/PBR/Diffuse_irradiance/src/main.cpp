@@ -65,7 +65,6 @@ float spacing = 2.5;
 int main()
 {
 	std::cout << "PBR - Diffuse Irradiance" << std::endl;
-	std::cout << "i - Toggle Irradiance Map" << std::endl;
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();

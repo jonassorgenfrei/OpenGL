@@ -37,7 +37,6 @@ float lastFrame = 0.0f; // time of last frame
 int main()
 {
 	std::cout << "Basics - Camera" << std::endl;
-	std::cout << "ESC - Exit" << std::endl;
 	// glfw: initialize and configure
 	// ------------------------------
 	glfwInit();
