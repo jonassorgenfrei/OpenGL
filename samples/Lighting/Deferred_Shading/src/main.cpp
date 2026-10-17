@@ -333,7 +333,7 @@ int main()
 				// then calculate radius of light volume/sphere
 				float lightMax = std::fmaxf(std::fmaxf(lightColors[i].r, lightColors[i].g), lightColors[i].b);
 				float radius =
-					(-linear + std::sqrtf(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * lightMax)))
+					(-linear + std::sqrt(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * lightMax)))
 					/ (2 * quadratic); // return value roughly between 1.0 and 5.0 (based on light's max intensity)
 				lightingPassShader.setFloat("lights[" + std::to_string(i) + "].Radius", radius);
 	}
@@ -399,7 +399,7 @@ int main()
 				const float quadratic = 1.8;
 				float lightMax = std::fmaxf(std::fmaxf(lightColors[i].r, lightColors[i].g), lightColors[i].b);
 				float radius =
-					(-linear + std::sqrtf(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * lightMax)))
+					(-linear + std::sqrt(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * lightMax)))
 					/ (2 * quadratic); // return value roughly between 1.0 and 5.0 (based on light's max intensity)
 				model = glm::scale(model, glm::vec3(radius));
 
@@ -947,8 +947,8 @@ unsigned int loadTexture(char const *path, bool gammaCorrection)
 	unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
 	if (data)
 	{
-		GLenum internalFormat = NULL;
-		GLenum dataFormat = NULL;
+		GLenum internalFormat = 0;
+		GLenum dataFormat = 0;
 		if (nrComponents == 1) {
 			internalFormat = dataFormat = GL_RED;
 		}
