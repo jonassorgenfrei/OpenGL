@@ -1,4 +1,5 @@
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 #include "stb_image.h"
 
@@ -295,7 +296,7 @@ int main()
 		ourShader2.use();
 		// update the uniform color
 		float timeValue = glfwGetTime();
-		float greenValue = sin(timeValue) / 2.0f + 0.5f;
+		float greenValue = std::sin(timeValue) / 2.0f + 0.5f;
 		ourShader2.setFloat4("ourColor2", 0.0f, greenValue, 0.0f, 1.0f);
 		//SECOND TRIANGLE
 		glBindVertexArray(VAOs[1]);

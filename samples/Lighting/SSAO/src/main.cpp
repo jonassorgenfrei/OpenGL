@@ -21,6 +21,7 @@
 
 #include <iostream>
 #include <random>
+#include <stdexcept>
 
 /* USING LEARNOPENGL CODE 1 OR OGLDEV 0*/
 #define LEARNOPENGL 1
@@ -158,7 +159,7 @@ int main()
 	Shader shaderSSAOBlur(FileSystem::getSamplePath("shader/ssao.vert").c_str(), FileSystem::getSamplePath("shader/ssao_blur.frag").c_str());
 #else
 	#if OGLDEPTHBUFFEROPT
-		throw std::exception("Not Implemented");
+		throw std::runtime_error("Not Implemented");
 	#else 
 		Shader shaderGeometryPass(FileSystem::getSamplePath("shader/oglGPass.vert").c_str(), FileSystem::getSamplePath("shader/oglGPass.frag").c_str());
 		Shader shaderLightingPass(FileSystem::getSamplePath("shader/oglLighting.vert").c_str(), FileSystem::getSamplePath("shader/oglLighting.frag").c_str());
@@ -483,7 +484,7 @@ int main()
 		}
 #else 
 	#if OGLDEPTHBUFFEROPT
-		throw std::exception("Not Implemented");
+		throw std::runtime_error("Not Implemented");
 	#else 
 		
 			// Geometry Pass

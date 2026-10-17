@@ -4,6 +4,7 @@
 */
 
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -328,7 +329,7 @@ int main()
 		glDisable(GL_DEPTH_TEST); // disable depth testing, that the scaled up containers
 		// (borders) do not get overwritten by the floor
 		shaderSingleColor.use();
-		shaderSingleColor.setVec3("color", glm::vec3(fabs(sin(glfwGetTime())), 0.0f, 0.0f));
+		shaderSingleColor.setVec3("color", glm::vec3(std::fabs(std::sin(glfwGetTime())), 0.0f, 0.0f));
 		float scale = 1.1;
 		// cubes
 		glBindVertexArray(cubeVAO);

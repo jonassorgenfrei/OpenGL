@@ -8,6 +8,7 @@
 			// Has to be inserted correctly in the Compute Shader
 
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>

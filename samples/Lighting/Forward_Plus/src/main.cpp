@@ -3,6 +3,7 @@
  */
 
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #define GLM_FORCE_SILENT_WARNINGS 1
@@ -47,7 +48,7 @@ const unsigned int TILE_SIZE = 16;
 
 const unsigned int NR_LIGHTS = 100;
 
-GLuint visibleLightsBuffer = NULL;
+GLuint visibleLightsBuffer = 0;
 
 int framebufferWidth = SCR_WIDTH;
 int framebufferHeight = SCR_HEIGHT;
@@ -534,7 +535,7 @@ void repareTilesMemory(int width, int height) {
 	int numTiles = numTilesX * numTilesY;
 
 	// free buffer
-	if (visibleLightsBuffer != NULL) {
+	if (visibleLightsBuffer != 0) {
 		glDeleteBuffers(1, &visibleLightsBuffer);
 	}
 	// create new buffer 

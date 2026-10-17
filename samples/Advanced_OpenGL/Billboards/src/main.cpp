@@ -4,6 +4,7 @@
 
 
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -499,8 +500,8 @@ float heightFunc(glm::vec2 pos) {
 	float result = 0;
 	float frequenz = 0.25;
 	for (int i = 0; i < 32; i++) {
-		result += sin(pos.x * frequenz * frequenzies[i * 2] + offset[i * 2]) * (1 / frequenz) * amplitudes[i * 2] +
-			sin(pos.y * frequenz * frequenzies[i * 2] + offset[i * 2 + 1]) * (1 / frequenz) * amplitudes[i * 2 + 1];
+		result += std::sin(pos.x * frequenz * frequenzies[i * 2] + offset[i * 2]) * (1 / frequenz) * amplitudes[i * 2] +
+			std::sin(pos.y * frequenz * frequenzies[i * 2] + offset[i * 2 + 1]) * (1 / frequenz) * amplitudes[i * 2 + 1];
 		frequenz *= 2;
 	}
 	return result * 0.25 - 1.;

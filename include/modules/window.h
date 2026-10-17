@@ -4,6 +4,7 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <cstring>
 
 #include "help_overlay.h"
 
@@ -48,11 +49,11 @@ void icon(GLFWwindow* window) {
 		for (x = 0; x < img.height; x++)
 		{
 			if (logo[y][x] == '0')
-				memcpy(target, icon_colors[0], 4);
+				std::memcpy(target, icon_colors[0], 4);
 			else if (logo[y][x] == '1')
-				memcpy(target, icon_colors[1], 4);
+				std::memcpy(target, icon_colors[1], 4);
 			else
-				memset(target, 0, 4);
+				std::memset(target, 0, 4);
 			target += 4;
 		}
 	}
