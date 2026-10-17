@@ -93,6 +93,16 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"F", "Toggle FPS logging"},
+		{"W", "Toggle wireframe"}
+	});
 
 	// tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
 	stbi_set_flip_vertically_on_load(true);

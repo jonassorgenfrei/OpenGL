@@ -65,6 +65,10 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"}
+	});
 
 	// configure global OpenGL state
 	// -----------------------------

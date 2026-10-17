@@ -184,6 +184,17 @@ int main()
 
 	// Window Logo 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"F1", "Toggle wireframe"},
+		{"F3", "Show / hide render buffers"},
+		{"A", "Pause / resume simulation"}
+	});
 
 	// Shader Programs
 	// build and compile our shader program & save Uniform Shader Locations

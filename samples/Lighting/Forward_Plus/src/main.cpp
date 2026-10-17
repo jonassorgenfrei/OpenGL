@@ -150,6 +150,18 @@ int main()
 	std::cout << "OpenGL-Version: " << glGetString(GL_VERSION) << std::endl;
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"W", "Toggle wireframe"},
+		{"M", "Toggle heat map"},
+		{"T", "Show / hide tiles"},
+		{"L", "Show / hide lights"}
+	});
 
 	// configure global OpenGL state
 	// -----------------------------

@@ -54,6 +54,9 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"}
+	});
 
 #if START_FULLSCREEN
 	// FULLSCREEN

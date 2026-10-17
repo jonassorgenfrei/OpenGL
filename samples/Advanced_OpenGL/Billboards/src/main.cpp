@@ -116,6 +116,19 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"W", "Toggle wireframe"},
+		{"F", "Toggle FPS logging"},
+		{"U", "Show / hide texture coordinates"},
+		{"A", "Toggle animation"},
+		{"Up / Down", "Adjust alpha threshold"}
+	});
 
 
 	// configure global OpenGL state

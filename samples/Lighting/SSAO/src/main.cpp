@@ -131,6 +131,18 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"A", "Cycle SSAO shader"},
+		{"B", "Toggle blur"},
+		{"D", "Toggle debug view"},
+		{"N", "Toggle Hammersley sampling"},
+		{"Q / E", "Adjust sample radius"}
+	});
 
 	// configure global OpenGL state
 	// -----------------------------

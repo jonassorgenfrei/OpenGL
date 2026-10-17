@@ -85,6 +85,10 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"W A S D", "Move camera"}
+	});
 
 	// configure global OpenGL state
 	// -----------------------------

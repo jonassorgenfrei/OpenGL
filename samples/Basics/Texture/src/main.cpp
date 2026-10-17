@@ -54,6 +54,10 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"Up / Down", "Adjust texture mix"}
+	});
 
 #if START_FULLSCREEN
 	// FULLSCREEN

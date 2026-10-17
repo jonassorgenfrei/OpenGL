@@ -170,6 +170,16 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"W", "Toggle wireframe"},
+		{"Q / E", "Adjust scale"}
+	});
 	
 	if (GLAD_GL_NV_mesh_shader) {
 		std::cout << "GL_NV_mesh_shader is supported!\n";

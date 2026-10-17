@@ -24,6 +24,7 @@
  * Shared keyboard-help UI for all samples.
  *
  * The overlay is header-only because every sample is a separate executable.
+ * Samples pass their shortcut lists explicitly after creating the GL context.
  * It initializes after a sample creates its OpenGL context, renders immediately
  * before buffer presentation, and restores the sample's OpenGL state afterward.
  */
@@ -36,186 +37,6 @@ struct Shortcut
 	std::string action;
 };
 
-/** Returns whether a CMake-provided sample path belongs to a named group. */
-inline bool isOneOf(const std::string& name, std::initializer_list<const char*> names)
-{
-	for (const char* candidate : names)
-		if (name == candidate)
-			return true;
-	return false;
-}
-
-/**
- * Builds the shortcut list for a sample.
- *
- * Common bindings are added first, followed by camera-family controls and the
- * sample-specific controls. Keeping this catalog here gives every executable a
- * consistent vocabulary and one place to update a binding description.
- */
-inline std::vector<Shortcut> shortcutsFor(const std::string& name)
-{
-	std::vector<Shortcut> result = {
-		{"H", "Show / hide help"},
-		{"Esc", "Exit sample"}
-	};
-
-	if (!isOneOf(name, {
-		"Basics/CoordinateSystem", "Basics/Shader", "Basics/Texture",
-		"Basics/Transformation", "Advanced_OpenGL/Instancing_Space", "Lighting/SSAO"}))
-	{
-		result.push_back({"F2", "Switch to fullscreen"});
-	}
-
-	if (isOneOf(name, {
-		"Basics/Camera", "Lighting/Colors", "Lighting/Gooch_Model",
-		"Advanced_OpenGL/Instancing_Space"}))
-	{
-		result.push_back({"W A S D", "Move camera"});
-	}
-
-	if (isOneOf(name, {
-		"Advanced_OpenGL/AdvancedDataGLSL", "Advanced_OpenGL/AdvancedOGL",
-		"Advanced_OpenGL/Anti_Aliasing_Off_Screen", "Advanced_OpenGL/Anti_Aliasing_On_Screen",
-		"Advanced_OpenGL/Billboards", "Advanced_OpenGL/Compute_Shader",
-		"Advanced_OpenGL/Compute_Shader_Particles", "Advanced_OpenGL/Geometry_Shader",
-		"Advanced_OpenGL/Geometry_Shader_Exploding", "Advanced_OpenGL/Instancing",
-		"Advanced_OpenGL/Mesh_Shader", "Advanced_OpenGL/no_Instancing_Space",
-		"Advanced_OpenGL/Order_Independent_Transparency_Depth_Peeling",
-		"Advanced_OpenGL/Order_Independent_Transparency_Weighted_Blended",
-		"Advanced_OpenGL/Stencil_Silhouette", "Advanced_OpenGL/Tessellation",
-		"Advanced_OpenGL/Tessellation_Terrain", "Advanced_OpenGL/Transform_Feedback",
-		"Advanced_OpenGL/Transform_Feedback_Particles", "Lighting/Advanced_Lighting",
-		"Lighting/Bloom", "Lighting/Deferred_Shading", "Lighting/Forward_Plus",
-		"Lighting/Gamma_Correction", "Lighting/HDR", "Lighting/Lights",
-		"Lighting/Normal_Mapping", "Lighting/Parallax_Mapping", "Lighting/Physically_Based_Bloom",
-		"Lighting/SSAO", "Model/Advanced_Model", "Model/Basic", "Model/Skeletal_Animation",
-		"PBR/Diffuse_irradiance", "PBR/Lighting", "PBR/Specular_IBL",
-		"Shadows/Cascaded_Shadow_Mapping", "Shadows/Point_Shadows",
-		"Shadows/Shadow_Mapping", "Shadows/Shadow_Volumes"}))
-	{
-		result.push_back({"Alt + LMB", "Orbit camera"});
-		result.push_back({"Alt + MMB", "Pan camera"});
-		result.push_back({"Alt + RMB", "Dolly camera"});
-		result.push_back({"Mouse wheel", "Zoom camera"});
-	}
-
-	if (isOneOf(name, {"Basics/CoordinateSystem", "Basics/Texture", "Basics/Transformation"}))
-		result.push_back({"Up / Down", "Adjust texture mix"});
-	else if (name == "Advanced_OpenGL/AdvancedOGL")
-	{
-		result.push_back({"L", "Show / hide lights"});
-		result.push_back({"W", "Toggle wireframe"});
-	}
-	else if (name == "Advanced_OpenGL/Billboards")
-	{
-		result.push_back({"W", "Toggle wireframe"});
-		result.push_back({"F", "Toggle FPS logging"});
-		result.push_back({"U", "Show / hide texture coordinates"});
-		result.push_back({"A", "Toggle animation"});
-		result.push_back({"Up / Down", "Adjust alpha threshold"});
-	}
-	else if (name == "Advanced_OpenGL/Compute_Shader")
-	{
-		result.push_back({"F1", "Toggle wireframe"});
-		result.push_back({"F3", "Show / hide render buffers"});
-		result.push_back({"A", "Pause / resume simulation"});
-	}
-	else if (name == "Advanced_OpenGL/Geometry_Shader_Exploding")
-		result.push_back({"E", "Toggle explosion"});
-	else if (name == "Advanced_OpenGL/Order_Independent_Transparency_Depth_Peeling")
-	{
-		result.push_back({"F", "Toggle FPS logging"});
-		result.push_back({"Up / Down", "Adjust peel passes"});
-	}
-	else if (isOneOf(name, {"Advanced_OpenGL/Order_Independent_Transparency_Weighted_Blended",
-		"Advanced_OpenGL/Tessellation_Terrain", "Model/Skeletal_Animation"}))
-	{
-		result.push_back({"F", "Toggle FPS logging"});
-		if (name != "Advanced_OpenGL/Order_Independent_Transparency_Weighted_Blended")
-			result.push_back({"W", "Toggle wireframe"});
-	}
-	else if (isOneOf(name, {"Advanced_OpenGL/Mesh_Shader", "Advanced_OpenGL/Tessellation",
-		"Advanced_OpenGL/Transform_Feedback_Particles", "Lighting/Parallax_Mapping"}))
-	{
-		result.push_back({"W", "Toggle wireframe"});
-		result.push_back({"Q / E", name == "Lighting/Parallax_Mapping" ? "Adjust height scale" : "Adjust scale"});
-	}
-	else if (name == "Lighting/Advanced_Lighting")
-	{
-		result.push_back({"B", "Toggle Blinn-Phong"});
-		result.push_back({"O", "Toggle Oren-Nayar"});
-	}
-	else if (isOneOf(name, {"Lighting/Bloom", "Lighting/Physically_Based_Bloom"}))
-	{
-		result.push_back({"Space", "Toggle bloom"});
-		result.push_back({"Q / E", "Adjust exposure"});
-	}
-	else if (name == "Lighting/Deferred_Shading")
-		result.push_back({"D", "Toggle debug view"});
-	else if (isOneOf(name, {"Lighting/Gamma_Correction", "Lighting/Normal_Mapping"}))
-	{
-		result.push_back({"B", "Toggle Blinn-Phong"});
-		result.push_back({"Space", "Toggle gamma correction"});
-	}
-	else if (name == "Lighting/HDR")
-	{
-		result.push_back({"Space", "Toggle HDR"});
-		result.push_back({"Q / E", "Adjust exposure"});
-	}
-	else if (isOneOf(name, {"Lighting/Lights", "Model/Advanced_Model", "Model/Basic"}))
-		result.push_back({"L", "Show / hide lights"});
-	else if (name == "Lighting/SSAO")
-	{
-		result.push_back({"A", "Cycle SSAO shader"});
-		result.push_back({"B", "Toggle blur"});
-		result.push_back({"D", "Toggle debug view"});
-		result.push_back({"N", "Toggle Hammersley sampling"});
-		result.push_back({"Q / E", "Adjust sample radius"});
-	}
-	else if (name == "PBR/Diffuse_irradiance")
-	{
-		result.push_back({"I", "Toggle irradiance map"});
-		result.push_back({"1 / 2 / 3", "Select environment"});
-	}
-	else if (name == "Shadows/Cascaded_Shadow_Mapping")
-	{
-		result.push_back({"F", "Show / hide depth map"});
-		result.push_back({"N", "Select cascade layer"});
-		result.push_back({"C", "Freeze / refresh light matrices"});
-	}
-	else if (name == "Shadows/Point_Shadows")
-	{
-		result.push_back({"Space", "Toggle shadows"});
-		result.push_back({"L", "Show / hide light"});
-		result.push_back({"T", "Cycle shadow technique"});
-	}
-	else if (name == "Shadows/Shadow_Mapping")
-	{
-		result.push_back({"D", "Show / hide shadow map"});
-		result.push_back({"P", "Toggle peter-panning fix"});
-		result.push_back({"W", "Toggle wireframe"});
-		result.push_back({"T", "Cycle shadow technique"});
-	}
-	else if (name == "Shadows/Shadow_Volumes")
-	{
-		result.push_back({"Space", "Toggle shadows"});
-		result.push_back({"L", "Show / hide light"});
-		result.push_back({"V", "Show / hide shadow volumes"});
-		result.push_back({"W", "Toggle wireframe"});
-	}
-	else if (name == "Advanced_OpenGL/Stencil_Silhouette")
-		result.push_back({"W", "Toggle wireframe"});
-	else if (name == "Lighting/Forward_Plus")
-	{
-		result.push_back({"W", "Toggle wireframe"});
-		result.push_back({"M", "Toggle heat map"});
-		result.push_back({"T", "Show / hide tiles"});
-		result.push_back({"L", "Show / hide lights"});
-	}
-
-	return result;
-}
-
 /**
  * Owns the small shader, dynamic quad, and ASCII glyph atlas used by the UI.
  * Resources intentionally live for the process lifetime and disappear with the
@@ -225,7 +46,7 @@ class HelpOverlay
 {
 public:
 	/** Initializes resources once, after the caller has made its context current. */
-	void initialize(GLFWwindow* window, std::string sampleName)
+	void initialize(GLFWwindow* window, std::string sampleName, std::vector<Shortcut> shortcuts)
 	{
 		if (initialized_ || failed_)
 			return;
@@ -236,7 +57,8 @@ public:
 		state.capture();
 		window_ = window;
 		sampleName_ = std::move(sampleName);
-		shortcuts_ = shortcutsFor(sampleName_);
+		shortcuts_ = {{"H", "Show / hide help"}};
+		shortcuts_.insert(shortcuts_.end(), shortcuts.begin(), shortcuts.end());
 		program_ = createProgram();
 		if (!program_)
 		{
@@ -597,9 +419,10 @@ inline HelpOverlay& overlay()
 	return instance;
 }
 
-inline void initialize(GLFWwindow* window)
+/** Initializes help after GLAD, using bindings declared by the sample. */
+inline void initialize(GLFWwindow* window, std::vector<Shortcut> shortcuts)
 {
-	overlay().initialize(window, OPENGL_SAMPLE_NAME);
+	overlay().initialize(window, OPENGL_SAMPLE_NAME, std::move(shortcuts));
 }
 
 /** Injects overlay rendering at the final point before GLFW presents a frame. */

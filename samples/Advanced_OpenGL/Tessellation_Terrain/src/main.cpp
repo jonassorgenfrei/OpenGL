@@ -115,6 +115,16 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"F", "Toggle FPS logging"},
+		{"W", "Toggle wireframe"}
+	});
 #if USE_TESSELLATION
 	GLint maxTessLevel;
 	glGetIntegerv(GL_MAX_TESS_GEN_LEVEL, &maxTessLevel);
