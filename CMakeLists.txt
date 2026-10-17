@@ -1,8 +1,8 @@
-cmake_minimum_required (VERSION 3.15)
-cmake_policy(VERSION 3.15)
+cmake_minimum_required (VERSION 3.24)
+cmake_policy(VERSION 3.24)
 
 # project name
-project(OpenGLSamples)
+project(OpenGLSamples LANGUAGES C CXX)
 # version number
 set (${PROJECT_NAME}_VERSION_MAJOR 1)
 set (${PROJECT_NAME}_VERSION_MINOR 0)
@@ -86,7 +86,7 @@ set(Shadows
 )
 
 
-set(CMAKE_CXX_STANDARD 17) # this does nothing for MSVC, use target_compile_options below
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 # optimization
@@ -105,126 +105,17 @@ if(WIN32)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 endif(WIN32)
 
-link_directories(${CMAKE_SOURCE_DIR}/lib)
+include(cmake/Dependencies.cmake)
 
-# find the required packages
-# GLM
-find_package(GLM REQUIRED)
-message(STATUS "GLM included at ${GLM_INCLUDE_DIR}")
-
-# GLFW3
-find_package(GLFW3 REQUIRED)
-FIND_PATH(GLFW3_INCLUDE_DIRS "GLFW/glfw3.h" PATHS ${GLFW3_DIR}/../../../include )
-FIND_LIBRARY(GLFW3_LIBRARY_DIRS NAMES glfw3 glfw PATHS ${GLFW3_DIR}/../../ )
-message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIRS}")
-
-# ASSIMP
-find_package(ASSIMP REQUIRED 5.3)
-message(STATUS "Found ASSIMP in ${ASSIMP_ROOT_DIR}")
-if(WIN32)
-    # get dll
-    get_property(ASSIMP_DLL TARGET assimp::assimp PROPERTY IMPORTED_LOCATION_RELEASE)
-    message(STATUS "       dll-path ${ASSIMP_DLL}")
-ENDIF()
-
-# GLAD
-set(glad_DIR "$ENV{glad_DIR}" CACHE PATH
-    "Path to a GLAD 1.x source tree containing include/glad/glad.h and src/glad.c")
-
-if(NOT glad_DIR)
-    message(FATAL_ERROR
-        "GLAD directory not set. Configure with -Dglad_DIR=<path-to-glad> "
-        "or set the glad_DIR environment variable.")
+if(MSVC)
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
-
-get_filename_component(GLAD_SRC_DIR "${glad_DIR}" ABSOLUTE
-                       BASE_DIR "${CMAKE_SOURCE_DIR}")
-
-if(NOT EXISTS "${GLAD_SRC_DIR}/include/glad/glad.h" OR
-   NOT EXISTS "${GLAD_SRC_DIR}/src/glad.c")
-    message(FATAL_ERROR
-        "Invalid glad_DIR: '${GLAD_SRC_DIR}'. Expected a GLAD 1.x source tree "
-        "containing include/glad/glad.h and src/glad.c.")
-endif()
-
-set(GLAD_INCLUDE_DIRS "${GLAD_SRC_DIR}/include")
-message(STATUS "Found GLAD in ${GLAD_SRC_DIR}")
-
-# STB
-set(stb_DIR "$ENV{stb_DIR}" CACHE PATH
-    "Path to the stb headers, including stb_image.h")
-
-if(NOT stb_DIR)
-    message(FATAL_ERROR
-        "stb directory not set. Configure with -Dstb_DIR=<path-to-stb> "
-        "or set the stb_DIR environment variable.")
-endif()
-
-get_filename_component(STB_INCLUDE_DIRS "${stb_DIR}" ABSOLUTE
-                       BASE_DIR "${CMAKE_SOURCE_DIR}")
-
-if(NOT EXISTS "${STB_INCLUDE_DIRS}/stb_image.h")
-    message(FATAL_ERROR
-        "Invalid stb_DIR: '${STB_INCLUDE_DIRS}'. Expected stb_image.h in "
-        "that directory.")
-endif()
-
-message(STATUS "Found STB in ${STB_INCLUDE_DIRS}")
-
-# Freetype
-find_package(Freetype REQUIRED)
-message(STATUS "Found Freetype in ${FREETYPE_INCLUDE_DIRS}")
-
-# find_package(SOIL REQUIRED)
-# message(STATUS "Found SOIL in ${SOIL_INCLUDE_DIR}")
-# find_package(GLEW REQUIRED)
-# message(STATUS "Found GLEW in ${GLEW_INCLUDE_DIR}")
-
-if(WIN32)
-  set(LIBS ${GLFW3_LIBRARY_DIRS} opengl32 ${ASSIMP_LIBRARIES} ${FREETYPE_LIBRARIES})
-  # set(LIBS glfw3 opengl32 assimp freetype irrKlang)
-  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-elseif(UNIX AND NOT APPLE)
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
-  find_package(OpenGL REQUIRED)
-  add_definitions(${OPENGL_DEFINITIONS})
-  find_package(X11 REQUIRED)
-  # note that the order is important for setting the libs
-  # use pkg-config --libs $(pkg-config --print-requires --print-requires-private glfw3) in a terminal to confirm
-  set(LIBS ${GLFW3_LIBRARY} X11 Xrandr Xinerama Xi Xxf86vm Xcursor GL dl pthread freetype ${ASSIMP_LIBRARY})
-  set (CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -ldl")
-elseif(APPLE)
-  INCLUDE_DIRECTORIES(/System/Library/Frameworks)
-  FIND_LIBRARY(COCOA_LIBRARY Cocoa)
-  FIND_LIBRARY(OpenGL_LIBRARY OpenGL)
-  FIND_LIBRARY(IOKit_LIBRARY IOKit)
-  FIND_LIBRARY(CoreVideo_LIBRARY CoreVideo)
-  MARK_AS_ADVANCED(COCOA_LIBRARY OpenGL_LIBRARY)
-  SET(APPLE_LIBS ${COCOA_LIBRARY} ${IOKit_LIBRARY} ${OpenGL_LIBRARY} ${CoreVideo_LIBRARY})
-  SET(APPLE_LIBS ${APPLE_LIBS} ${GLFW3_LIBRARY} ${ASSIMP_LIBRARY} ${FREETYPE_LIBRARIES})
-  set(LIBS ${LIBS} ${APPLE_LIBS})
-else()
-  set(LIBS )
-endif(WIN32)
-
-
 
 # configure file paths
 configure_file(configuration/root_directory.h.in configuration/root_directory.h)
 configure_file(configuration/sample_directories.h.in configuration/sample_directories.h)
 
 include_directories(${CMAKE_BINARY_DIR}/configuration)
-
-# first create relevant static libraries requried for other projects
-add_library(STB_IMAGE "samples/stb_image.cpp")
-set_property(TARGET STB_IMAGE PROPERTY FOLDER "Static Libraries")
-set(LIBS ${LIBS} STB_IMAGE)
-
-add_library(GLAD "${GLAD_SRC_DIR}/src/glad.c")
-set_property(TARGET GLAD PROPERTY FOLDER "Static Libraries")
-set(LIBS ${LIBS} GLAD)
-
-
 
 macro(makeLink src dest target)
   add_custom_command(TARGET ${target} POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink ${src} ${dest}  DEPENDS  ${dest} COMMENT "mklink ${src} -> ${dest}")
@@ -279,14 +170,19 @@ function(create_project_from_sources folder sample)
 
   add_sample_directory(${NAME} ${SAMPLE_PATH})
 
+  if(WIN32 AND NOT OPENGL_FETCH_DEPENDENCIES)
+    # Resolve the selected configuration's DLLs, including transitive dependencies.
+    add_custom_command(TARGET ${NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND}
+        "-DRUNTIME_DLLS=$<TARGET_RUNTIME_DLLS:${NAME}>"
+        "-DDESTINATION=$<TARGET_FILE_DIR:${NAME}>"
+        -P "${CMAKE_SOURCE_DIR}/cmake/CopyRuntimeDlls.cmake"
+      VERBATIM
+    )
+  endif()
+
   # copy shader files to build directory
   
-  # copy dlls
-  if(WIN32)
-    # Copy assimp dll to target directory
-    add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${ASSIMP_DLL} $<TARGET_FILE_DIR:${NAME}>)
-  endif(WIN32)
-
   foreach(SHADER ${SHADERS})
       if(WIN32)
           # configure_file(${SHADER} "test")
@@ -323,11 +219,4 @@ foreach(FOLDER ${FOLDERS})
     endforeach(SAMPLE)
 endforeach(FOLDER)
 
-include_directories(${OPENGL_INCLUDE_DIR} 
-                    ${GLM_INCLUDE_DIRS}
-                    ${GLFW3_INCLUDE_DIRS}
-                    ${ASSIMP_INCLUDE_DIRS}
-                    ${GLAD_INCLUDE_DIRS}
-                    ${STB_INCLUDE_DIRS}
-                    ${FREETYPE_INCLUDE_DIRS}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)

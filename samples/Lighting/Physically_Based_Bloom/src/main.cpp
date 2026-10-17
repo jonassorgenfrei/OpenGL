@@ -37,6 +37,7 @@ const unsigned int SCR_HEIGHT = 600;
 
 //Light Model
 bool bloom = true;
+bool bloomKeyPressed = false;
 float exposure = 1.0f;
 int programChoice = 1;
 float bloomFilterRadius = 0.005f;

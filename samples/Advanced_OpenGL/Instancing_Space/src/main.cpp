@@ -3,6 +3,7 @@
 */
 
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -116,11 +117,11 @@ int main()
 		// 1. translation: displace along circle with 'radius' in range [-offset, offset]
 		float angle = (float)i / (float)amount * 360.0f;
 		float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-		float x = sin(angle) * radius + displacement;
+		float x = std::sin(angle) * radius + displacement;
 		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
 		float y = displacement * 0.4f; // keep height of asteroid field smaller compared to width of x and z
 		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-		float z = cos(angle) * radius + displacement;
+		float z = std::cos(angle) * radius + displacement;
 		model = glm::translate(model, glm::vec3(x, y, z));
 
 		// 2. scale: Scale between 0.05 and 0.25f
