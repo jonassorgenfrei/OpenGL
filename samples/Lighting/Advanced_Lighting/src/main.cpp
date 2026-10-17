@@ -24,6 +24,7 @@
 #include "modules/light.h"
 #include "modules/material.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 
@@ -78,6 +79,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -199,6 +201,7 @@ int main()
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -210,6 +213,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }
