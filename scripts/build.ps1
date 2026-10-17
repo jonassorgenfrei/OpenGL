@@ -45,15 +45,55 @@ if (-not $vsPath) {
     if (-not $vsPath) { throw 'Visual C++ tools unavailable. Restart Windows if the installer requested it, then rerun.' }
 }
 
-$cmake = Get-Command cmake -ErrorAction SilentlyContinue
-if ($cmake) { $cmake = $cmake.Source }
-else {
-    $cmake = Join-Path $vsPath 'Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe'
-    if (-not (Test-Path $cmake)) {
-        Install-Tool 'Kitware.CMake'
-        $cmake = (Get-Command cmake -ErrorAction Stop).Source
+function Get-CachedValue {
+    param([string]$Name)
+    $cache = Join-Path $BuildDirectory 'CMakeCache.txt'
+    if (Test-Path -LiteralPath $cache) {
+        $entry = Get-Content -LiteralPath $cache | Where-Object { $_ -match "^${Name}:[^=]+=" } | Select-Object -First 1
+        if ($entry) { return ($entry -split '=', 2)[1] }
     }
 }
+
+# Reuse the build tree's generator explicitly, regardless of PATH or
+# CMAKE_GENERATOR. A fresh tree uses the installed Visual Studio version.
+$generator = Get-CachedValue 'CMAKE_GENERATOR'
+if (-not $generator) {
+    $vsVersion = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion
+    $vsMajor = ([version]$vsVersion).Major
+}
+elseif ($generator -notlike 'Visual Studio *') {
+    throw "Build directory uses '$generator'. This script requires Visual Studio; select a separate directory with -BuildDirectory."
+}
+
+$pathCMake = Get-Command cmake -ErrorAction SilentlyContinue
+$candidates = @(
+    (Get-CachedValue 'CMAKE_COMMAND'),
+    (Join-Path $vsPath 'Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe')
+)
+if ($pathCMake) { $candidates += $pathCMake.Source }
+if (-not ($candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) })) {
+    Install-Tool 'Kitware.CMake'
+    $candidates += (Get-Command cmake -ErrorAction Stop).Source
+}
+$cmake = $null
+foreach ($candidate in $candidates) {
+    if (-not $candidate -or -not (Test-Path -LiteralPath $candidate)) { continue }
+    $capabilities = & $candidate -E capabilities | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or [version]$capabilities.version.string.Split('-')[0] -lt [version]'3.24') { continue }
+    $supported = @($capabilities.generators | ForEach-Object { $_.name })
+    if (-not $generator) {
+        $generator = $supported | Where-Object { $_ -like "Visual Studio $vsMajor *" } | Select-Object -First 1
+    }
+    if ($generator -and $supported -contains $generator) {
+        $cmake = $candidate
+        break
+    }
+}
+if (-not $cmake) {
+    throw 'No CMake >= 3.24 supporting the selected Visual Studio version was found. Install or update the Visual Studio C++ CMake tools.'
+}
+Write-Host "Using CMake: $cmake"
+Write-Host "Using generator: $generator"
 
 # GLAD 1.x needs only Python's standard library. Keep a portable interpreter local
 # to the build instead of depending on PATH or the Windows Store Python alias.
@@ -81,7 +121,7 @@ if ((Test-Path $pythonPathFile) -and $python -eq (Join-Path $BuildDirectory 'too
     Set-Content -LiteralPath $pythonPathFile -Value @('python312.zip', '.', $gladSource)
 }
 
-$configureArgs = @('-S', $root, '-B', $BuildDirectory, '-A', 'x64',
+$configureArgs = @('-S', $root, '-B', $BuildDirectory, '-G', $generator, '-A', 'x64',
     "-DCMAKE_BUILD_TYPE=$Configuration", '-DOPENGL_FETCH_DEPENDENCIES=ON',
     '-DCMAKE_POLICY_VERSION_MINIMUM=3.5', "-DPython_EXECUTABLE=$python") + $CMakeArgs
 Invoke-Checked $cmake $configureArgs

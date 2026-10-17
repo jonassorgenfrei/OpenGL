@@ -70,6 +70,10 @@ Use `-SkipSystemDeps` when Git, CMake >= 3.24, Python 3 and the Visual Studio
 C++ workload are already installed. `-BuildDirectory` selects another build
 directory and `-CMakeArgs` accepts additional CMake options. Rerunning reuses
 downloaded sources and compiled dependencies.
+The script reuses an existing Visual Studio generator and selects a compatible
+CMake executable, preferring the one recorded in the build cache and then
+Visual Studio's bundled CMake. New build directories use the installed Visual
+Studio version explicitly, regardless of `CMAKE_GENERATOR` or `PATH` defaults.
 
 ### Linux
 
