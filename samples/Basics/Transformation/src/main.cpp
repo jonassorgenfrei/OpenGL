@@ -1,4 +1,5 @@
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -308,7 +309,7 @@ int main()
 		transform = glm::mat4(1.0f);
 		//first
 		transform = glm::translate(transform, glm::vec3(-0.5f, 0.5f, 0.0f));
-		transform = glm::scale(transform, glm::vec3(sin((float)glfwGetTime()), sin((float)glfwGetTime()), 0.0f));
+		transform = glm::scale(transform, glm::vec3(std::sin((float)glfwGetTime()), std::sin((float)glfwGetTime()), 0.0f));
 		transformShader.use();
 		// set the texture mix value in the shader
 		transformLoc = glGetUniformLocation(transformShader.ID, "transform");

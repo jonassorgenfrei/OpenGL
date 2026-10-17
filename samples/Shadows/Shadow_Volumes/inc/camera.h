@@ -2,6 +2,7 @@
 #define CAMERA_H
 
 #include <glad/glad.h>
+#include <cmath>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -164,9 +165,9 @@ private:
 	void updateCameraVectors()
 	{
 		glm::vec3 front;
-		front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-		front.y = sin(glm::radians(Pitch));
-		front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
+		front.x = std::cos(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
+		front.y = std::sin(glm::radians(Pitch));
+		front.z = std::sin(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
 		Front = glm::normalize(front);
 		// Also re-calculate the Right and Up vector
 		Right = glm::normalize(glm::cross(Front, WorldUp));

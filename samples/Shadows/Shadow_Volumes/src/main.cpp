@@ -161,9 +161,9 @@ int main()
 		processInput(window);
 
 		// orbiting point light to show moving silhouettes
-		lightPos.x = 2.5f * cos(currentFrame * 0.6f);
-		lightPos.z = 2.5f * sin(currentFrame * 0.6f);
-		lightPos.y = 1.5f + sin(currentFrame * 0.8f) * 0.5f;
+		lightPos.x = 2.5f * std::cos(currentFrame * 0.6f);
+		lightPos.z = 2.5f * std::sin(currentFrame * 0.6f);
+		lightPos.y = 1.5f + std::sin(currentFrame * 0.8f) * 0.5f;
 
 		// draw full/wireframe for color passes (volume pass is forced to fill)
 		GLenum polygonMode = wireframe ? GL_LINE : GL_FILL;

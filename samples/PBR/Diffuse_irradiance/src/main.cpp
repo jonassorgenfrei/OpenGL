@@ -4,6 +4,7 @@
  *
  */
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -363,7 +364,7 @@ int main()
 		// keeps the codeprint small.
 		for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
 		{
-			glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
+			glm::vec3 newPos = lightPositions[i] + glm::vec3(std::sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
 			newPos = lightPositions[i];
 			pbrShader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
 			pbrShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);

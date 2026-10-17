@@ -3,6 +3,7 @@
  */
 
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #define GLM_FORCE_SILENT_WARNINGS 1
