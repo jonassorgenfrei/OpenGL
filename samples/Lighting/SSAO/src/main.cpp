@@ -138,10 +138,14 @@ int main()
 		{"Alt + MMB", "Pan camera"},
 		{"Alt + RMB", "Dolly camera"},
 		{"Mouse wheel", "Zoom camera"},
+#if LEARNOPENGL == 0
 		{"A", "Cycle SSAO shader"},
+#endif
 		{"B", "Toggle blur"},
 		{"D", "Toggle debug view"},
+#if LEARNOPENGL == 1
 		{"N", "Toggle Hammersley sampling"},
+#endif
 		{"Q / E", "Adjust sample radius"}
 	});
 
