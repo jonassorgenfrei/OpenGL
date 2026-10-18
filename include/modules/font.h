@@ -2,6 +2,7 @@
 #include <iostream>
 #include <map>
 #include <array>
+#include <memory>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -9,6 +10,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "shader_m.h"
 #include "filesystem.h"
 
 // include Freetype
@@ -150,8 +152,9 @@ public:
 					glm::vec3 color, GLfloat alpha = 1.0f)	{
 		// Activate corresponding render state
 		bind();
-		glUniform1i(glGetUniformLocation(shader, "textured"), GL_TRUE);
-		glUniform4f(glGetUniformLocation(shader, "tint"), color.x, color.y, color.z, alpha);
+		shader->setBool("textured", true);
+		glUniform3f(glGetUniformLocation(shader->ID, "textColor"), color.x, color.y, color.z);
+		shader->setFloat("alpha", alpha);
 		glActiveTexture(GL_TEXTURE0);
 		glBindVertexArray(this->VAO);
 
@@ -207,8 +210,9 @@ public:
 			{x, y, 0.0f, 0.0f}, {x + width, y, 0.0f, 0.0f}, {x + width, y + height, 0.0f, 0.0f},
 			{x, y, 0.0f, 0.0f}, {x + width, y + height, 0.0f, 0.0f}, {x, y + height, 0.0f, 0.0f}
 		};
-		glUniform1i(glGetUniformLocation(shader, "textured"), GL_FALSE);
-		glUniform4fv(glGetUniformLocation(shader, "tint"), 1, color.data());
+		shader->setBool("textured", false);
+		glUniform3fv(glGetUniformLocation(shader->ID, "textColor"), 1, color.data());
+		shader->setFloat("alpha", color[3]);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -228,8 +232,9 @@ public:
 		clearCharacters();
 		if (VBO) glDeleteBuffers(1, &VBO);
 		if (VAO) glDeleteVertexArrays(1, &VAO);
-		if (shader) glDeleteProgram(shader);
-		VBO = VAO = shader = 0;
+		if (shader) glDeleteProgram(shader->ID);
+		shader.reset();
+		VBO = VAO = 0;
 		context = nullptr;
 	}
 
@@ -242,8 +247,18 @@ private:
 		if (shader) return true;
 		context = glfwGetCurrentContext();
 		if (!context) return false;
-		shader = createProgram();
-		if (!shader) return false;
+		// All samples share the Text sample's shader files.
+		shader = std::make_unique<Shader>(
+			FileSystem::getPath("samples/Basics/Text/shader/text.vert").c_str(),
+			FileSystem::getPath("samples/Basics/Text/shader/text.frag").c_str());
+		GLint success = GL_FALSE;
+		glGetProgramiv(shader->ID, GL_LINK_STATUS, &success);
+		if (!success)
+		{
+			glDeleteProgram(shader->ID);
+			shader.reset();
+			return false;
+		}
 		// Configure VAO/VBO for texture quads
 		glGenVertexArrays(1, &this->VAO);
 		glGenBuffers(1, &this->VBO);
@@ -259,9 +274,10 @@ private:
 
 	void bind() const
 	{
-		glUseProgram(shader);
-		glUniform2f(glGetUniformLocation(shader, "viewport"), static_cast<GLfloat>(width), static_cast<GLfloat>(height));
-		glUniform1i(glGetUniformLocation(shader, "glyph"), 0);
+		shader->use();
+		const glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(this->width), static_cast<GLfloat>(this->height), 0.0f);
+		glUniformMatrix4fv(glGetUniformLocation(shader->ID, "projection"), 1, GL_FALSE, &projection[0][0]);
+		shader->setInt("text", 0);
 	}
 
 	void clearCharacters()
@@ -271,84 +287,11 @@ private:
 		Characters.clear();
 	}
 
-	/** Compiles one text shader and reports diagnostics to stderr. */
-	static GLuint compile(GLenum type, const char* source)
-	{
-		GLuint shader = glCreateShader(type);
-		glShaderSource(shader, 1, &source, nullptr);
-		glCompileShader(shader);
-		GLint success = GL_FALSE;
-		glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-		if (!success)
-		{
-			std::array<char, 1024> log{};
-			glGetShaderInfoLog(shader, static_cast<GLsizei>(log.size()), nullptr, log.data());
-			std::cerr << "Text renderer shader compilation failed: " << log.data() << std::endl;
-			glDeleteShader(shader);
-			return 0;
-		}
-		return shader;
-	}
-
-	/** Creates the minimal pixel-space shader shared by boxes and glyph quads. */
-	static GLuint createProgram()
-	{
-		static const char* vertexSource = R"GLSL(#version 330 core
-layout (location = 0) in vec4 vertex;
-out vec2 uv;
-uniform vec2 viewport;
-void main()
-{
-    vec2 ndc = vec2(vertex.x * 2.0 / viewport.x - 1.0,
-                    1.0 - vertex.y * 2.0 / viewport.y);
-    gl_Position = vec4(ndc, 0.0, 1.0);
-    uv = vertex.zw;
-}
-)GLSL";
-		static const char* fragmentSource = R"GLSL(#version 330 core
-in vec2 uv;
-out vec4 color;
-uniform sampler2D glyph;
-uniform vec4 tint;
-uniform bool textured;
-void main()
-{
-    color = textured ? vec4(tint.rgb, tint.a * texture(glyph, uv).r) : tint;
-}
-)GLSL";
-
-		GLuint vertex = compile(GL_VERTEX_SHADER, vertexSource);
-		GLuint fragment = compile(GL_FRAGMENT_SHADER, fragmentSource);
-		if (!vertex || !fragment)
-		{
-			if (vertex) glDeleteShader(vertex);
-			if (fragment) glDeleteShader(fragment);
-			return 0;
-		}
-		GLuint program = glCreateProgram();
-		glAttachShader(program, vertex);
-		glAttachShader(program, fragment);
-		glLinkProgram(program);
-		glDeleteShader(vertex);
-		glDeleteShader(fragment);
-		GLint success = GL_FALSE;
-		glGetProgramiv(program, GL_LINK_STATUS, &success);
-		if (!success)
-		{
-			std::array<char, 1024> log{};
-			glGetProgramInfoLog(program, static_cast<GLsizei>(log.size()), nullptr, log.data());
-			std::cerr << "Text renderer shader linking failed: " << log.data() << std::endl;
-			glDeleteProgram(program);
-			return 0;
-		}
-		return program;
-	}
-
 	GLuint width = 1, height = 1;
 	std::map<GLchar, Character> Characters; // Holds a list of pre-compiled Characters
 
 	GLuint VAO = 0, VBO = 0;
 	// Shader used for text rendering
-	GLuint shader = 0;
+	std::unique_ptr<Shader> shader;
 	GLFWwindow* context = nullptr;
 };
