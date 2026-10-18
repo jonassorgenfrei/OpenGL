@@ -89,15 +89,20 @@ and selects the finest mip that fits the 116 streaming slots. Missing pages
 are requested near the view center first. LRU replacement protects the current
 requested set and the five pinned pages (2 x 2 plus 1 x 1 at the coarsest levels).
 The initial pinned uploads happen outside the per-frame detailed upload budget.
+The page table is uploaded only when mappings change. A paused or settled view
+therefore performs no redundant table transfer. If the cache size is reduced
+so far that detailed pages cannot fit, the already pinned coarse mip is used.
 
 Each 64 x 64 page has a one-pixel gutter on every side, occupying a 66 x 66 cache
 slot. A vertically stacked mip page table maps logical pages to physical slots.
 The fragment shader walks toward coarser levels when a mapping is missing,
 then samples the cache with bilinear filtering inside the page and its gutters.
+The cache itself has only a base level; the shader uses `textureLod(..., 0)`
+because virtual mip selection has already happened in the page-table walk.
 
 The source is an indexed pack of 5,463 JPEG disk tiles across nine mip levels.
 Disk tiles cover up to 256 x 256 texels, plus a 16-pixel neighboring-image gutter.
-Each can supply multiple 64 x 64 GPU pages. `ImageTileSource` seeks and decodes
+Each can supply multiple 64 x 64 GPU pages. The `image_tiles` helper seeks and decodes
 only requested disk tiles, retaining four decoded tiles with LRU replacement.
 The on-screen tile-read counter shows file reads on CPU cache misses (the OS
 may satisfy them from its own filesystem cache). The smaller GPU page gutters
@@ -109,6 +114,12 @@ computed on the CPU, mip choice is driven by cache capacity, and disk reads,
 decoding, and GPU transfers are synchronous. It does not implement GPU feedback,
 asynchronous streaming, or trilinear virtual mip filtering. The original version
 implemented [issue #42](https://github.com/jonassorgenfrei/OpenGL/issues/42).
+
+The implementation uses a plain `virtual_texture::State` with explicit
+`initialize`, `update`, `clearDetail`, and `destroy` functions. GPU handles,
+page mappings, LRU slots, and counters remain visible as data. The independent
+`image_tiles::State` holds file/decoder state. CPU cache dimensions are passed
+as uniforms so the shader and upload code agree when changing the cache size.
 
 ## Image source and rebuilding the asset
 

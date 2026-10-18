@@ -5,8 +5,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <cstring>
+#include <iostream>
 
-void icon(GLFWwindow* window) {
+inline void icon(GLFWwindow* window) {
 	//GLFW ICON
 	// a simple glfw logo
 	const char* const logo[] =
@@ -58,5 +59,43 @@ void icon(GLFWwindow* window) {
 
 	glfwSetWindowIcon(window, 1, &img);
 }
+
+// Common OpenGL 3.3 setup for the texture lessons. Each sample owns its render loop.
+namespace sample_window
+{
+inline GLFWwindow *create(int width, int height, const char *title)
+{
+    if (!glfwInit())
+        return nullptr;
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+    GLFWwindow *window = glfwCreateWindow(width, height, title, nullptr, nullptr);
+    if (!window)
+    {
+        std::cerr << "Could not create OpenGL 3.3 window\n";
+        glfwTerminate();
+        return nullptr;
+    }
+    glfwMakeContextCurrent(window);
+    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
+    {
+        std::cerr << "Could not load OpenGL functions\n";
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return nullptr;
+    }
+    glfwSwapInterval(1);
+    int framebufferWidth, framebufferHeight;
+    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+    glViewport(0, 0, framebufferWidth, framebufferHeight);
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow *, int w, int h) { glViewport(0, 0, w, h); });
+    icon(window);
+    return window;
+}
+} // namespace sample_window
 
 #endif

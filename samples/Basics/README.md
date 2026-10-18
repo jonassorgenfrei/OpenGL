@@ -2,6 +2,10 @@
 
 These examples introduce shaders, textures, transformations, cameras, and text rendering.
 Each example is a separate executable with its own source and shader files.
+The texture lessons share context/window setup from `include/modules/window.h`
+and frame-based keyboard input from `include/modules/sample_input.h`. They reuse
+the existing `Shader`, `TextRenderer`, and help overlay. Texture uploads,
+render-state changes, and draw calls stay explicit in the samples.
 
 ## [Transformation](Transformation/)
 

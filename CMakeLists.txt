@@ -126,13 +126,13 @@ endmacro()
 
 function(add_sample_directory target_name samplePath)
   string(CONCAT SAMPLE_DIR_CODE "#ifdef SAMPLE_${target_name}\n"
-  "const char * logl_sample = \"${samplePath}\";\n"
+  "inline const char * logl_sample = \"${samplePath}\";\n"
   "#endif //SAMPLE_${target_name} \n"
   )
 
   write_file(${CMAKE_BINARY_DIR}/configuration/sample_directories.h "${SAMPLE_DIR_CODE}" APPEND)
 
-  target_compile_definitions(${target_name} PUBLIC SAMPLE_${NAME})
+  target_compile_definitions(${target_name} PUBLIC SAMPLE_${target_name})
 endfunction()
 
 function(create_project_from_sources folder sample)

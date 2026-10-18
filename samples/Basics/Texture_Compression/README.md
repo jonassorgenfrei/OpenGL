@@ -69,7 +69,8 @@ GPU storage -> block decoding during sampling.
 
 Each row has one warm-up followed by seven trials, using `steady_clock`:
 
-- **Read ms:** file open/read, header validation, and CPU buffer allocations/copy.
+- **Read ms:** file open/read, header validation, and allocation of the upload buffer. The payload is read
+  directly into that buffer.
 - **Upload ms:** texture creation, parameters, allocation, upload, driver
   validation, and `glFinish` so submitted transfers are complete.
 - **Load ms:** read + upload from the median total-time trial. Its read and

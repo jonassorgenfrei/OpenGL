@@ -15,9 +15,9 @@ uniform int hoveredMip;
 uniform vec4 hoveredBounds; // Logical page bounds (min UV, max UV), excluding gutters.
 uniform int displayMode; // 0: image, 1: residency, 2: cache, 3: overview
 
-const float pageSize = 64.0;
-const float slotSize = 66.0;
-const float cacheSize = 726.0;
+uniform float pageSize;
+uniform float slotSize;
+uniform float cacheSize;
 
 int pageDimension(int mip) { return virtualPages >> mip; }
 
@@ -47,6 +47,7 @@ void main()
     }
     vec2 virtualUv = viewCenter + (texCoord - 0.5) * viewSpan;
     if (displayMode == 3) virtualUv = texCoord;
+    vec2 uvPixelWidth = max(fwidth(virtualUv), vec2(1e-8));
     vec4 entry = vec4(0.0);
     int firstMip = displayMode == 3 ? mipLevels - 2 : activeMip;
     int sampledMip = firstMip;
@@ -79,12 +80,12 @@ void main()
     }
 
     vec2 slot = floor(entry.rg * 255.0 + 0.5);
-    vec2 localUv = fract(pagePosition);
+    vec2 page = min(floor(pagePosition), vec2(sampledPages - 1.0));
+    vec2 localUv = pagePosition - page;
     vec2 cachePixel = slot * slotSize + vec2(1.0) + localUv * pageSize;
     vec2 cacheUv = cachePixel / cacheSize;
-    vec2 gradientX = dFdx(virtualUv) * (sampledPages * pageSize / cacheSize);
-    vec2 gradientY = dFdy(virtualUv) * (sampledPages * pageSize / cacheSize);
-    vec3 color = textureGrad(physicalCache, cacheUv, gradientX, gradientY).rgb;
+    // Virtual mips come from the page table; the physical cache has only one level.
+    vec3 color = textureLod(physicalCache, cacheUv, 0.0).rgb;
 
     if (displayMode == 3)
     {
@@ -108,7 +109,7 @@ void main()
         // these texels. The overview also locates cached pages outside the view.
         vec2 center = (hoveredBounds.xy + hoveredBounds.zw) * 0.5;
         vec2 halfSize = (hoveredBounds.zw - hoveredBounds.xy) * 0.5;
-        vec2 signedPixels = (abs(virtualUv - center) - halfSize) / max(fwidth(virtualUv), vec2(1e-8));
+        vec2 signedPixels = (abs(virtualUv - center) - halfSize) / uvPixelWidth;
         float distanceToEdge = max(signedPixels.x, signedPixels.y);
         vec3 cyan = vec3(0.0, 1.0, 1.0);
         // Pixel-sized strokes keep fine pages visible even in the whole-image overview.
