@@ -18,6 +18,7 @@
 #include "modules/light.h"
 #include "modules/material.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 #include <random>
@@ -53,7 +54,6 @@ int shaderTypeOGLDev = 0;
 bool a_pressed = false;
 bool d_pressed = false;
 bool b_pressed = false;
-bool h_pressed = false;
 bool n_pressed = false;
 
 bool debug = false;
@@ -111,6 +111,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -133,6 +134,22 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+#if LEARNOPENGL == 0
+		{"A", "Cycle SSAO shader"},
+#endif
+		{"B", "Toggle blur"},
+		{"D", "Toggle debug view"},
+#if LEARNOPENGL == 1
+		{"N", "Toggle Hammersley sampling"},
+#endif
+		{"Q / E", "Adjust sample radius"}
+	});
 
 	// configure global OpenGL state
 	// -----------------------------
@@ -560,6 +577,7 @@ int main()
 #endif
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -569,6 +587,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }
@@ -781,24 +800,6 @@ void processInput(GLFWwindow *window)
 	else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
 		radius += 0.005f;
 		std::cout << "Radius:" << radius << std::endl;
-	}
-
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
-		h_pressed = true;
-	}
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE && h_pressed) {
-		std::cout << "Help:" << std::endl;
-//		std::cout << " F2: Toggle Fullscreen" << std::endl;
-#if LEARNOPENGL == 1
-		std::cout << " N: Toggle Hammersley" << std::endl;
-#endif
-		std::cout << " D: Toggle Debug" << std::endl;
-		std::cout << " E: Increase Sample Radius" << std::endl;
-		std::cout << " Q: Decrease Sample Radius" << std::endl;
-#if LEARNOPENGL == 0
-		std::cout << " A: Shader Type" << std::endl;
-#endif
-		h_pressed = false;
 	}
 
 }
