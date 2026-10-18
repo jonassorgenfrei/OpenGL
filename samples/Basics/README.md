@@ -41,21 +41,36 @@ Use Up and Down to change the blend, R to reset it, and H to show keyboard help.
 
 ## [Texture Compression](Texture_Compression/)
 
-Compares a generated RGBA8 image with DXT1/BC1 and ASTC 4x4 representations.
-Small teaching encoders generate compressed blocks that are uploaded with glCompressedTexImage2D.
-The application checks extension support and whether the driver accepts each compressed upload.
-Unsupported or rejected formats fall back to the uncompressed source texture.
-The console reports format support and payload sizes, while the window title identifies fallback modes.
-Keys 1, 2, and 3 select the source, DXT1, and ASTC views; H shows keyboard help.
+Compares a real landscape photograph against DXT1/BC1, DXT3/BC2, DXT5/BC3,
+and ASTC 4x4, 8x8, and 12x12 using prepared DDS/ASTC assets.
+A labeled alpha ramp exposes RGB-only BC1, explicit BC2 alpha, and interpolated BC3 alpha.
+Side-by-side reference, alpha/error views, zoom, and a block grid reveal quality differences.
+The bottom table shows payload size, ratio, savings, and measured file-read, completed-upload,
+and total loading times from seven warm-cache trials; encoding happens offline.
+Unsupported GPU formats use labeled RGBA8 previews with compressed upload/load timings marked N/A.
+Use 1-7 for formats, A for alpha, D for error, Z/wheel for zoom, B for blocks, T to remeasure, and H for help.
+
+## [Texture Atlas / Texture Array](Texture_AtlasArray/)
+
+Compares four identical tiles packed into one 2D atlas or four texture-array layers.
+Side-by-side material grids show UV-rectangle addressing versus layer selection.
+Adjustable mip levels and repetition expose atlas filtering bleed and isolated array filtering.
+A half-texel inset demonstrates a base-level fix and its limitations at coarser mips.
+The storage view shows the packed image and separate layers; each uses 64 KiB at the base level.
+Use Up/Down for mip level, G for inset, T for repetition, M for storage, and H for help.
 
 ## [Virtual Texturing](Texture_VirtualTexturing/)
 
-Displays a large logical texture through a bounded physical page cache and a page table.
-The visible region determines which mip level and pages need to be resident.
-Streaming uploads are limited per frame, and least-recently-used pages are replaced as needed.
-Permanently resident coarse mip levels provide a fallback while detailed pages are missing.
-The window title reports cache occupancy, upload activity, active mip, and zoom level.
-Use WASD or arrows to pan, the wheel or Q/E to zoom, R to reset, and H for help.
+Explore a real 16384 x 16384 NASA Blue Marble satellite map using a bounded 11 x 11 physical page cache.
+The on-screen comparison shows a 1024 MiB full base image versus 2.51 MiB of cache and page table.
+Click the overview to jump between regions; a live cache preview reveals slot reuse.
+Hover cache slots to mark their image footprints in cyan and inspect page coordinates and mip level.
+Prefiltered image tiles stream from an included disk pack through a bounded CPU tile cache.
+Optional green/orange residency colors distinguish requested detail from coarse fallback during streaming.
+Pause and clear detail to observe fallback, then resume with one or four uploads per frame.
+Use WASD/arrows to pan, wheel or Q/E to zoom, Space to pause, C to clear, B for the budget,
+V for residency colors, O for overview, R for the Italy close-up, and H for help.
+The sample README includes a guided experiment and explains costs and implementation limits.
 
 ## [Camera](Camera/)
 

@@ -11,43 +11,6 @@ namespace compression
 {
 constexpr int BLOCK_SIZE = 4;
 
-inline std::uint8_t toByte(float value)
-{
-    value = std::max(0.0f, std::min(1.0f, value));
-    return static_cast<std::uint8_t>(value * 255.0f + 0.5f);
-}
-
-// A grid, checker, gradient, and rings expose block-compression artifacts.
-inline std::array<std::uint8_t, 4> testColor(int x, int y, int size)
-{
-    x = std::max(0, std::min(size - 1, x));
-    y = std::max(0, std::min(size - 1, y));
-    const float u = static_cast<float>(x) / static_cast<float>(size - 1);
-    const float v = static_cast<float>(y) / static_cast<float>(size - 1);
-    const float checker = (((x / (size / 16)) + (y / (size / 16))) & 1) ? 0.14f : 0.0f;
-    const float dx = u - 0.5f;
-    const float dy = v - 0.5f;
-    const float rings = 0.5f + 0.5f * std::sin(std::sqrt(dx * dx + dy * dy) * 95.0f);
-    const bool grid = x % (size / 8) < std::max(1, size / 256) ||
-                      y % (size / 8) < std::max(1, size / 256);
-    if (grid) return { 245, 245, 245, 255 };
-    return { toByte(0.10f + 0.70f * u + checker),
-             toByte(0.10f + 0.70f * v + checker),
-             toByte(0.16f + 0.34f * rings + checker), 255 };
-}
-
-inline std::vector<std::uint8_t> makeTestImage(int size)
-{
-    std::vector<std::uint8_t> pixels(size * size * 4);
-    for (int y = 0; y < size; ++y)
-        for (int x = 0; x < size; ++x)
-        {
-            const auto color = testColor(x, y, size);
-            std::copy(color.begin(), color.end(), pixels.begin() + (y * size + x) * 4);
-        }
-    return pixels;
-}
-
 inline std::uint16_t packRgb565(const std::uint8_t* color)
 {
     return static_cast<std::uint16_t>(((color[0] >> 3) << 11) |
@@ -142,39 +105,131 @@ inline std::vector<std::uint8_t> encodeDxt1(const std::vector<std::uint8_t>& rgb
     return output;
 }
 
-// A valid LDR void-extent block stores one averaged RGBA16 color. It is useful
-// for demonstrating ASTC storage, while production encoders search endpoints
-// and weights to retain detail within each block.
-inline std::vector<std::uint8_t> encodeAstc4x4(const std::vector<std::uint8_t>& rgba,
-                                               int width, int height)
+// BC2/DXT3 and BC3/DXT5 reuse the opaque four-color BC1 RGB block.
+// BC2 stores sixteen explicit 4-bit alpha values. BC3 instead stores two
+// 8-bit endpoints and sixteen 3-bit indices into an interpolated alpha palette.
+inline std::vector<std::uint8_t> encodeDxtAlpha(const std::vector<std::uint8_t>& rgba,
+                                               int width, int height, bool interpolated)
 {
-    const int blocksX = (width + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    const int blocksY = (height + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    std::vector<std::uint8_t> output(blocksX * blocksY * 16, 0xff);
+    const auto rgb = encodeDxt1(rgba, width, height);
+    const int blocksX = (width + 3) / 4;
+    const int blocksY = (height + 3) / 4;
+    std::vector<std::uint8_t> output(blocksX * blocksY * 16);
     for (int by = 0; by < blocksY; ++by)
         for (int bx = 0; bx < blocksX; ++bx)
         {
-            std::array<unsigned int, 4> sum{};
-            for (int py = 0; py < BLOCK_SIZE; ++py)
-                for (int px = 0; px < BLOCK_SIZE; ++px)
-                {
-                    const int x = std::min(width - 1, bx * BLOCK_SIZE + px);
-                    const int y = std::min(height - 1, by * BLOCK_SIZE + py);
-                    const std::uint8_t* pixel = &rgba[(y * width + x) * 4];
-                    for (int channel = 0; channel < 4; ++channel) sum[channel] += pixel[channel];
-                }
-
-            std::uint8_t* block = &output[(by * blocksX + bx) * 16];
-            block[0] = 0xfc;
-            block[1] = 0xfd;
-            for (int channel = 0; channel < 4; ++channel)
+            const int blockIndex = by * blocksX + bx;
+            auto* block = &output[blockIndex * 16];
+            std::copy_n(&rgb[blockIndex * 8], 8, block + 8);
+            std::array<int, 16> alpha{};
+            for (int y = 0; y < 4; ++y)
+                for (int x = 0; x < 4; ++x)
+                    alpha[y * 4 + x] = rgba[(std::min(height - 1, by * 4 + y) * width +
+                                             std::min(width - 1, bx * 4 + x)) * 4 + 3];
+            if (!interpolated)
             {
-                const std::uint16_t value8 = static_cast<std::uint16_t>((sum[channel] + 8) / 16);
-                const std::uint16_t value16 = static_cast<std::uint16_t>(value8 * 257);
-                block[8 + channel * 2] = static_cast<std::uint8_t>(value16);
-                block[9 + channel * 2] = static_cast<std::uint8_t>(value16 >> 8);
+                for (int texel = 0; texel < 16; ++texel)
+                    block[texel / 2] |= static_cast<std::uint8_t>(
+                        ((alpha[texel] * 15 + 127) / 255) << ((texel % 2) * 4));
+                continue;
+            }
+            const int minimum = *std::min_element(alpha.begin(), alpha.end());
+            const int maximum = *std::max_element(alpha.begin(), alpha.end());
+            int bestError = std::numeric_limits<int>::max();
+            // Try the eight-value mode and the six-value mode with explicit
+            // zero/one entries. Endpoints are kept simple for readable code.
+            for (int mode = 0; mode < 2; ++mode)
+            {
+                const int a0 = mode == 0 ? maximum : minimum;
+                const int a1 = mode == 0 ? minimum : maximum;
+                std::array<int, 8> palette{ a0, a1 };
+                if (a0 > a1)
+                    for (int i = 1; i <= 6; ++i) palette[i + 1] = ((7 - i) * a0 + i * a1) / 7;
+                else
+                {
+                    for (int i = 1; i <= 4; ++i) palette[i + 1] = ((5 - i) * a0 + i * a1) / 5;
+                    palette[6] = 0; palette[7] = 255;
+                }
+                int error = 0;
+                std::uint64_t indices = 0;
+                for (int texel = 0; texel < 16; ++texel)
+                {
+                    int best = 0;
+                    for (int candidate = 1; candidate < 8; ++candidate)
+                        if (std::abs(alpha[texel] - palette[candidate]) < std::abs(alpha[texel] - palette[best]))
+                            best = candidate;
+                    const int difference = alpha[texel] - palette[best];
+                    error += difference * difference;
+                    indices |= static_cast<std::uint64_t>(best) << (3 * texel);
+                }
+                if (error < bestError)
+                {
+                    bestError = error;
+                    block[0] = static_cast<std::uint8_t>(a0);
+                    block[1] = static_cast<std::uint8_t>(a1);
+                    for (int byte = 0; byte < 6; ++byte)
+                        block[2 + byte] = static_cast<std::uint8_t>(indices >> (8 * byte));
+                }
             }
         }
     return output;
 }
+
+inline std::vector<std::uint8_t> encodeDxt3(const std::vector<std::uint8_t>& rgba, int width, int height)
+{
+    return encodeDxtAlpha(rgba, width, height, false);
+}
+
+inline std::vector<std::uint8_t> encodeDxt5(const std::vector<std::uint8_t>& rgba, int width, int height)
+{
+    return encodeDxtAlpha(rgba, width, height, true);
+}
+// CPU preview for machines without S3TC. These bytes are uploaded as RGBA8;
+// that fallback is never counted as compressed GPU storage or timed BC upload.
+inline std::vector<std::uint8_t> decodeDxt(const std::vector<std::uint8_t>& blocks, int width, int height, int dxt)
+{
+    const int blocksX = (width + 3) / 4, blocksY = (height + 3) / 4;
+    const int stride = dxt == 1 ? 8 : 16;
+    std::vector<std::uint8_t> rgba(static_cast<std::size_t>(width) * height * 4);
+    for (int by = 0; by < blocksY; ++by)
+        for (int bx = 0; bx < blocksX; ++bx)
+        {
+            const auto* block = &blocks[(by * blocksX + bx) * stride];
+            const auto* rgb = block + (dxt == 1 ? 0 : 8);
+            const auto c0 = unpackRgb565(static_cast<std::uint16_t>(rgb[0] | (rgb[1] << 8)));
+            const auto c1 = unpackRgb565(static_cast<std::uint16_t>(rgb[2] | (rgb[3] << 8)));
+            const std::array<std::array<int, 3>, 4> palette{c0,c1,
+                std::array<int,3>{(2*c0[0]+c1[0])/3,(2*c0[1]+c1[1])/3,(2*c0[2]+c1[2])/3},
+                std::array<int,3>{(c0[0]+2*c1[0])/3,(c0[1]+2*c1[1])/3,(c0[2]+2*c1[2])/3}};
+            std::uint32_t indices = 0;
+            for (int b = 0; b < 4; ++b) indices |= static_cast<std::uint32_t>(rgb[4+b]) << (8*b);
+            std::array<int,8> alphaPalette{};
+            std::uint64_t alphaIndices = 0;
+            if (dxt == 5)
+            {
+                alphaPalette[0]=block[0]; alphaPalette[1]=block[1];
+                if (block[0] > block[1])
+                    for(int i=1;i<=6;++i) alphaPalette[i+1]=((7-i)*block[0]+i*block[1])/7;
+                else
+                {
+                    for(int i=1;i<=4;++i) alphaPalette[i+1]=((5-i)*block[0]+i*block[1])/5;
+                    alphaPalette[6]=0; alphaPalette[7]=255;
+                }
+                for(int b=0;b<6;++b) alphaIndices |= static_cast<std::uint64_t>(block[2+b]) << (8*b);
+            }
+            for (int y = 0; y < 4; ++y)
+                for (int x = 0; x < 4; ++x)
+                {
+                    const int px=bx*4+x, py=by*4+y, texel=y*4+x;
+                    if(px>=width || py>=height) continue;
+                    auto* pixel=&rgba[(py*width+px)*4];
+                    const auto& color=palette[(indices >> (2*texel)) & 3];
+                    for(int c=0;c<3;++c) pixel[c]=static_cast<std::uint8_t>(color[c]);
+                    pixel[3]=dxt==1 ? 255 : (dxt==3 ? static_cast<std::uint8_t>(((block[texel/2] >> ((texel%2)*4)) & 15)*17)
+                                                                   : static_cast<std::uint8_t>(alphaPalette[(alphaIndices >> (3*texel)) & 7]));
+                }
+        }
+    return rgba;
+}
+
 }

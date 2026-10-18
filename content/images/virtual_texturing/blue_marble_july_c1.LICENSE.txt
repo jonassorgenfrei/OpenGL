@@ -1,0 +1,27 @@
+NASA Blue Marble: Next Generation, July 2004, with Topography, tile C1
+
+Source: NASA Earth Observatory / Blue Marble: Next Generation
+Collection and downloads:
+https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-topography/
+Original 21600 x 21600 JPEG:
+https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-topography/july/world.topo.200407.3x21600x21600.C1.jpg
+
+NASA image and media usage guidelines:
+https://www.nasa.gov/nasa-brand-center/images-and-media/
+
+NASA content generally is not subject to copyright in the United States.
+NASA permits educational and informational use under its media guidelines;
+acknowledge NASA as the image source. No NASA endorsement is implied.
+The source imagery retains its original terms; this file does not relicense it.
+
+Repository derivative:
+- Downsampled to 16384 x 16384 using Lanczos filtering.
+- Covers 0-90 degrees east, 0-90 degrees north.
+- Flipped vertically for OpenGL texture coordinates.
+- Nine prefiltered mip levels, stored as independently encoded JPEG tiles.
+- JPEG quality 85, 4:2:0 subsampling; each disk tile has a 16-pixel gutter.
+- Prepared with scripts/build_virtual_texture.py and Pillow 12.0.0.
+- No AI-generated image content.
+
+Pack SHA-256: 4cc03370104bd5f77fe6ded32169fc1135e12e33056450ccf1508ecbab6c6a22
+Original JPEG SHA-256: ec82e3c931267230ed73a5c9d44969403abcca7348262ff32f68596c0b7b6811

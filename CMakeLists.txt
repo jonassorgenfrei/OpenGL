@@ -47,6 +47,7 @@ set(Basics
     Shader
     Text
     Texture_Basics
+    Texture_AtlasArray
     Texture_Compression
     Texture_VirtualTexturing
     Transformation
@@ -224,3 +225,8 @@ foreach(FOLDER ${FOLDERS})
 endforeach(FOLDER)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# Optional offline asset preparation; normal builds use the bundled DDS/ASTC files.
+add_executable(Texture_Compression_Prepare EXCLUDE_FROM_ALL
+    samples/Basics/Texture_Compression/tools/prepare_dxt.cpp)
+set_property(TARGET Texture_Compression_Prepare PROPERTY FOLDER "Tools")

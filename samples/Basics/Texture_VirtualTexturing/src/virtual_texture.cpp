@@ -7,38 +7,12 @@
 
 namespace
 {
-constexpr int VirtualSize = 2048;
-constexpr int PageSize = 64;
-constexpr int VirtualPages = VirtualSize / PageSize;
-constexpr int MipLevels = 6;
-constexpr int PinnedMip = 4;
-constexpr int PageTableHeight = 63;
-constexpr int PageGutter = 1;
-constexpr int UploadsPerFrame = 4;
-
-std::uint8_t toByte(float value)
-{
-    value = std::max(0.0f, std::min(1.0f, value));
-    return static_cast<std::uint8_t>(value * 255.0f + 0.5f);
-}
-
-// Procedural texels keep the residency example independent of disk I/O.
-std::array<std::uint8_t, 4> virtualColor(int x, int y)
-{
-    x = std::max(0, std::min(VirtualSize - 1, x));
-    y = std::max(0, std::min(VirtualSize - 1, y));
-    const float u = static_cast<float>(x) / static_cast<float>(VirtualSize - 1);
-    const float v = static_cast<float>(y) / static_cast<float>(VirtualSize - 1);
-    const float checker = (((x / 128) + (y / 128)) & 1) ? 0.14f : 0.0f;
-    const float dx = u - 0.5f;
-    const float dy = v - 0.5f;
-    const float rings = 0.5f + 0.5f * std::sin(std::sqrt(dx * dx + dy * dy) * 95.0f);
-    const bool grid = x % 256 < 8 || y % 256 < 8;
-    if (grid) return { 245, 245, 245, 255 };
-    return { toByte(0.10f + 0.70f * u + checker),
-             toByte(0.10f + 0.70f * v + checker),
-             toByte(0.16f + 0.34f * rings + checker), 255 };
-}
+constexpr int VirtualSize = VirtualTexture::VirtualSize;
+constexpr int PageSize = VirtualTexture::PageSize;
+constexpr int VirtualPages = VirtualTexture::VirtualPages;
+constexpr int MipLevels = VirtualTexture::MipLevels;
+constexpr int PinnedMip = VirtualTexture::PinnedMip;
+constexpr int PageTableHeight = VirtualTexture::PageTableHeight;
 }
 
 int VirtualTexture::mipDimension(int mip)
@@ -88,8 +62,17 @@ std::size_t VirtualTexture::tablePixelOffset(const Page& page) const
                                     VirtualPages + page.x) * 4);
 }
 
-void VirtualTexture::initialize()
+VirtualTexture::PageMapping VirtualTexture::slotMapping(int slot) const
 {
+    if (slot < 0 || slot >= slotCount() || slots_[slot].page < 0) return {};
+    const Page& page = pages_[slots_[slot].page];
+    return {page.mip, page.x, page.y};
+}
+
+void VirtualTexture::initialize(const std::string& imagePath)
+{
+    source_.open(imagePath,
+                 VirtualSize, PageSize, MipLevels);
     tablePixels_.assign(VirtualPages * PageTableHeight * 4, 0);
     for (int mip = 0; mip < MipLevels; ++mip)
     {
@@ -105,8 +88,9 @@ void VirtualTexture::initialize()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    const std::vector<std::uint8_t> emptyCache(CacheSize * CacheSize * 4, 0);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, CacheSize, CacheSize, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                 GL_RGBA, GL_UNSIGNED_BYTE, emptyCache.data());
 
     glGenTextures(1, &pageTable_);
     glBindTexture(GL_TEXTURE_2D, pageTable_);
@@ -142,6 +126,7 @@ void VirtualTexture::uploadPage(int requestedIndex)
     if (slot.page >= 0)
     {
         Page& evicted = pages_[slot.page];
+        ++evictions_;
         evicted.slot = -1;
         std::fill_n(&tablePixels_[tablePixelOffset(evicted)], 4, 0);
     }
@@ -151,16 +136,7 @@ void VirtualTexture::uploadPage(int requestedIndex)
     }
 
     Page& requested = pages_[requestedIndex];
-    const int mipScale = 1 << requested.mip;
-    std::vector<std::uint8_t> pixels(SlotSize * SlotSize * 4);
-    for (int y = 0; y < SlotSize; ++y)
-        for (int x = 0; x < SlotSize; ++x)
-        {
-            const int virtualX = (requested.x * PageSize + x - PageGutter) * mipScale + mipScale / 2;
-            const int virtualY = (requested.y * PageSize + y - PageGutter) * mipScale + mipScale / 2;
-            const auto color = virtualColor(virtualX, virtualY);
-            std::copy(color.begin(), color.end(), pixels.begin() + (y * SlotSize + x) * 4);
-        }
+    const auto pixels = source_.readPage(requested.mip, requested.x, requested.y);
 
     const int slotX = selectedSlot % CachePages;
     const int slotY = selectedSlot / CachePages;
@@ -177,7 +153,7 @@ void VirtualTexture::uploadPage(int requestedIndex)
     entry[2] = entry[3] = 255;
 }
 
-void VirtualTexture::update(float centerX, float centerY, float viewSpan)
+void VirtualTexture::update(float centerX, float centerY, float viewSpan, bool stream, int uploadBudget)
 {
     ++frame_;
     uploadsThisFrame_ = 0;
@@ -230,19 +206,45 @@ void VirtualTexture::update(float centerX, float centerY, float viewSpan)
         if (pages_[index].slot >= 0)
             slots_[pages_[index].slot].lastUsed = frame_;
     for (int index : requested)
-        if (pages_[index].slot < 0 && uploadsThisFrame_ < UploadsPerFrame)
+        if (pages_[index].slot < 0 && stream && uploadsThisFrame_ < uploadBudget)
         {
             uploadPage(index);
             ++uploadsThisFrame_;
         }
+
+    pendingCount_ = 0;
+    for (int index : requested)
+        if (pages_[index].slot < 0) ++pendingCount_;
 
     glBindTexture(GL_TEXTURE_2D, pageTable_);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, VirtualPages, PageTableHeight,
                     GL_RGBA, GL_UNSIGNED_BYTE, tablePixels_.data());
 }
 
+// Keep the five coarse fallback pages, but force fine detail to stream again.
+void VirtualTexture::clearDetail()
+{
+    // Clear discarded texels too, so the cache preview agrees with residency.
+    const std::vector<std::uint8_t> emptySlot(SlotSize * SlotSize * 4, 0);
+    glBindTexture(GL_TEXTURE_2D, cache_);
+    for (int index = 0; index < slotCount(); ++index)
+    {
+        Slot& slot = slots_[index];
+        if (slot.page < 0 || pages_[slot.page].mip >= PinnedMip) continue;
+        glTexSubImage2D(GL_TEXTURE_2D, 0, index % CachePages * SlotSize,
+                       index / CachePages * SlotSize, SlotSize, SlotSize,
+                       GL_RGBA, GL_UNSIGNED_BYTE, emptySlot.data());
+        Page& page = pages_[slot.page];
+        std::fill_n(&tablePixels_[tablePixelOffset(page)], 4, 0);
+        page.slot = -1;
+        slot = Slot{};
+        --residentCount_;
+    }
+}
+
 void VirtualTexture::destroy()
 {
+    source_.close();
     glDeleteTextures(1, &cache_);
     glDeleteTextures(1, &pageTable_);
     cache_ = pageTable_ = 0;
