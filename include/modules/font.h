@@ -220,10 +220,8 @@ public:
 
 	~TextRenderer()
 	{
-		// Static overlays may outlive glfwTerminate; never call GL without
-		// the context that owns these resources.
-		if (context && glfwGetCurrentContext() == context)
-			release();
+		// Destroy with the owning context current, or release resources beforehand.
+		release();
 	}
 
 	/** Release resources before the owning OpenGL context is destroyed. */
@@ -235,7 +233,6 @@ public:
 		if (shader) glDeleteProgram(shader->ID);
 		shader.reset();
 		VBO = VAO = 0;
-		context = nullptr;
 	}
 
 
@@ -245,8 +242,7 @@ private:
 	bool initialize()
 	{
 		if (shader) return true;
-		context = glfwGetCurrentContext();
-		if (!context) return false;
+		if (!glfwGetCurrentContext()) return false;
 		// All samples share the Text sample's shader files.
 		shader = std::make_unique<Shader>(
 			FileSystem::getPath("samples/Basics/Text/shader/text.vert").c_str(),
@@ -293,5 +289,4 @@ private:
 	GLuint VAO = 0, VBO = 0;
 	// Shader used for text rendering
 	std::unique_ptr<Shader> shader;
-	GLFWwindow* context = nullptr;
 };
