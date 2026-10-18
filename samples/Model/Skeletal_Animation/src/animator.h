@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <cmath>
 #include <map>
 #include <vector>
 #include <assimp/scene.h>
@@ -40,7 +41,7 @@ public:
 		{
 			// advances the current time with the rate of the ticksPerSecond
 			currentTime += currentAnimation->GetTicksPerSecond() * dt;
-			currentTime = fmod(currentTime, currentAnimation->GetDuration());
+			currentTime = std::fmod(currentTime, currentAnimation->GetDuration());
 			// calculates bone transform for current time
 			// start with identity matrix glm::mat4(1.0f) & root node of currentAnimation
 			CalculateBoneTransform(&currentAnimation->GetRootNode(), glm::mat4(1.0f));

@@ -5,6 +5,7 @@
 #include "modules/filesystem.h"
 #include "modules/shader_s.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <array>
 #include <cstdint>
@@ -102,6 +103,7 @@ int main()
     GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Texture Compression", nullptr, nullptr);
     if (!window)
     {
+        sample_help::shutdown();
         glfwTerminate();
         return -1;
     }
@@ -110,10 +112,17 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
+        sample_help::shutdown();
         glfwTerminate();
         return -1;
     }
     icon(window);
+    sample_help::initialize(window, {
+        {"Esc", "Exit sample"},
+        {"1", "Show RGBA8 source"},
+        {"2", "Show DXT1 / BC1"},
+        {"3", "Show ASTC 4x4"}
+    });
 
     const bool dxtExtension = GLAD_GL_EXT_texture_compression_s3tc != 0;
     const bool astcExtension = GLAD_GL_KHR_texture_compression_astc_ldr != 0;
@@ -177,6 +186,7 @@ int main()
         const std::string title = "Texture Compression | " + modeName(dxtSupported, astcSupported) +
                                   " | [1-3] mode [Esc] quit";
         glfwSetWindowTitle(window, title.c_str());
+        sample_help::render();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -188,6 +198,7 @@ int main()
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
     glDeleteProgram(shader.ID);
+    sample_help::shutdown();
     glfwTerminate();
     return 0;
 }

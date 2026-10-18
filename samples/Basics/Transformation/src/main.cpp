@@ -1,4 +1,5 @@
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -9,6 +10,7 @@
 #include "modules/shader_s.h"
 #include "modules/filesystem.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 
@@ -43,6 +45,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -58,6 +61,10 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"Up / Down", "Adjust texture mix"}
+	});
 
 #if START_FULLSCREEN
 	// FULLSCREEN
@@ -308,7 +315,7 @@ int main()
 		transform = glm::mat4(1.0f);
 		//first
 		transform = glm::translate(transform, glm::vec3(-0.5f, 0.5f, 0.0f));
-		transform = glm::scale(transform, glm::vec3(sin((float)glfwGetTime()), sin((float)glfwGetTime()), 0.0f));
+		transform = glm::scale(transform, glm::vec3(std::sin((float)glfwGetTime()), std::sin((float)glfwGetTime()), 0.0f));
 		transformShader.use();
 		// set the texture mix value in the shader
 		transformLoc = glGetUniformLocation(transformShader.ID, "transform");
@@ -338,6 +345,7 @@ int main()
 		
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -350,6 +358,7 @@ int main()
 
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }

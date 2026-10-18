@@ -4,6 +4,7 @@
 #include "modules/filesystem.h"
 #include "modules/shader_s.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 #include "virtual_texture.h"
 
 #include <algorithm>
@@ -88,6 +89,7 @@ int main()
                                           "Virtual Texturing", nullptr, nullptr);
     if (!window)
     {
+        sample_help::shutdown();
         glfwTerminate();
         return -1;
     }
@@ -97,10 +99,18 @@ int main()
     glfwSetScrollCallback(window, scrollCallback);
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
+        sample_help::shutdown();
         glfwTerminate();
         return -1;
     }
     icon(window);
+    sample_help::initialize(window, {
+        {"Esc", "Exit sample"},
+        {"WASD / arrows", "Pan texture"},
+        {"Mouse wheel", "Zoom texture"},
+        {"Q / E", "Zoom in / out"},
+        {"R", "Reset view"}
+    });
 
     const float vertices[] = {
         -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, 0.0f,
@@ -166,6 +176,7 @@ int main()
             glfwSetWindowTitle(window, title.str().c_str());
             nextTitleUpdate = time + 0.2;
         }
+        sample_help::render();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -175,6 +186,7 @@ int main()
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
     glDeleteProgram(shader.ID);
+    sample_help::shutdown();
     glfwTerminate();
     return 0;
 }

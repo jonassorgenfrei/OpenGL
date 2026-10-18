@@ -23,6 +23,7 @@
 #include "modules/material.h"
 #include "modules/filesystem.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 
@@ -50,7 +51,6 @@ bool d_pressed = false;
 bool p_pressed = false;
 bool w_pressed = false;
 bool t_pressed = false;
-bool h_pressed = false;
 
 bool debug = false;
 bool peterPanning = true;
@@ -92,6 +92,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -114,6 +115,18 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"D", "Show / hide shadow map"},
+		{"P", "Toggle peter-panning fix"},
+		{"W", "Toggle wireframe"},
+		{"T", "Cycle shadow technique"}
+	});
 
 	// configure global OpenGL state
 	// -----------------------------
@@ -291,6 +304,7 @@ int main()
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -302,6 +316,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }
@@ -448,19 +463,6 @@ void processInput(GLFWwindow *window)
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
-
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
-		h_pressed = true;
-	}
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE && h_pressed) {
-		std::cout << "Help:" << std::endl;
-		std::cout << " F2: Toggle FullScreen" << std::endl;
-		std::cout << " D: Toggle Debug Show Shadow map" << std::endl;
-		std::cout << " P: Toggle Peter Pannig" << std::endl;
-		std::cout << " W: Toggle Wireframe" << std::endl;
-		std::cout << " T: Toggle Technic (default, biased, pcf)" << std::endl;
-		h_pressed = false;
-	}
 
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{

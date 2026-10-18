@@ -8,6 +8,7 @@
 // ----------------------------------------------------------------------------
 
 #include <vector>
+#include <cmath>
 
 // OpenGL
 #include <glad/glad.h>
@@ -197,8 +198,8 @@ private:
 
 	glm::vec2 floorv(glm::vec2 v) {
 		return glm::vec2(
-			(float)floor((float)v.x),
-			(float)floor((float)v.y)
+			(float)std::floor((float)v.x),
+			(float)std::floor((float)v.y)
 			);
 	}
 
@@ -209,8 +210,8 @@ private:
 
 	float rand2(glm::vec2 xi) {
 		float cos = glm::dot(xi, glm::vec2(12.9898, 78.233));
-		float value = sin(cos) * 43758.5453;
-		return value - floor(value);
+		float value = std::sin(cos) * 43758.5453;
+		return value - std::floor(value);
 	}
 
 	float lerpf(float x, float y, float alpha) {
@@ -243,7 +244,7 @@ private:
 		float persistance = 0.7f;
 
 		while (wavelength > 1) {
-			float amplitude = pow(persistance, index);
+			float amplitude = std::pow(persistance, index);
 			value += octave(position, wavelength, amplitude);
 			wavelength /= 2;
 			index++;

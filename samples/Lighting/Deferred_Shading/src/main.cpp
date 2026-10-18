@@ -7,6 +7,7 @@
 #define GLM_FORCE_SILENT_WARNINGS 1
 
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -20,6 +21,7 @@
 #include "modules/model.h"
 #include "modules/filesystem.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include "gBuffer.h"
 
@@ -76,6 +78,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -98,6 +101,15 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"D", "Toggle debug view"}
+	});
 
 	// configure global OpenGL state
 	// -----------------------------
@@ -332,7 +344,7 @@ int main()
 				// then calculate radius of light volume/sphere
 				float lightMax = std::fmaxf(std::fmaxf(lightColors[i].r, lightColors[i].g), lightColors[i].b);
 				float radius =
-					(-linear + std::sqrtf(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * lightMax)))
+					(-linear + std::sqrt(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * lightMax)))
 					/ (2 * quadratic); // return value roughly between 1.0 and 5.0 (based on light's max intensity)
 				lightingPassShader.setFloat("lights[" + std::to_string(i) + "].Radius", radius);
 	}
@@ -398,7 +410,7 @@ int main()
 				const float quadratic = 1.8;
 				float lightMax = std::fmaxf(std::fmaxf(lightColors[i].r, lightColors[i].g), lightColors[i].b);
 				float radius =
-					(-linear + std::sqrtf(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * lightMax)))
+					(-linear + std::sqrt(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * lightMax)))
 					/ (2 * quadratic); // return value roughly between 1.0 and 5.0 (based on light's max intensity)
 				model = glm::scale(model, glm::vec3(radius));
 
@@ -575,6 +587,7 @@ int main()
 			}
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -584,6 +597,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }
@@ -946,8 +960,8 @@ unsigned int loadTexture(char const *path, bool gammaCorrection)
 	unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
 	if (data)
 	{
-		GLenum internalFormat = NULL;
-		GLenum dataFormat = NULL;
+		GLenum internalFormat = 0;
+		GLenum dataFormat = 0;
 		if (nrComponents == 1) {
 			internalFormat = dataFormat = GL_RED;
 		}

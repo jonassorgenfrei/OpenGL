@@ -5,6 +5,7 @@
 #include "modules/filesystem.h"
 #include "modules/shader_s.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -72,6 +73,7 @@ int main()
     GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Texture Basics", nullptr, nullptr);
     if (!window)
     {
+        sample_help::shutdown();
         glfwTerminate();
         return -1;
     }
@@ -80,10 +82,16 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
+        sample_help::shutdown();
         glfwTerminate();
         return -1;
     }
     icon(window);
+    sample_help::initialize(window, {
+        {"Esc", "Exit sample"},
+        {"Up / Down", "Adjust texture mix"},
+        {"R", "Reset texture mix"}
+    });
 
     const float vertices[] = {
         // position   // texture coordinate
@@ -112,6 +120,7 @@ int main()
     const GLuint face = loadTexture(FileSystem::getPath("content/images/awesomeface.png").c_str(), GL_RGBA);
     if (!container || !face)
     {
+        sample_help::shutdown();
         glfwTerminate();
         return -1;
     }
@@ -152,6 +161,7 @@ int main()
             glfwSetWindowTitle(window, title.str().c_str());
             nextTitleUpdate = time + 0.2;
         }
+        sample_help::render();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -162,6 +172,7 @@ int main()
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
     glDeleteProgram(shader.ID);
+    sample_help::shutdown();
     glfwTerminate();
     return 0;
 }

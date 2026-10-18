@@ -16,6 +16,7 @@
 #include "modules/model.h"
 #include "modules/filesystem.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 #include <vector>
@@ -37,6 +38,7 @@ const unsigned int SCR_HEIGHT = 600;
 
 //Light Model
 bool bloom = true;
+bool bloomKeyPressed = false;
 float exposure = 1.0f;
 int programChoice = 1;
 float bloomFilterRadius = 0.005f;
@@ -347,6 +349,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -369,6 +372,16 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"Space", "Toggle bloom"},
+		{"Q / E", "Adjust exposure"}
+	});
 
 	// configure global OpenGL state
 	// -----------------------------
@@ -603,6 +616,7 @@ int main()
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -614,6 +628,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }
