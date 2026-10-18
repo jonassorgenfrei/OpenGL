@@ -7,11 +7,11 @@ them are based on [LearnOpenGL](https://learnopengl.com/Introduction) and
 Samples are grouped into:
 
 - [Basics](samples/Basics/README.md)
-- Lighting
-- Model
-- PBR
-- Shadows
-- Advanced OpenGL
+- [Lighting](samples/Lighting/README.md)
+- [Model](samples/Model/README.md)
+- [PBR](samples/PBR/README.md)
+- [Shadows](samples/Shadows/README.md)
+- [Advanced OpenGL](samples/Advanced_OpenGL/README.md)
 
 ## General prerequisites
 
