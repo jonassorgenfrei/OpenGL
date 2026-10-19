@@ -106,6 +106,15 @@ CMake executable, preferring the one recorded in the build cache and then
 Visual Studio's bundled CMake. New build directories use the installed Visual
 Studio version explicitly, regardless of `CMAKE_GENERATOR` or `PATH` defaults.
 
+After configuration, open `build/windows/OpenGLSamples.slnx` in Visual Studio
+(or `OpenGLSamples.sln` if that is what your CMake version generated). Select
+`Release | x64` and set the desired sample as the startup project. If you
+configured with `-B build`, open the solution in `build/` instead.
+
+CMake reuses the script's portable Python when Visual Studio regenerates the
+solution. GLAD generation selects UTF-8 explicitly, so Visual Studio does not
+need to inherit Python environment settings from PowerShell.
+
 ### Linux
 
 On Debian/Ubuntu (Ubuntu 24.04 or newer recommended):
