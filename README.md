@@ -13,6 +13,37 @@ Samples are grouped into:
 - [Shadows](samples/Shadows/README.md)
 - [Advanced OpenGL](samples/Advanced_OpenGL/README.md)
 
+## Texture learning examples
+
+Start with [Texture Basics](samples/Basics/Texture_Basics/), then explore:
+
+- [Texture Atlas / Texture Array](samples/Basics/Texture_AtlasArray/): compare
+  UV rectangles and array layers side by side, inspect storage, and experiment
+  with repetition, filtering bleed, mip levels, and a base-level UV inset.
+- [Texture Compression](samples/Basics/Texture_Compression/): compare a real
+  photograph in RGBA8, DXT1/BC1, DXT3/BC2, DXT5/BC3, and three ASTC block sizes.
+  Inspect alpha and compression artifacts, then compare payload savings with
+  measured file-read and completed-upload times from prepared DDS/ASTC assets.
+- [Virtual Texturing](samples/Basics/Texture_VirtualTexturing/): explore a real 16K
+  NASA Blue Marble satellite map with 2.51 MiB of cache and page-table texture storage instead of
+  a 1024 MiB full base image. Live overview/cache panels, residency colors, and
+  pause/clear/budget controls make page streaming and its tradeoffs visible.
+  Hover cache slots to highlight their corresponding image regions.
+
+Each sample has on-screen keyboard help (`H`). The atlas/array and virtual
+texturing READMEs include guided experiments. Both run on OpenGL 3.3. The
+atlas/array sample generates its tiles procedurally;
+virtual texturing reads prefiltered tiles from an included NASA image pack
+without decoding the entire image into RAM.
+
+After configuring, build these two targets with:
+
+```sh
+cmake --build build/windows --config Release --target Texture_AtlasArray Texture_VirtualTexturing
+```
+
+Use your configured build directory in place of `build/windows` on other platforms.
+
 ## General prerequisites
 
 Both build workflows require **CMake 3.24 or newer** and a **C++17-capable
@@ -74,6 +105,15 @@ The script reuses an existing Visual Studio generator and selects a compatible
 CMake executable, preferring the one recorded in the build cache and then
 Visual Studio's bundled CMake. New build directories use the installed Visual
 Studio version explicitly, regardless of `CMAKE_GENERATOR` or `PATH` defaults.
+
+After configuration, open `build/windows/OpenGLSamples.slnx` in Visual Studio
+(or `OpenGLSamples.sln` if that is what your CMake version generated). Select
+`Release | x64` and set the desired sample as the startup project. If you
+configured with `-B build`, open the solution in `build/` instead.
+
+CMake reuses the script's portable Python when Visual Studio regenerates the
+solution. GLAD generation selects UTF-8 explicitly, so Visual Studio does not
+need to inherit Python environment settings from PowerShell.
 
 ### Linux
 
