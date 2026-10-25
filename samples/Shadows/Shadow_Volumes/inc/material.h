@@ -1,7 +1,7 @@
 #ifndef MATERIAL_H
 #define MATERIAL_H
 
-#include <glad\glad.h>
+#include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "shader_m.h"
@@ -33,7 +33,7 @@ public:
 		shininess = shine;
 	}
 
-	// Benutzung des Shaders
+	// Upload this material's properties to the shader.
 	void use(Shader shader) {
 		//shader.setVec3("material.ambient", ambient);
 		//shader.setVec3("material.diffuse", diffuse);

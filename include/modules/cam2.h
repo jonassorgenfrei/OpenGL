@@ -2,7 +2,8 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#include <glad\glad.h>
+#include <glad/glad.h>
+#include <cmath>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -30,7 +31,7 @@ const float SENSITIVITY = 0.05f;
 const float ZOOM = 45.0f;
 
 // An abstract camera class that process input and calculates the corresponding 
-// Eular Angles, Vectors and Matrices for use in OpenGl
+// Euler angles, vectors, and matrices used by the OpenGL camera
 class Camera
 {
 public:
@@ -156,9 +157,9 @@ private:
 	void updateCameraVectors()
 	{
 		/*glm::vec3 front;*/
-		Position.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-		Position.y = sin(glm::radians(Pitch));
-		Position.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
+		Position.x = std::cos(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
+		Position.y = std::sin(glm::radians(Pitch));
+		Position.z = std::sin(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
 
 		//Front = glm::normalize(focus - Position);
 		// Also re-calculate the Right and Up vector

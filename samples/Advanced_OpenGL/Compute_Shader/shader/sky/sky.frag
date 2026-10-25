@@ -9,13 +9,13 @@ const float PI  = 3.14159265358979;
 
 // ----------------------------------------------------------------------------
 //
-// Attribute
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
 in vec3 fModelPosition;
 
-layout (location = 0) out vec4 FragColor;                             /**< Farbe des Fragments */
+layout (location = 0) out vec4 FragColor;                             /**< Fragment color */
 
 // ----------------------------------------------------------------------------
 //
@@ -23,13 +23,13 @@ layout (location = 0) out vec4 FragColor;                             /**< Farbe
 //
 // ----------------------------------------------------------------------------
 
-layout (location = 3) uniform vec4 Color;       /**< Farbe der Fragmente */
+layout (location = 3) uniform vec4 Color;       /**< Fragment color */
 
 layout (binding = 0) uniform sampler2D EnvironmentMap;
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
@@ -44,7 +44,7 @@ vec4 sampleEquirectangular(vec3 dir, sampler2D sampler, float level)  {
 
 
 /**
- * Einsprungpunkt für den Fragment-Shader
+ * Entry point for the fragment shader
  */
 void main() {
     FragColor = sampleEquirectangular(normalize(fModelPosition), EnvironmentMap, 0);

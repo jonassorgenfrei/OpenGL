@@ -4,6 +4,7 @@
 
 
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
@@ -19,6 +20,7 @@
 #include "modules/light.h"
 #include "modules/material.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 
@@ -62,9 +64,9 @@ bool firstMouse = true;
 bool printFPS = false;
 
 
-#define VERTEX_ATTRIB_POSITION 0            /**< Attribute Location für die Positionen */
-#define VERTEX_ATTRIB_NORMAL   1            /**< Attribute Location für die Normalen */
-#define VERTEX_ATTRIB_TEXCOORD 2            /**< Attribute Location für die Textur Koordinaten */
+#define VERTEX_ATTRIB_POSITION 0            /**< Attribute location for positions */
+#define VERTEX_ATTRIB_NORMAL   1            /**< Attribute location for normals */
+#define VERTEX_ATTRIB_TEXCOORD 2            /**< Attribute location for texture coordinates */
 
 #define SIZE 32
 
@@ -94,6 +96,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -116,9 +119,22 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"W", "Toggle wireframe"},
+		{"F", "Toggle FPS logging"},
+		{"U", "Show / hide texture coordinates"},
+		{"A", "Toggle animation"},
+		{"Up / Down", "Adjust alpha threshold"}
+	});
 
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -244,6 +260,7 @@ int main()
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -254,6 +271,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }
@@ -486,8 +504,8 @@ float heightFunc(glm::vec2 pos) {
 	float result = 0;
 	float frequenz = 0.25;
 	for (int i = 0; i < 32; i++) {
-		result += sin(pos.x * frequenz * frequenzies[i * 2] + offset[i * 2]) * (1 / frequenz) * amplitudes[i * 2] +
-			sin(pos.y * frequenz * frequenzies[i * 2] + offset[i * 2 + 1]) * (1 / frequenz) * amplitudes[i * 2 + 1];
+		result += std::sin(pos.x * frequenz * frequenzies[i * 2] + offset[i * 2]) * (1 / frequenz) * amplitudes[i * 2] +
+			std::sin(pos.y * frequenz * frequenzies[i * 2] + offset[i * 2 + 1]) * (1 / frequenz) * amplitudes[i * 2 + 1];
 		frequenz *= 2;
 	}
 	return result * 0.25 - 1.;
@@ -569,7 +587,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 unsigned int loadTexture(char const *path, bool gammaCorrection)
 {
 	/*
-	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
+	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
 	 */
 	unsigned int textureID;
 	glGenTextures(1, &textureID);

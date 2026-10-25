@@ -32,7 +32,7 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 	// check if currentDepth is highger than closestDepth
 	float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
 
-	// force shadow when z coordinante is larger than 1.0
+	// Treat fragments beyond the light frustum as shadowed.
 	if(projCoords.z > 1.0)
         shadow = 0.0;
 
@@ -57,7 +57,7 @@ float shadowCalculationBiased(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir
 	
 	float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
 
-	// force shadow when z coordinante is larger than 1.0
+	// Treat fragments beyond the light frustum as shadowed.
 	if(projCoords.z > 1.0)
         shadow = 0.0;
 
@@ -92,7 +92,7 @@ float shadowCalculationPCF(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 	}
 	shadow /= 9.0; // ave. result by total samples taken
 
-	// force shadow when z coordinante is larger than 1.0
+	// Treat fragments beyond the light frustum as shadowed.
 	if(projCoords.z > 1.0)
         shadow = 0.0;
 

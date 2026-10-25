@@ -19,6 +19,7 @@
 #include "modules/light.h"
 #include "modules/material.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include "particles.h"
 #include "particlesTransformFeedback.h"
@@ -75,6 +76,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -97,8 +99,18 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"W", "Toggle wireframe"},
+		{"Q / E", "Adjust scale"}
+	});
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -125,7 +137,7 @@ int main()
 	//ParticleSystem ps(500, glm::vec3(0));
 	ParticleSystemTF ps(500, glm::vec3(0,0,0));
 
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	particlesVis.use();
 
@@ -168,6 +180,7 @@ int main()
 		ps.draw(&particlesVis);
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -178,6 +191,7 @@ int main()
 
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }
@@ -340,7 +354,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 unsigned int loadTexture(char const *path, bool gammaCorrection)
 {
 	/*
-	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
+	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
 	 */
 	unsigned int textureID;
 	glGenTextures(1, &textureID);

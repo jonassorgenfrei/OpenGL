@@ -1,6 +1,6 @@
 #version 430 core
 
-// shader outputs
+// Shader outputs
 layout (location = 0) out vec4 frag;
 
 // material color

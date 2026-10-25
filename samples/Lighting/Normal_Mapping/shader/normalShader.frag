@@ -22,7 +22,7 @@ uniform vec3 lightPos;
 uniform vec3 viewPos;
 
 /*
- * Blinn-Phong Lightning Model
+ * Blinn-Phong lighting model
  */
 vec3 BlinnPhong(vec3 normal, vec3 fragPosition, vec3 lightPosition, vec3 viewPosition, vec3 lightColor) {
 	//diffuse

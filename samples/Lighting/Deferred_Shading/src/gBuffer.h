@@ -66,15 +66,15 @@ class GBuffer {
 
 			// depth (explicitly, because it requires diff. format and is attached to the FBO at a diff. spot)
 			glBindTexture(GL_TEXTURE_2D, m_depthTexture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH32F_STENCIL8, WindowWidth, WindowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL); // leaves a full byte for the stencile value in each pixel
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH32F_STENCIL8, WindowWidth, WindowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL); // allocates one byte of stencil data per pixel
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, m_depthTexture, 0);// attached to Depth & Stencil attachment
 		
 			//final 
 			glBindTexture(GL_TEXTURE_2D, m_finalTexture);
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WindowWidth, WindowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, m_finalTexture, 0); // attacht to number 4
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, m_finalTexture, 0); // attach to color attachment 4
 
-			// explicitly tell OpenGl which color attachments to be used (of. FB)
+			// explicitly tell OpenGL which color attachments to be used (of. FB)
 			// enable writing to all four textures
 			GLenum drawBuffer[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
 			glDrawBuffers(sizeof(drawBuffer)/sizeof(drawBuffer[0]), drawBuffer); // supplying array if attchment locations 

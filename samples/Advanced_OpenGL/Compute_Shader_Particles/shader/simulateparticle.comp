@@ -8,33 +8,33 @@ layout (local_size_x = 1000, local_size_y = 1, local_size_z = 1) in;
 //
 // ----------------------------------------------------------------------------
 
-layout (location = 0) uniform float Dt;                 /**< Zeitdifferenz zum letzen Berechnungsschritt */
-layout (location = 1) uniform vec2 FramebufferSize;     /**< Größe des Framebuffers */
-layout (location = 2) uniform vec2 Attractor;           /**< Anziehungspunkt */
-layout (location = 3) uniform float AttractorForce;     /**< Multiplikator für die Geschwindigkeit zum Anziehungspunkt */
+layout (location = 0) uniform float Dt;                 /**< Time since the previous simulation step */
+layout (location = 1) uniform vec2 FramebufferSize;     /**< Framebuffer size */
+layout (location = 2) uniform vec2 Attractor;           /**< Attractor position */
+layout (location = 3) uniform float AttractorForce;     /**< Scale applied to the velocity toward the attractor */
 
-/** Buffer für die Positionen der Partikel */
+/** Buffer containing particle positions */
 layout (std430, binding = 0) buffer PositionBuffer {
     vec2 positions[];
 };
 
-/** Buffer für die Geschwindigkeiten der Partikel */
+/** Buffer containing particle velocities */
 layout (std430, binding = 1) buffer VelocitiesBuffer {
     vec2 velocities[];
 };
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
 /**
- * Berechnet auf Basis eines 2D-Vektors einen Zufallswert
+ * Computes a pseudo-random value from a 2D vector
  *
- * @param xi                    2D-Vektor als Grundlage des Zufallswertes
+ * @param xi                    2D vector used as the random seed
  *
- * @return Zufallswert
+ * @return Pseudo-random value
  */
 float rand(vec2 xi){
     return fract(sin(dot(xi.xy, vec2(12.9898,78.233))) * 43758.5453);
@@ -42,29 +42,29 @@ float rand(vec2 xi){
 
 
 /**
- * Einsprungpunkt für den Compute Shader
+ * Entry point for the compute shader
  */
 void main() {
-    // Position und Geschwindigkeit aus Shader Storage Buffer lesen
+    // Read position and velocity from the shader storage buffers
     vec2 position = positions[gl_GlobalInvocationID.x];
     vec2 velocity = velocities[gl_GlobalInvocationID.x];
 
-    // Geschwindigkeit zum Anziehungspunkt berechnen
+    // Calculate the velocity toward the attractor.
     vec2 attractorVector = Attractor - position;
     float attractorDistance = length(attractorVector);
     vec2 attractorVelocity = 50000*normalize(attractorVector) / max(0.5, attractorDistance);
 
-    // Zufällige Geschwindigkeit berechnen
+    // Calculate a random velocity
     vec2 randomVelocity = 2*vec2(rand(attractorVector + gl_GlobalInvocationID.xy)) - vec2(1);
 
-    // Drehgeschwindigkeit berechnen
+    // Calculate angular velocity
     vec2 rotationalVelocity = cross(vec3(attractorVector, 0), vec3(0, 0, 1)).xy;
     rotationalVelocity = smoothstep(100, 0, attractorDistance)*rotationalVelocity;
 
-    // Trägheit der Partikel simulieren
+    // Simulate particle inertia
     velocity = mix(velocity, AttractorForce*(attractorVelocity + rotationalVelocity + 5*randomVelocity), 0.05);
 
-    // Randbehandlung
+    // Handle the framebuffer boundaries
     {
         if (position.x < 0) {
             velocity.x *= -1;
@@ -83,10 +83,10 @@ void main() {
         }
     }
 
-    // Neue Position berechnen
+    // Calculate the new position
     position = position + Dt*velocity;
 
-    // Position und Geschwindigkeit in Shader Storage Buffer schreiben
+    // Write position and velocity to the shader storage buffers
     positions[gl_GlobalInvocationID.x] = position;
     velocities[gl_GlobalInvocationID.x] = velocity;
 }

@@ -1,14 +1,14 @@
 #ifndef  MODEL_H
 #define MODEL_H
 
-#include <glad\glad.h>
+#include <glad/glad.h>
 
-#include <glm\glm.hpp>
-#include <glm\gtc\matrix_transform.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
-#include <assimp\Importer.hpp>
-#include <assimp\scene.h>
-#include <assimp\postprocess.h>
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 
 #include "stb_image.h"
 #include "mesh.h"
@@ -67,7 +67,7 @@ class Model
 			// more: http://assimp.sourceforge.net/lib_html/postprocess_8h.html
 
 			//check if scene and the root node are not null
-			//check if returned data of flag ist incomplete
+			// Abort if Assimp reports incomplete scene data or a missing root node.
 			if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 			{
 				//return error

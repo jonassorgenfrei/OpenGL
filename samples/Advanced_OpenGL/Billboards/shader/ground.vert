@@ -9,7 +9,7 @@ out vec2 fTexCoord;
 
 // ----------------------------------------------------------------------------
 //
-// Attributes
+// Attributess
 //
 // ----------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ uniform mat4 projection;
 // ----------------------------------------------------------------------------
 
 /**
- * Einsprungpunkt für den Vertex-Shader
+ * Entry point for the vertex shader
  */
 void main() {
     vec4 worldPosition = model*vec4(position, 1.0);

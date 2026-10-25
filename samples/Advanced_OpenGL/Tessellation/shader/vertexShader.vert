@@ -1,8 +1,7 @@
 #version 430 core
 /**
- * Using tangent space, to to lightning in a different coordinate space.
- * A coordinate space, where the normal map vectors always point roughly in the positive z direction.
- *
+ * Pass model-space attributes to the tessellation stages. Projection is
+ * deferred until the TES because tessellation operates on object-space patches.
  */
 
 layout (location = 0) in vec3 aPos;
@@ -18,12 +17,10 @@ out VS_OUT {
 } vs_out;
 
 void main() {
-	// Don't transform local space coordinates to clip space (view-projection-Matrix)
-	// postphone this Action
+	// Keep the position in model space; the TES performs the final projection.
 	vs_out.positionW = (model * vec4(aPos,1.0)).xyz;
 	vs_out.texCoords = aTexCoords;
 	vs_out.normal = (model * vec4(aNormal,1.0)).xyz;
 
-	// Die vordefinierte Variable gl_Position wird im Tessellation 
-	// Evaluation Shader beschrieben.
+	// The tessellation evaluation shader writes the final gl_Position value.
 }

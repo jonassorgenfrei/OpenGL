@@ -1,17 +1,9 @@
 /*
- * Tessellation Control Shader - TCS
- *	optional
- *	ermoeglicht eine genauere Steuerung des Tessellation Prozesses
+ * Tessellation control shader (TCS)
  *
- *	Aufgabe:
- *		Aus Input Patch -> Output Patch fuer den TES zu erzeugen & Staerke bestimmen
- *
- *	Pro Vertex des Output Patches aufgerufen
- *		Zugriff auf alle Vertices des input Patches
- *		Legt Anzahl der Vertices pro OutputPatch fest
- *		Best. Unterteilungshaeufigkeit des Abstract patch
- *		Leitet Attribute an den TES weiter 
- *
+ * This optional stage runs once per output control point. Every invocation can
+ * read the complete input patch, writes one output control point, and selects
+ * distance-dependent inner and outer tessellation levels for the TES.
  */
  #version 430 core
 
@@ -22,15 +14,15 @@
  const float MIN_DISTANCE = 20;
  const float MAX_DISTANCE = 800;
 
- // Definiert die Anzahl von Kontrollpunkten des Output Patches
+ // Define the number of control points in the output patch.
  layout(vertices=4) out;
 
- // Attribute des Input Patches (Länge abhängig vom Input Patch)
+ // Input-patch attributes; the array length equals the input patch size.
  in VS_OUT {
 	vec2 texCoords;
  } tcs_in[]; // size equals number of vertices in the patch
 
- // Attribute des Output Patches (Länge abhängig vom Output Patch)
+ // Output-patch attributes; the array length equals the output patch size.
  out TCS_OUT {
 	vec2 texCoords;
  } tcs_out[];
@@ -48,7 +40,7 @@
  }
 
  void main() {
-    // Hier 1 zu 1 Abbildung zwischen Input und Output Kontrollpunkten
+    // Copy each input control point to the corresponding output control point.
 	// gl_InvocationID = contains the index of the current invocation
 	gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
     /** built-in GLSL var
@@ -61,7 +53,7 @@
     */
     tcs_out[gl_InvocationID].texCoords = tcs_in[gl_InvocationID].texCoords;
 
-    // Die Tessellation Level müssen nur einem pro Patch definiert werden
+    // Tessellation levels are patch-wide, so only one invocation writes them.
     if(gl_InvocationID == 0)
     {
         // compute normalized distance for each vertex of the patch 
@@ -76,37 +68,26 @@
         float tessLevel2 = mix( MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance01, distance11) );
         float tessLevel3 = mix( MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance11, distance10) );
 
-        // specify tessellation levels to perfrom
+        // Specify the tessellation levels.
 
-         /* Outer Subdivision:
-          *		Anzahl Unterteilungen der Kante 
-          *		in out Segmenten
-          */
+         /* Outer levels control subdivision along the patch edges. */
         gl_TessLevelOuter[0] = tessLevel0;
         gl_TessLevelOuter[1] = tessLevel1;
         gl_TessLevelOuter[2] = tessLevel2;
         gl_TessLevelOuter[3] = tessLevel3;
 
-        /* Inner Subdivision:
-         *		Das innere Viereck wird in in-2 Segmente unterteilt 
-         *		Bei in < 3 Degeneration zu Punkt
-         */
+        /* Inner levels control subdivision across the patch interior. */
         gl_TessLevelInner[0] = max(tessLevel1, tessLevel3);
         gl_TessLevelInner[1] = max(tessLevel0, tessLevel2);
 
-        /*
-         * Durch die Trennung inner/outer können
-         * z.B. unterschiedlich tessellierte 
-         * Patches aneinandergesetzt werden, 
-         * ohne daß dabei Lücken entstehen.
-         */
+        /* Matching outer levels on shared edges prevents cracks. */
     }
  }
 
-/* Anmerkungen */
+/* Domain-specific tessellation-level counts */
 
 
-// Fuer die Triangle Tessellation muss ein inneres und 3 aeussere Tessellation Level festgelegt werden
+// A triangle domain uses three outer levels and one inner level.
 /*	
 	gl_TessLevelInner[0] = ...;
 	gl_TessLevelOuter[0] = ...;
@@ -116,13 +97,11 @@
 
 
 /*
-* Bei Quads:
-* Verwendung: 4 äußeren und 2 inneren Tessellation Level
+* A quad domain uses four outer and two inner tessellation levels.
 */
 
 /*
-* Bei Lines:
-* Verwendung: 2 äußeren und keine inneren Tessellation Level
+* An isoline domain uses two outer levels and no inner levels.
 */
 
 

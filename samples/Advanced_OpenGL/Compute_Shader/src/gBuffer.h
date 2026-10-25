@@ -11,9 +11,9 @@
 class GBuffer {
 	public:
 		enum GBUFFER_TEXTURE_TYPE {
-			GBUFFER_TEXTURE_TYPE_COLOR,	// Buffer für die Farbe
-			GBUFFER_TEXTURE_TYPE_REFLECTION, // Buffer für die Reflexionseigenschaften
-			GBUFFER_TEXTURE_TYPE_NORMAL, //  Buffer für die Normalen
+			GBUFFER_TEXTURE_TYPE_COLOR,	// Color buffer
+			GBUFFER_TEXTURE_TYPE_REFLECTION, // Material-reflection buffer
+			GBUFFER_TEXTURE_TYPE_NORMAL, //  Normal buffer
 			GBUFFER_NUM_TEXTURES
 		};
 
@@ -97,11 +97,11 @@ class GBuffer {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, m_finalTexture, 0); // attacht to number 4
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, m_finalTexture, 0); // attach to color attachment 4
 
 			// depth (explicitly, because it requires diff. format and is attached to the FBO at a diff. spot)
 			glBindTexture(GL_TEXTURE_2D, m_depthTexture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, WindowWidth, WindowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL); // leaves a full byte for the stencile value in each pixel
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, WindowWidth, WindowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL); // allocates one byte of stencil data per pixel
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
