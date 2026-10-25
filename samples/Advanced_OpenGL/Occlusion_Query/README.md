@@ -19,9 +19,17 @@ Each frame follows the relevant operations directly in `src/main.cpp`:
 | `Esc` | Quit |
 | `H` | Show / hide keyboard help |
 
-`GL_QUERY_NO_WAIT` prevents the renderer from waiting for an unfinished query.
-If the result is not ready, OpenGL draws conservatively, avoiding an incorrect
-visibility rejection. The demonstration uses the object's rectangle as its
-own bound for clarity. Production renderers generally test cheap conservative
+The text below the scene shows **Rendered - object visible** in green or
+**Not rendered - occluded** in red. It describes the orange object's draw;
+the occluder, query proxy and UI still issue their own draws.
+
+This teaching demo uses `GL_QUERY_WAIT` and reads `GL_QUERY_RESULT` to keep the
+status synchronized with the current frame's actual render/skip decision.
+The readback can stall the CPU while the GPU finishes the query. With
+`GL_QUERY_NO_WAIT`, an unavailable result may instead cause conservative
+rendering; it would not support the same definitive status display.
+
+The demonstration uses the object's rectangle as its own bound for clarity.
+Production renderers generally test cheap conservative
 bounds, consume older query results to avoid pipeline stalls, and only use
 queries when the avoided rendering work is greater than the query overhead.

@@ -12,13 +12,16 @@
 #include "modules/filesystem.h"
 #include "modules/shader_m.h"
 #include "modules/help_overlay.h"
+#include "modules/font.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
 // callbacks and input
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
+void renderStatus(GLFWwindow* window, TextRenderer& text, bool rendered);
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
@@ -58,6 +61,9 @@ int main()
     }
 
     sample_help::initialize(window, {{"Esc", "Exit sample"}});
+    TextRenderer statusText;
+    const bool statusTextReady = statusText.Load(
+        FileSystem::getPath("content/fonts/GO-Regular.ttf"), 24);
     glEnable(GL_DEPTH_TEST);
 
     Shader shader(
@@ -119,12 +125,17 @@ int main()
         glDepthMask(GL_TRUE);
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-        // NO_WAIT avoids waiting for the query result. If it is not ready yet,
-        // OpenGL renders conservatively instead of incorrectly hiding the object.
+        // WAIT makes the current frame's render/skip decision deterministic.
+        // The status readback below deliberately synchronizes this teaching demo.
         shader.setVec3("color", 1.0f, 0.45f, 0.10f);
-        glBeginConditionalRender(query, GL_QUERY_NO_WAIT);
+        glBeginConditionalRender(query, GL_QUERY_WAIT);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glEndConditionalRender();
+
+        GLuint visible = GL_FALSE;
+        glGetQueryObjectuiv(query, GL_QUERY_RESULT, &visible);
+        if (statusTextReady)
+            renderStatus(window, statusText, visible != GL_FALSE);
 
         // Draw UI after conditional rendering so occlusion never hides help.
         sample_help::render();
@@ -136,6 +147,7 @@ int main()
     glDeleteQueries(1, &query);
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
+    statusText.release();
     sample_help::shutdown();
     glfwTerminate();
     return 0;
@@ -152,4 +164,27 @@ void processInput(GLFWwindow* window)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
+}
+
+// Keep the status below the scene and outside the conditional draw.
+void renderStatus(GLFWwindow* window, TextRenderer& text, bool rendered)
+{
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    if (width <= 0 || height <= 0)
+        return;
+
+    text.setWindowSize(width, height);
+    const float scale = std::min(1.0f,
+        std::min(width / 1280.0f, height / 720.0f));
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    text.RenderText(rendered ? "Rendered - object visible"
+                             : "Not rendered - occluded",
+                    width * 0.06f, height * 0.90f, scale,
+                    rendered ? glm::vec3(0.3f, 0.9f, 0.5f)
+                             : glm::vec3(1.0f, 0.45f, 0.3f));
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
 }
