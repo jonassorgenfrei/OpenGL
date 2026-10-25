@@ -11,6 +11,13 @@ training pipeline. CPU sorting is intentionally retained to keep the code
 readable; it uses camera-plane depth and only runs when the view changes.
 Production renderers generally use a GPU sort.
 
+The vertex shader rejects centers at or behind the near plane before reading
+SH coefficients. To stabilize covariance projection near the camera, it clamps
+the Jacobian's off-axis slopes to a 30% margin around the view frustum, following
+the reference 3DGS approach. The actual projected center and SH view direction
+remain unchanged. This is a local projection approximation, not exact clipping
+of the full 3D Gaussian against the near plane.
+
 Camera controls match the `Diffuse_irradiance` sample: `Alt` + left mouse
 rotates, `Alt` + middle mouse pans, `Alt` + right mouse dollies, and the mouse
 wheel changes the field of view. `P` switches between Gaussian splats and the

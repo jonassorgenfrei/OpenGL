@@ -120,6 +120,18 @@ void main()
     vec3 worldCenter = (model * vec4(splatCenter, 1.0)).xyz;
     vec4 centerInView = view * vec4(worldCenter, 1.0);
 
+    // The covariance projection becomes unstable at or behind the near plane.
+    // Reject these instances before fetching SH coefficients or normalizing
+    // the view direction (which is undefined at the camera position).
+    if (centerInView.z >= -0.1)
+    {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        gl_PointSize = 0.0;
+        gaussianPosition = vec2(0.0);
+        color = vec4(0.0);
+        return;
+    }
+
     // SH coefficients are defined in the PLY's coordinate system. Transform
     // the view direction back into that system before evaluating the basis.
     vec3 worldViewDirection = normalize(worldCenter - cameraPosition);
@@ -127,16 +139,6 @@ void main()
     // Convert the stored logit back to an opacity in [0, 1].
     float opacity = 1.0 / (1.0 + exp(-splatOpacityLogit));
     color = vec4(evaluateSphericalHarmonics(splatViewDirection), opacity);
-
-    // The covariance projection becomes unstable at or behind the near plane.
-    // Moving the generated vertices outside clip space discards the instance.
-    if (centerInView.z >= -0.1)
-    {
-        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-        gl_PointSize = 0.0;
-        gaussianPosition = vec2(0.0);
-        return;
-    }
 
     if (pointMode)
     {
@@ -162,10 +164,19 @@ void main()
     // that projection so a 3D Gaussian remains a 2D Gaussian on screen.
     float inverseDepth = -1.0 / centerInView.z;
     float inverseDepthSquared = inverseDepth * inverseDepth;
+    // Limit the Jacobian's off-axis terms to a 30% margin around the frustum,
+    // as in the reference 3DGS projection. For this symmetric perspective
+    // matrix, 1 / projection[ii] is tan(half field of view) along that axis.
+    // Only the covariance approximation is clamped; the projected center and
+    // the SH view direction still use the original position.
+    vec2 slopeLimit = 1.3 / vec2(projection[0][0], projection[1][1]);
+    vec2 clampedSlope = clamp(centerInView.xy * inverseDepth,
+                             -slopeLimit, slopeLimit);
+    vec2 covarianceCenter = clampedSlope * (-centerInView.z);
     vec3 jacobianX = vec3(projection[0][0] * inverseDepth, 0.0,
-                          projection[0][0] * centerInView.x * inverseDepthSquared);
+                          projection[0][0] * covarianceCenter.x * inverseDepthSquared);
     vec3 jacobianY = vec3(0.0, projection[1][1] * inverseDepth,
-                          projection[1][1] * centerInView.y * inverseDepthSquared);
+                          projection[1][1] * covarianceCenter.y * inverseDepthSquared);
 
     float a = dot(jacobianX, viewCovariance * jacobianX);
     float b = dot(jacobianX, viewCovariance * jacobianY);
