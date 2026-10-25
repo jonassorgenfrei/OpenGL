@@ -17,6 +17,7 @@ Each frame follows the relevant operations directly in `src/main.cpp`:
 | Key | Action |
 | --- | --- |
 | `Esc` | Quit |
+| `H` | Show / hide keyboard help |
 
 `GL_QUERY_NO_WAIT` prevents the renderer from waiting for an unfinished query.
 If the result is not ready, OpenGL draws conservatively, avoiding an incorrect

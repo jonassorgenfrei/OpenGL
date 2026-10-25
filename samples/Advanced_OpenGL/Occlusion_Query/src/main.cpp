@@ -11,6 +11,7 @@
 
 #include "modules/filesystem.h"
 #include "modules/shader_m.h"
+#include "modules/help_overlay.h"
 
 #include <cmath>
 #include <iostream>
@@ -51,6 +52,7 @@ int main()
         return -1;
     }
 
+    sample_help::initialize(window, {{"Esc", "Exit sample"}});
     glEnable(GL_DEPTH_TEST);
 
     Shader shader(
@@ -119,6 +121,8 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glEndConditionalRender();
 
+        // Draw UI after conditional rendering so occlusion never hides help.
+        sample_help::render();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -126,6 +130,7 @@ int main()
     glDeleteQueries(1, &query);
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
+    sample_help::shutdown();
     glfwTerminate();
     return 0;
 }
