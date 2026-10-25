@@ -21,6 +21,7 @@
 #include "modules/light.h"
 #include "modules/material.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 
@@ -68,6 +69,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -88,8 +90,16 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"}
+	});
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -266,10 +276,10 @@ int main()
 	/*unsigned int frontTexture = loadTexture(FileSystem::getPath("content/images/container.jpg").c_str(), GL_REPEAT);
 	unsigned int backTexture = loadTexture(FileSystem::getPath("content/images/wall.jpg").c_str(), GL_REPEAT);*/
 
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	/*glm::mat4 projection = glm::perspective(45.0f, (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 	shaderVariables.use();
@@ -287,7 +297,7 @@ int main()
 	//whenever update or insert data into buffer (memory) -> bind to uboMatrices & use glBufferSubData 
 
 
-	// TODO: HERE AND AT DIAGRAMM SHADER A B @ https://learnopengl.com/Advanced-OpenGL/Advanced-GLSL
+	// TODO: HERE AND AT DIAGRAMM SHADER A B @ https://learnOpenGL.com/Advanced-OpenGL/Advanced-GLSL
 
 
 	// draw as wireframe
@@ -367,6 +377,7 @@ int main()
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// ------------------------------------------------------------------------------_
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -378,6 +389,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }

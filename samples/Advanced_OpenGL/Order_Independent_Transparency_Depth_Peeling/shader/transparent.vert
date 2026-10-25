@@ -2,7 +2,7 @@
 // Vertex shader for transparent quads; forwards clip-space position.
 
 
-// shader inputs
+// Shader inputs
 
 layout (location = 0) in vec3 position;
 out vec4 fragPos; // clip-space position

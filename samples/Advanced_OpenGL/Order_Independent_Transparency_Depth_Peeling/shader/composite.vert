@@ -2,7 +2,7 @@
 // Fullscreen triangle/quad passthrough for compositing peeled layers.
 
 
-// shader inputs
+// Shader inputs
 layout (location = 0) in vec3 position;
 
 void main()

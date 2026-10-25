@@ -12,6 +12,7 @@
 #include "modules/light.h"
 #include "modules/filesystem.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 
@@ -57,6 +58,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -77,8 +79,13 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"W A S D", "Move camera"}
+	});
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	glEnable(GL_DEPTH_TEST);
 
@@ -290,7 +297,7 @@ int main()
 	stbi_image_free(data);
 
 	
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 
 
@@ -327,7 +334,7 @@ int main()
 		// activate shader 
 		ourShader.use();
 
-		// pass projection matrix to shader (note that in this cas it could change every frame)
+		// pass projection matrix to shader (it can change every frame in this sample)
 		glm::mat4 projection = glm::mat4(1.0f);
 		projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 		ourShader.setMat4("projection", projection);
@@ -366,6 +373,7 @@ int main()
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// ------------------------------------------------------------------------------_
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -379,6 +387,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }

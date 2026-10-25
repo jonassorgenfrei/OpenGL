@@ -10,13 +10,16 @@ out VS_OUT {
 } vs_out;
 
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 mvp;
+
+// Guarantees repeatable depth values when this geometry is redrawn after the
+// depth pre-pass performed by null_technique.vert.
+invariant gl_Position;
 
 void main()
 {
     vec4 worldPos = model * vec4(Position, 1.0);
     vs_out.FragPos = worldPos.xyz;
     vs_out.Normal = mat3(transpose(inverse(model))) * Normal;
-    gl_Position = projection * view * worldPos;
+    gl_Position = mvp * vec4(Position, 1.0);
 }

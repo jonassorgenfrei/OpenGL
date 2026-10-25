@@ -2,7 +2,7 @@
 // Passthrough vertex shader applying MVP for opaque geometry.
 
 
-// shader inputs
+// Shader inputs
 layout (location = 0) in vec3 position;
 
 // mvp matrix

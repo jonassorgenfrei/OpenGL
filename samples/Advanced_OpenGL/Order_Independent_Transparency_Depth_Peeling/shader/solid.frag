@@ -2,7 +2,7 @@
 // Solid color fragment shader for opaque geometry.
 
 
-// shader outputs
+// Shader outputs
 layout (location = 0) out vec4 frag;
 
 // material color

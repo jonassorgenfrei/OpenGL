@@ -1,7 +1,7 @@
 #version 330   
 // ----------------------------------------------------------------------------
 //
-// Attributes
+// Attributess
 //
 // ----------------------------------------------------------------------------
 
@@ -20,12 +20,12 @@ uniform bool DrawTexCoords;
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
 /**
- * Einsprungpunkt für den Fragment-Shader
+ * Entry point for the fragment shader
  */
 void main() {
     vec3 invTexCoord = vec3(fTexCoord.x, 1 - fTexCoord.y, fTexCoord.z);

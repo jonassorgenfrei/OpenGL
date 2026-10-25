@@ -11,35 +11,35 @@ const float TAU = 2*PI;
 
 // ----------------------------------------------------------------------------
 //
-// Typen
+// Types
 //
 // ----------------------------------------------------------------------------
 
 /**
- * Parameter einer gerichteten Lichtquelle
+ * Parameters of a directional light
  */
 struct DirectionalLight {
-    vec3 direction;             /**< Austrahlvektor der Lichtquelle */
-    vec4 ambientColor;          /**< Anteil der Lichtquelle an der ambienten Beleuchtung */
-    vec4 diffuseColor;          /**< Anteil der Lichtquelle an der diffusen Beleuchtung */
-    vec4 specularColor;         /**< Anteil der Lichtquelle an der spekularen Beleuchtung */
+    vec3 direction;             /**< Direction in which the light travels */
+    vec4 ambientColor;          /**< Ambient contribution of the light */
+    vec4 diffuseColor;          /**< Diffuse contribution of the light */
+    vec4 specularColor;         /**< Specular contribution of the light */
 };
 
 /**
  * Material-Parameter
  */
 struct Material {
-    vec4 color;                 /**< Beleuchtungsunabhängige Farbe */
-    float ambientReflection;    /**< Ambienter Reflexionskoeffizient */
-    float diffuseReflection;    /**< Diffuser Reflexionskoeffizient */
-    float specularReflection;   /**< Spekularer Reflexionskoeffizient */
-    float shininess;            /**< Wahrgenommene Glattheit der Oberfläche */
-    bool hasTexture;            /**< Gibt an, ob das Material Reflexionskoeffizienten aus einer Textur bezieht */
+    vec4 color;                 /**< Unlit base color */
+    float ambientReflection;    /**< Ambient reflection coefficient */
+    float diffuseReflection;    /**< Diffuse reflection coefficient */
+    float specularReflection;   /**< Specular reflection coefficient */
+    float shininess;            /**< Perceived surface smoothness */
+    bool hasTexture;            /**< Whether the material reads reflection coefficients from a texture */
 };
 
 // ----------------------------------------------------------------------------
 //
-// Attribute
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
@@ -48,7 +48,7 @@ in vec4 fWorldPosition;
 in vec4 fDcPosition;
 in float fWaterVelocity;
 
-out vec4 FragColor;                             /**< Farbe des Fragments */
+out vec4 FragColor;                             /**< Fragment color */
 
 // ----------------------------------------------------------------------------
 //
@@ -56,14 +56,14 @@ out vec4 FragColor;                             /**< Farbe des Fragments */
 //
 // ----------------------------------------------------------------------------
 
-layout (location = 1) uniform mat4 ViewMatrix;              /**< Transformation vom Welt- ins Kamera-Koordinatensystem */
+layout (location = 1) uniform mat4 ViewMatrix;              /**< Transforms from world space to view space */
 // HINT: vertex shader
-layout (location = 4) uniform mat4 ViewerInverseViewProjectionMatrix;   /**< Transformation vom Clipping-Koordinatensystem des Betrachters ins Welt-Koordinatensystem */
-layout (location = 5) uniform mat4 ViewerViewMatrix;                    /**< Transformation vom Welt-Koordinatensystem ins Betrachter-Koordinatensystem */
-//layout (location = 2) uniform mat4 ShadowMapViewMatrix;                 /**< Transformation vom Welt- ins Betrachter-Koordinatensystem der Lichtquelle */
-//layout (location = 3) uniform mat4 ShadowMapProjectionMatrix;           /**< Transformation vom Betrachter- ins Clipping-Koordinatensystem der Lichtquelle */
-//layout (location = 4) uniform int UseSSAO;                              /**< Bestimmt, ob SSAO eingesetzt wird */
-/* auto location */ uniform DirectionalLight Sun;                       /**< Gerichtete Lichtquelle in der Szene */
+layout (location = 4) uniform mat4 ViewerInverseViewProjectionMatrix;   /**< Transforms from viewer clip space to world space */
+layout (location = 5) uniform mat4 ViewerViewMatrix;                    /**< Transforms from world space to view space */
+//layout (location = 2) uniform mat4 ShadowMapViewMatrix;                 /**< Transforms from world space to the light view space */
+//layout (location = 3) uniform mat4 ShadowMapProjectionMatrix;           /**< Transforms from light view space to light clip space */
+//layout (location = 4) uniform int UseSSAO;                              /**< Whether SSAO is enabled */
+/* auto location */ uniform DirectionalLight Sun;                       /**< Directional light in the scene */
 
 layout (binding = 0) uniform sampler2D ColorBuffer;
 layout (binding = 1) uniform sampler2D ReflectionBuffer;
@@ -73,33 +73,33 @@ layout (binding = 4) uniform sampler2D EnvironmentMap;
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
 /**
- * Division durch die w-Komponente
+ * Perspective division by the w component
  *
- * @param                       v 4D-Vektor, für die w-Division
+ * @param                       v 4D vector on which to perform perspective division
  *
- * @return 3D-Vektor nach der w-Division
+ * @return 3D vector after perspective division
  */
 vec3 wdiv(vec4 v) {
     return v.xyz / v.w;
 }
 
 /**
- * Berechnet die Beleuchtung eines Punktes durch eine gerichtete Lichtquelle
+ * Computes lighting at a point from a directional light
  *
- * @param materialColor         Farbe des Materials
- * @param directionalLight      Informationen über die Lichtquelle
- * @param viewMatrix            ViewMatrix des Betrachters
- * @param worldNormal           Normale des Punktes im Welt-Koordinantensystem
- * @param worldPosition         Position des Punktes im Welt-Koordinatensystem
- * @param attenuation           Abschwächung des Lichts durch Verdeckung (Shadow-Mapping)
- * @param ssao                  Wert der Screen Space Ambient Occlusion
+ * @param materialColor         Material color
+ * @param directionalLight      Directional-light parameters
+ * @param viewMatrix            Viewer view matrix
+ * @param worldNormal           Point normal in world space
+ * @param worldPosition         Point position in world space
+ * @param attenuation           Light attenuation due to shadow mapping
+ * @param ssao                  Screen-space ambient-occlusion value
  *
- * @return Belechtung des Punktes
+ * @return Lighting at the point
  */
 vec4 shadeDirectionalLight(Material material,
                            vec4 materialColor,
@@ -124,11 +124,11 @@ vec4 shadeDirectionalLight(Material material,
 }
 
 /**
- * Inverse Depth-Range Transformation
+ * Inverse depth-range transformation
  *
- * @param depth                 Tiefe aus dem Depth-Buffer
+ * @param depth                 Depth sampled from the depth buffer
  *
- * @return Tiefe im Clipping-Koordinatensystem
+ * @return Depth in clip space
  */
 float inverseDepthRangeTransformation(float depth) {
     return (2.0 * depth - gl_DepthRange.near - gl_DepthRange.far) /
@@ -155,7 +155,7 @@ vec3 gBufferWorldPosition(vec2 bufferTexCoord) {
 }
 
 vec4 shade(vec2 bufferTexCoord) {
-    // Buffer auslesen
+    // Read the G-buffer
     vec3 color      = texture(ColorBuffer, bufferTexCoord).rgb;
     vec4 reflection = texture(ReflectionBuffer, bufferTexCoord);
     vec3 normal     = texture(NormalBuffer, bufferTexCoord).rgb;
@@ -183,7 +183,7 @@ vec4 shade(vec2 bufferTexCoord) {
 
 
 /**
- * Einsprungpunkt für den Fragment-Shader
+ * Entry point for the fragment shader
  */
 void main() {
 

@@ -52,7 +52,7 @@ vec3 OrenNayarDiffuse(vec3 viewDir, vec3 lightDir, vec3 normal, float roughness,
 vec3 OrenNayarDiffuseVar2(vec3 viewDir, vec3 lightDir, vec3 normal, float roughness, vec3 lightColor)
 {	
 	// based on: 
-	// https://github.com/ranjak/opengl-tutorial/blob/master/shaders/illumination/diramb_orennayar_pcn.vert
+	// https://github.com/ranjak/OpenGL-tutorial/blob/master/shaders/illumination/diramb_orennayar_pcn.vert
 	// aims to simulate the way light spreads across a rough
 	// matte surface more accurately than the simple Lambertian method
 	// takes into account; 

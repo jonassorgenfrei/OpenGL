@@ -17,6 +17,7 @@
 #include "modules/material.h"
 #include "modules/filesystem.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 #include <random>
@@ -24,7 +25,7 @@
 #define PETERPANING
 
 // implementation 
-// 0 learnopengl based   this implementation useses a geometry shader
+// 0 learnOpenGL based   this implementation useses a geometry shader
 // 1 ogldev base         this implementation renders the scene mutliple times (avoids the use of the geo shader)
 #define IMPLEMENTATION 1
 
@@ -113,6 +114,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -137,8 +139,19 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"F", "Show / hide depth map"},
+		{"N", "Select cascade layer"},
+		{"C", "Freeze / refresh light matrices"}
+	});
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -210,7 +223,7 @@ int main()
 	glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, bordercolor);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lightFBO);
-	// nutzen von framebufferTexture anstelle von frameBufferTexture2D
+	// Attach the entire texture array so the geometry shader can select a layer.
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, lightDepthMaps, 0);
 	// Disable writes to the color buffer
 	glDrawBuffer(GL_NONE);
@@ -267,7 +280,7 @@ int main()
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 
-	// shader configuration
+	// Shader configuration
 	// --------------------
 	shader.use();
 	shader.setInt("diffuseTexture", 0);
@@ -437,6 +450,7 @@ int main()
 		
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -448,6 +462,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return EXIT_SUCCESS;
 }
@@ -819,7 +834,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 unsigned int loadTexture(char const *path, bool gammaCorrection)
 {
 	/*
-	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
+	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
 	 */
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
@@ -874,7 +889,7 @@ std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& projview)
 		{
 			for (unsigned int z = 0; z < 2; ++z)
 			{
-				// corner points of the frsutum
+				// frustum corner points
 				// bring x, y, z from [0,1] to [-1,1] 
 				const glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
 				frustumCorners.push_back(pt / pt.w);
@@ -947,7 +962,7 @@ glm::mat4 getLightSpaceMatrix(const float nearPlane, const float farPlane)
 	}
 
 	// Tune this parameter according to the scene
-	// multiply or divide to include geometry which is behind or in front of the frsutum in camera space
+	// multiply or divide to include geometry which is behind or in front of the camera frustum
 	// increases the space covered by the near and far pane of the light frustum
 	constexpr float zMult = 10.0f;
 	if (minZ < 0)
@@ -971,7 +986,7 @@ glm::mat4 getLightSpaceMatrix(const float nearPlane, const float farPlane)
 	const glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 	// user comment
 	//const glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, -1 * maxZ, -1 * minZ);
-	return lightProjection * lightView;	// need to do this procedure for every furstum in the cascade
+	return lightProjection * lightView;	// need to do this procedure for every frustum in the cascade
 }
 
 std::vector<glm::mat4> getLightSpaceMatrices()

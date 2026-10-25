@@ -5,7 +5,7 @@ layout (triangle_strip, max_vertices = 64) out;
 
 // ----------------------------------------------------------------------------
 //
-// Attributes
+// Attributess
 //
 // ----------------------------------------------------------------------------
 
@@ -36,11 +36,11 @@ uniform bool Animation;
 // ----------------------------------------------------------------------------
 
 /**
- * Berechnet auf Basis eines 2D-Vektors einen Zufallswert
+ * Computes a pseudo-random value from a 2D vector
  *
- * @param xi                    2D-Vektor als Grundlage des Zufallswertes
+ * @param xi                    2D vector used as the random seed
  *
- * @return Zufallswert
+ * @return Pseudo-random value
  */
 float rand(vec2 xi){
     return abs(fract(sin(dot(xi.xy, vec2(12.9898,78.233))) * 43758.5453));
@@ -54,11 +54,11 @@ vec3 randomBarycentric(vec2 xi) {
 }
 
 /**
- * Einsprungpunkt für den Geometry Shader
+ * Entry point for the geometry shader
  */
 void main() {
     float nLength = NormalLength / float(Subdivs);
-    // Schleife über alle eingehenden Vertices
+    // Process every input vertex
     for (int i = 0; i < Billboards; i++) {
         vec3 b = randomBarycentric(gPosition[0].xz * (i + 1));
         vec4 p0 = gPosition[0] * b[0] + gPosition[1] * b[1] + gPosition[2] * b[2];
@@ -89,7 +89,7 @@ void main() {
             p1 += vec4(normal * nLength, 0);
 
         }
-        // Abschließen des Primitivs. Die nächsten Aufrufe von EmitVertex erzeugen einen neuen line strip.
+        // Finish this primitive; subsequent EmitVertex calls start a new line strip.
         EndPrimitive();
     }
 }

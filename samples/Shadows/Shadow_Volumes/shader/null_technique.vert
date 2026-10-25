@@ -2,11 +2,15 @@
 
 layout (location = 0) in vec3 Position; 
 
-uniform mat4 projection;
-uniform mat4 view;
-uniform mat4 model;
+uniform mat4 mvp;
+
+// Multipass rendering requires the depth pre-pass and lighting pass to produce
+// exactly the same clip-space position for every vertex.
+invariant gl_Position;
 
 void main()
-{          
-    gl_Position = projection * view * model * vec4(Position, 1.0);
+{
+    // Both passes receive the same CPU-computed matrix and execute the same
+    // operation, avoiding cross-program floating-point differences.
+    gl_Position = mvp * vec4(Position, 1.0);
 }

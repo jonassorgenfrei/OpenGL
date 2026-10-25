@@ -1,0 +1,32 @@
+name: Build samples
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.os }} / ${{ matrix.configuration }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+        configuration: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build on Linux
+        if: runner.os == 'Linux'
+        env:
+          BUILD_TYPE: ${{ matrix.configuration }}
+          BUILD_JOBS: '2'
+        run: bash scripts/build.sh
+      - name: Build on Windows
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./scripts/build.ps1 -Configuration '${{ matrix.configuration }}' -Jobs 2
