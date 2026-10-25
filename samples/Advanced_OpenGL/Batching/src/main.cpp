@@ -10,8 +10,11 @@
 
 #include "modules/filesystem.h"
 #include "modules/shader_m.h"
+#include "modules/help_overlay.h"
 
+#include <algorithm>
 #include <iostream>
+#include <string>
 #include <vector>
 
 const unsigned int SCR_WIDTH = 1280;
@@ -50,6 +53,11 @@ int main()
         glfwTerminate();
         return -1;
     }
+
+    sample_help::initialize(window, {{"Esc", "Exit sample"}});
+    TextRenderer labels;
+    const bool labelsReady = labels.Load(
+        FileSystem::getPath("content/fonts/GO-Regular.ttf"), 24);
 
     Shader shader(
         FileSystem::getSamplePath("shader/batching.vert").c_str(),
@@ -126,6 +134,9 @@ int main()
 
         shader.use();
 
+        unsigned int unbatchedDrawCalls = 0;
+        unsigned int batchedDrawCalls = 0;
+
         // Unbatched: the CPU submits one draw call for every object.
         glBindVertexArray(unbatchedVAO);
         for (int row = 0; row < 6; ++row)
@@ -135,6 +146,7 @@ int main()
                 shader.setVec2("offset", -0.88f + column * 0.14f,
                               -0.75f + row * 0.30f);
                 glDrawArrays(GL_TRIANGLES, 0, 6);
+                ++unbatchedDrawCalls;
             }
         }
 
@@ -142,7 +154,28 @@ int main()
         shader.setVec2("offset", 0.0f, 0.0f);
         glBindVertexArray(batchedVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36 * 6);
+        ++batchedDrawCalls;
 
+        // Count geometry submissions only: text and help need additional draws.
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(window, &width, &height);
+        if (labelsReady && width > 0 && height > 0)
+        {
+            labels.setWindowSize(width, height);
+            const float scale = std::min(1.0f,
+                std::min(width / 1280.0f, height / 720.0f));
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            labels.RenderText(std::to_string(unbatchedDrawCalls) + " draw calls (geometry)",
+                              width * 0.06f, height * 0.94f, scale,
+                              {1.0f, 0.55f, 0.15f});
+            labels.RenderText(std::to_string(batchedDrawCalls) + " draw call (geometry)",
+                              width * 0.59f, height * 0.94f, scale,
+                              {0.15f, 0.75f, 1.0f});
+            glDisable(GL_BLEND);
+        }
+
+        sample_help::render();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -151,6 +184,8 @@ int main()
     glDeleteBuffers(1, &unbatchedVBO);
     glDeleteVertexArrays(1, &batchedVAO);
     glDeleteBuffers(1, &batchedVBO);
+    labels.release();
+    sample_help::shutdown();
     glfwTerminate();
     return 0;
 }

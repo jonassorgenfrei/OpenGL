@@ -10,12 +10,14 @@ Both sides contain the same 36 quads:
   draw call.
 
 The comparison keeps the shader and render state compatible on both sides so
-that the draw-call organization is the important difference. The complete
-demonstration issues 37 draw calls per frame: 36 for the deliberately
-unbatched side and one for the batched side.
+that the draw-call organization is the important difference. The geometry
+uses 37 draw calls per frame: 36 for the deliberately unbatched side and one
+for the batched side. The counts appear below their respective groups and
+exclude the additional draw calls used by the text labels and help overlay.
 
 | Key | Action |
 | --- | --- |
+| `H` | Show / hide keyboard help |
 | `Esc` | Quit |
 
 The example bakes the batched positions once on the CPU to keep the data flow
