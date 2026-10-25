@@ -17,6 +17,7 @@
 #include "modules/filesystem.h"
 #include "modules/shader_m.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <algorithm>
 #include <array>
@@ -71,12 +72,244 @@ bool pointMode = false;
 bool pointKeyPressed = false;
 int shDegree = 3;
 
-void framebufferSizeCallback(GLFWwindow*, int width, int height)
+// callbacks, input and asset loading
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void processInput(GLFWwindow* window);
+float readLittleEndianFloat(std::istream& file);
+SplatScene loadSplats(const std::string& path);
+
+} // namespace
+
+int main()
+{
+    // glfw: initialize and configure
+    if (!glfwInit())
+    {
+        std::cerr << "Failed to initialize GLFW\n";
+        return -1;
+    }
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Gaussian Splatting", nullptr, nullptr);
+    if (!window)
+    {
+        std::cerr << "Failed to create GLFW window\n";
+        glfwTerminate();
+        return -1;
+    }
+
+    glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+    // Keep the system cursor available, as in the other advanced samples.
+    // Alt-modified mouse movement controls the camera without trapping it.
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
+    {
+        std::cerr << "Failed to initialize GLAD\n";
+        glfwTerminate();
+        return -1;
+    }
+    icon(window);
+
+    SplatScene scene;
+    try
+    {
+        scene = loadSplats(FileSystem::getPath("content/gaussian_splats/fox_statue.ply"));
+    }
+    catch (const std::exception& error)
+    {
+        std::cerr << error.what() << '\n';
+        glfwTerminate();
+        return -1;
+    }
+    if (scene.splats.empty())
+    {
+        std::cerr << "The splat scene contains no valid records\n";
+        glfwTerminate();
+        return -1;
+    }
+
+    // Each Gaussian uses twelve RGBA texels in the SH buffer texture.
+    GLint maxBufferTexels = 0;
+    glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &maxBufferTexels);
+    if (scene.sphericalHarmonics.size() / 4 > static_cast<std::size_t>(maxBufferTexels))
+    {
+        std::cerr << "Scene exceeds GL_MAX_TEXTURE_BUFFER_SIZE on this GPU\n";
+        glfwTerminate();
+        return -1;
+    }
+
+    sample_help::initialize(window, {
+        {"Esc", "Exit sample"},
+        {"F2", "Switch to fullscreen"},
+        {"P", "Toggle splats / point samples"},
+        {"0 - 3", "Select SH degree"},
+        {"Alt + LMB", "Orbit camera"},
+        {"Alt + MMB", "Pan camera"},
+        {"Alt + RMB", "Dolly camera"},
+        {"Mouse wheel", "Zoom camera"}
+    });
+
+    // build and compile the shader program
+    Shader shader(FileSystem::getSamplePath("shader/gaussian_splat.vert").c_str(),
+                  FileSystem::getSamplePath("shader/gaussian_splat.frag").c_str());
+    std::vector<Splat>& splats = scene.splats;
+
+    const std::array<float, 12> quad = {
+        -1.0f, -1.0f,  1.0f, -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f
+    };
+
+    unsigned int vao = 0;
+    unsigned int quadVbo = 0;
+    unsigned int instanceVbo = 0;
+    unsigned int shBuffer = 0;
+    unsigned int shTexture = 0;
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &quadVbo);
+    glGenBuffers(1, &instanceVbo);
+    glGenBuffers(1, &shBuffer);
+    glGenTextures(1, &shTexture);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
+    glBufferData(GL_ARRAY_BUFFER, splats.size() * sizeof(Splat), nullptr, GL_STREAM_DRAW);
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Splat),
+                          reinterpret_cast<void*>(offsetof(Splat, center)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Splat),
+                          reinterpret_cast<void*>(offsetof(Splat, logScale)));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Splat),
+                          reinterpret_cast<void*>(offsetof(Splat, rotation)));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(Splat),
+                          reinterpret_cast<void*>(offsetof(Splat, opacityLogit)));
+    glEnableVertexAttribArray(5);
+    glVertexAttribIPointer(5, 1, GL_UNSIGNED_INT, sizeof(Splat),
+                           reinterpret_cast<void*>(offsetof(Splat, shIndex)));
+
+    for (unsigned int attribute = 1; attribute <= 5; ++attribute)
+        glVertexAttribDivisor(attribute, 1);
+
+    glBindVertexArray(0);
+
+    // Buffer textures make all 48 coefficients available without consuming
+    // dozens of vertex attributes. Twelve RGBA texels belong to each splat.
+    glBindBuffer(GL_TEXTURE_BUFFER, shBuffer);
+    glBufferData(GL_TEXTURE_BUFFER,
+                 scene.sphericalHarmonics.size() * sizeof(float),
+                 scene.sphericalHarmonics.data(), GL_STATIC_DRAW);
+    glBindTexture(GL_TEXTURE_BUFFER, shTexture);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, shBuffer);
+
+    shader.use();
+    shader.setInt("shData", 0);
+
+    glm::mat4 lastSortedView(0.0f);
+
+    // This scene contains only sorted transparent splats, so no depth test is
+    // needed. In a mixed scene, test against opaque depth without writing splat depth.
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_PROGRAM_POINT_SIZE);
+
+    while (!glfwWindowShouldClose(window))
+    {
+        const float currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+        processInput(window);
+
+        const glm::mat4 view = camera.GetViewMatrix();
+        if (view != lastSortedView)
+        {
+            // Alpha blending requires far-to-near camera-plane depth, not
+            // Euclidean distance from the camera.
+            const glm::mat4 viewModel = view * SPLAT_TO_OPENGL;
+            std::sort(splats.begin(), splats.end(), [&viewModel](const Splat& a, const Splat& b) {
+                const float aDepth = (viewModel * glm::vec4(a.center, 1.0f)).z;
+                const float bDepth = (viewModel * glm::vec4(b.center, 1.0f)).z;
+                return aDepth < bDepth;
+            });
+            glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, splats.size() * sizeof(Splat), splats.data());
+            lastSortedView = view;
+        }
+
+        int width = 1;
+        int height = 1;
+        glfwGetFramebufferSize(window, &width, &height);
+        if (width <= 0 || height <= 0)
+        {
+            glfwWaitEvents();
+            continue;
+        }
+        glClearColor(0.025f, 0.035f, 0.055f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        const glm::mat4 projection = glm::perspective(
+            glm::radians(camera.Zoom), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+        shader.use();
+        shader.setMat4("view", view);
+        shader.setMat4("projection", projection);
+        shader.setMat4("model", SPLAT_TO_OPENGL);
+        shader.setBool("pointMode", pointMode);
+        shader.setInt("shDegree", shDegree);
+        shader.setVec3("cameraPosition", camera.Position);
+        shader.setVec2("viewportSize", static_cast<float>(width), static_cast<float>(height));
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_BUFFER, shTexture);
+
+        glBindVertexArray(vao);
+        glDrawArraysInstanced(pointMode ? GL_POINTS : GL_TRIANGLES,
+                              0, pointMode ? 1 : 6,
+                              static_cast<GLsizei>(splats.size()));
+
+        sample_help::render();
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    // release resources before destroying the current context
+    sample_help::shutdown();
+    glDeleteProgram(shader.ID);
+    glDeleteBuffers(1, &instanceVbo);
+    glDeleteBuffers(1, &shBuffer);
+    glDeleteTextures(1, &shTexture);
+    glDeleteBuffers(1, &quadVbo);
+    glDeleteVertexArrays(1, &vao);
+    glfwTerminate();
+    return 0;
+}
+
+namespace
+{
+void framebuffer_size_callback(GLFWwindow*, int width, int height)
 {
     glViewport(0, 0, width, height);
 }
 
-void mouseCallback(GLFWwindow* window, double xpos, double ypos)
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
     // Match the Alt-modified camera controls used by Diffuse_irradiance.
     if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS &&
@@ -140,7 +373,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos)
     }
 }
 
-void scrollCallback(GLFWwindow*, double, double yoffset)
+void scroll_callback(GLFWwindow*, double, double yoffset)
 {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
@@ -150,12 +383,16 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
+    static bool fullscreenKeyPressed = false;
+    const bool fullscreenDown = glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS;
+    if (fullscreenDown && !fullscreenKeyPressed)
     {
         const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
         glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0,
                              mode->width, mode->height, mode->refreshRate);
     }
+
+    fullscreenKeyPressed = fullscreenDown;
 
     if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !pointKeyPressed)
     {
@@ -303,188 +540,3 @@ SplatScene loadSplats(const std::string& path)
 }
 
 } // namespace
-
-int main()
-{
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Gaussian Splatting", nullptr, nullptr);
-    if (!window)
-    {
-        std::cerr << "Failed to create GLFW window\n";
-        glfwTerminate();
-        return -1;
-    }
-
-    glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
-    glfwSetCursorPosCallback(window, mouseCallback);
-    glfwSetScrollCallback(window, scrollCallback);
-    // Keep the system cursor available, as in the other advanced samples.
-    // Mouse movement over the window rotates the camera without trapping it.
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
-    {
-        std::cerr << "Failed to initialize GLAD\n";
-        glfwTerminate();
-        return -1;
-    }
-    icon(window);
-
-    SplatScene scene;
-    try
-    {
-        scene = loadSplats(FileSystem::getPath("content/gaussian_splats/fox_statue.ply"));
-    }
-    catch (const std::exception& error)
-    {
-        std::cerr << error.what() << '\n';
-        glfwTerminate();
-        return -1;
-    }
-    if (scene.splats.empty())
-    {
-        std::cerr << "The splat scene contains no valid records\n";
-        glfwTerminate();
-        return -1;
-    }
-
-    Shader shader(FileSystem::getSamplePath("shader/gaussian_splat.vert").c_str(),
-                  FileSystem::getSamplePath("shader/gaussian_splat.frag").c_str());
-    std::vector<Splat>& splats = scene.splats;
-
-    const std::array<float, 12> quad = {
-        -1.0f, -1.0f,  1.0f, -1.0f,  1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f
-    };
-
-    unsigned int vao = 0;
-    unsigned int quadVbo = 0;
-    unsigned int instanceVbo = 0;
-    unsigned int shBuffer = 0;
-    unsigned int shTexture = 0;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &quadVbo);
-    glGenBuffers(1, &instanceVbo);
-    glGenBuffers(1, &shBuffer);
-    glGenTextures(1, &shTexture);
-
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad.data(), GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
-
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
-    glBufferData(GL_ARRAY_BUFFER, splats.size() * sizeof(Splat), nullptr, GL_STREAM_DRAW);
-
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Splat),
-                          reinterpret_cast<void*>(offsetof(Splat, center)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Splat),
-                          reinterpret_cast<void*>(offsetof(Splat, logScale)));
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Splat),
-                          reinterpret_cast<void*>(offsetof(Splat, rotation)));
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(Splat),
-                          reinterpret_cast<void*>(offsetof(Splat, opacityLogit)));
-    glEnableVertexAttribArray(5);
-    glVertexAttribIPointer(5, 1, GL_UNSIGNED_INT, sizeof(Splat),
-                           reinterpret_cast<void*>(offsetof(Splat, shIndex)));
-
-    for (unsigned int attribute = 1; attribute <= 5; ++attribute)
-        glVertexAttribDivisor(attribute, 1);
-
-    glBindVertexArray(0);
-
-    // Buffer textures make all 48 coefficients available without consuming
-    // dozens of vertex attributes. Twelve RGBA texels belong to each splat.
-    glBindBuffer(GL_TEXTURE_BUFFER, shBuffer);
-    glBufferData(GL_TEXTURE_BUFFER,
-                 scene.sphericalHarmonics.size() * sizeof(float),
-                 scene.sphericalHarmonics.data(), GL_STATIC_DRAW);
-    glBindTexture(GL_TEXTURE_BUFFER, shTexture);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, shBuffer);
-
-    shader.use();
-    shader.setInt("shData", 0);
-
-    glm::mat4 lastSortedView(0.0f);
-
-    // All geometry is transparent and sorted back-to-front. A depth test would
-    // incorrectly hide overlapping splats, so blending alone determines their
-    // visibility in this minimal scene.
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_PROGRAM_POINT_SIZE);
-
-    while (!glfwWindowShouldClose(window))
-    {
-        const float currentFrame = static_cast<float>(glfwGetTime());
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
-        processInput(window);
-
-        const glm::mat4 view = camera.GetViewMatrix();
-        if (view != lastSortedView)
-        {
-            // Alpha blending requires far-to-near camera-plane depth, not
-            // Euclidean distance from the camera.
-            const glm::mat4 viewModel = view * SPLAT_TO_OPENGL;
-            std::sort(splats.begin(), splats.end(), [&viewModel](const Splat& a, const Splat& b) {
-                const float aDepth = (viewModel * glm::vec4(a.center, 1.0f)).z;
-                const float bDepth = (viewModel * glm::vec4(b.center, 1.0f)).z;
-                return aDepth < bDepth;
-            });
-            glBindBuffer(GL_ARRAY_BUFFER, instanceVbo);
-            glBufferSubData(GL_ARRAY_BUFFER, 0, splats.size() * sizeof(Splat), splats.data());
-            lastSortedView = view;
-        }
-
-        int width = 1;
-        int height = 1;
-        glfwGetFramebufferSize(window, &width, &height);
-        glClearColor(0.025f, 0.035f, 0.055f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        const glm::mat4 projection = glm::perspective(
-            glm::radians(camera.Zoom), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
-        shader.use();
-        shader.setMat4("view", view);
-        shader.setMat4("projection", projection);
-        shader.setMat4("model", SPLAT_TO_OPENGL);
-        shader.setBool("pointMode", pointMode);
-        shader.setInt("shDegree", shDegree);
-        shader.setVec3("cameraPosition", camera.Position);
-        shader.setVec2("viewportSize", static_cast<float>(width), static_cast<float>(height));
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_BUFFER, shTexture);
-
-        glBindVertexArray(vao);
-        glDrawArraysInstanced(pointMode ? GL_POINTS : GL_TRIANGLES,
-                              0, pointMode ? 1 : 6,
-                              static_cast<GLsizei>(splats.size()));
-
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-
-    glDeleteBuffers(1, &instanceVbo);
-    glDeleteBuffers(1, &shBuffer);
-    glDeleteTextures(1, &shTexture);
-    glDeleteBuffers(1, &quadVbo);
-    glDeleteVertexArrays(1, &vao);
-    glfwTerminate();
-    return 0;
-}

@@ -19,6 +19,24 @@ degree, making the view-dependent terms easy to compare. `F2` enters
 fullscreen, and `Esc` or the normal window close button quits. The cursor is
 not captured and remains available outside the window.
 
+| Key | Action |
+| --- | --- |
+| `H` | Show / hide keyboard help |
+| `Esc` | Exit sample |
+| `F2` | Enter fullscreen |
+| `P` | Toggle splats / point samples |
+| `0` - `3` | Select spherical-harmonic degree |
+| `Alt` + left mouse | Orbit camera |
+| `Alt` + middle mouse | Pan camera |
+| `Alt` + right mouse | Dolly camera |
+| Mouse wheel | Change field of view |
+
+Build the `Gaussian_Splatting` target using the repository's shared build setup.
+The sample requests OpenGL 3.3 Core. The supplied scene needs 3,350,388 RGBA32F
+buffer-texture texels for its SH coefficients; the GPU limit is checked before
+upload. The shared help overlay restores the scene's premultiplied-alpha blend
+state after rendering. Rendering pauses while the framebuffer has zero size.
+
 Point mode deliberately draws one small circle for every PLY vertex without
 the Gaussian footprint or alpha reconstruction. It makes the relationship
 between the input samples and the reconstructed splat image easy to discuss.
