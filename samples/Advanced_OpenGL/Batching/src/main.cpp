@@ -17,11 +17,17 @@
 #include <string>
 #include <vector>
 
+// callbacks and input
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void processInput(GLFWwindow* window);
+
+// settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
 int main()
 {
+    // glfw: initialize and configure
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -31,6 +37,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
+    // glfw: create the window and register callbacks
     GLFWwindow* window = glfwCreateWindow(
         SCR_WIDTH, SCR_HEIGHT,
         "Batching: left = 36 draw calls, right = 1 draw call",
@@ -42,11 +49,9 @@ int main()
         return -1;
     }
     glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow*, int width, int height)
-    {
-        glViewport(0, 0, width, height);
-    });
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    // glad: load all OpenGL function pointers
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
@@ -124,10 +129,10 @@ int main()
                           reinterpret_cast<void*>(2 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
+    // render loop
     while (!glfwWindowShouldClose(window))
     {
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, true);
+        processInput(window);
 
         glClearColor(0.06f, 0.07f, 0.09f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -180,6 +185,7 @@ int main()
         glfwPollEvents();
     }
 
+    // release resources while the OpenGL context is still current
     glDeleteVertexArrays(1, &unbatchedVAO);
     glDeleteBuffers(1, &unbatchedVBO);
     glDeleteVertexArrays(1, &batchedVAO);
@@ -188,4 +194,17 @@ int main()
     sample_help::shutdown();
     glfwTerminate();
     return 0;
+}
+
+// Process keyboard input once per frame.
+void processInput(GLFWwindow* window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+}
+
+// Match the viewport to the framebuffer dimensions, including HiDPI displays.
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height);
 }
