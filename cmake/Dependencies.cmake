@@ -3,6 +3,13 @@ include(FetchContent)
 option(OPENGL_FETCH_DEPENDENCIES "Download and build pinned dependencies" ON)
 
 if(OPENGL_FETCH_DEPENDENCIES)
+    # GLAD 0.1.36 declares a policy version older than CMake 4 supports.
+    # Keep pinned dependencies configurable without overriding a user setting.
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND
+       NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
+        set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+    endif()
+
     # Static dependencies keep the samples runnable without copying DLLs.
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)

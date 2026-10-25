@@ -23,6 +23,7 @@ set(Advanced_OpenGL
     AdvancedOGL
     Anti_Aliasing_Off_Screen
     Anti_Aliasing_On_Screen
+    Batching
     Billboards
     Compute_Shader
     Compute_Shader_Particles
