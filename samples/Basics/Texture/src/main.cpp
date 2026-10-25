@@ -1,10 +1,12 @@
 #include <glad/glad.h>
+#include <cmath>
 #include <GLFW/glfw3.h>
 #include "stb_image.h"
 
 #include "modules/shader_s.h"
 #include "modules/filesystem.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 
@@ -39,6 +41,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -54,6 +57,10 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"Up / Down", "Adjust texture mix"}
+	});
 
 #if START_FULLSCREEN
 	// FULLSCREEN
@@ -255,7 +262,7 @@ int main()
 	// uncomment this call to draw in wireframe polygons.
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	// tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
+	// tell OpenGL for each sampler to which texture unit it belongs to (only has to be done once)
 	// -------------------------------------------------------------------------------------------
 	textureShader.use(); // don't forget to activate/use the shader before setting uniforms!
 					 // either set it manually like so:
@@ -291,7 +298,7 @@ int main()
 		ourShader2.use();
 		// update the uniform color
 		float timeValue = glfwGetTime();
-		float greenValue = sin(timeValue) / 2.0f + 0.5f;
+		float greenValue = std::sin(timeValue) / 2.0f + 0.5f;
 		ourShader2.setFloat4("ourColor2", 0.0f, greenValue, 0.0f, 1.0f);
 		//SECOND TRIANGLE
 		glBindVertexArray(VAOs[1]);
@@ -313,6 +320,7 @@ int main()
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -325,6 +333,7 @@ int main()
 
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }

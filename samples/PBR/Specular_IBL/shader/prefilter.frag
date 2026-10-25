@@ -47,7 +47,7 @@ vec2 Hammersley(uint i, uint N)
  * Method loops over all possible 32 bits (due to GLSL loop 
  * restrictions)
  * Less performant version but does work on all hardware 
- * (espac. the ones without bit operators!)
+ * especially those without bitwise operators
  */
 float VanDerCorpus(uint n, uint base)
 {

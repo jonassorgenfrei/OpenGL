@@ -4,8 +4,10 @@
 #include "modules/shader_s.h"
 #include "modules/filesystem.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
+#include <cmath>
 
 #define START_FULLSCREEN 0
 
@@ -19,7 +21,6 @@ const unsigned int SCR_HEIGHT = 600;
 int main()
 {
 	std::cout << "Basics - Shader" << std::endl;
-	std::cout << "ESC - Exit" << std::endl;
 
 	// glfw: initialize and configure
 	// ------------------------------
@@ -39,6 +40,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -54,6 +56,9 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"}
+	});
 
 #if START_FULLSCREEN
 	// FULLSCREEN
@@ -176,7 +181,7 @@ int main()
 		ourShader2.use();
 		// update the uniform color
 		float timeValue = glfwGetTime();
-		float greenValue = sin(timeValue) / 2.0f + 0.5f;
+		float greenValue = std::sin(timeValue) / 2.0f + 0.5f;
 		ourShader2.setFloat4("ourColor2", 0.0f, greenValue, 0.0f, 1.0f);
 		ourShader2.setFloat("offset", 0.5f);
 		//SECOND TRIANGLE
@@ -186,6 +191,7 @@ int main()
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -198,6 +204,7 @@ int main()
 
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }

@@ -22,15 +22,16 @@
 #include "modules/light.h"
 #include "modules/material.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include "gBuffer.h"
 
 #include "water.h"
 #include "ground.h"
 
-/** Makro zum Definieren der Uniform-Locations zur Kommunikation mit dem Shaderprogramm (Location ist konstant) */
+/** Defines a fixed uniform location used to communicate with the shader program */
 #define DEFINE_UNIFORM_LOCATION(PROGRAM, NAME, LOCATION) static const GLuint PROGRAM##_##NAME = LOCATION
-/** Makro zum Definieren der Uniform-Locations zur Kommunikation mit dem Shaderprogramm (Location ist änderbar) */
+/** Defines a mutable uniform location used to communicate with the shader program */
 #define DEFINE_UNIFORM_LOCATION_MUTABLE(PROGRAM, NAME) static GLuint PROGRAM##_##NAME = -1
 
 // Shader Locations
@@ -160,6 +161,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -184,6 +186,17 @@ int main()
 
 	// Window Logo 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"F2", "Switch to fullscreen"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+		{"F1", "Toggle wireframe"},
+		{"F3", "Show / hide render buffers"},
+		{"A", "Pause / resume simulation"}
+	});
 
 	// Shader Programs
 	// build and compile our shader program & save Uniform Shader Locations
@@ -237,7 +250,7 @@ int main()
 	GLuint environmentMap = loadTexture(FileSystem::getPath("content/images/environment.jpg").c_str(), GL_REPEAT);
 	GLuint sandTexture = loadTexture(FileSystem::getPath("content/images/sand.png").c_str(), GL_REPEAT);
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	glfwSwapInterval(1);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -360,7 +373,7 @@ int main()
 				lightProgram.setFloat(lightProgram_Sun_Shininess, sunShininess);
 
 				glDisable(GL_DEPTH_TEST);
-				glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT); // Hier muss auf den Compute Shader gewartet werden.
+				glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT); // Wait until the compute shader has finished its image writes.
 				renderQuad();
 				glEnable(GL_DEPTH_TEST);
 
@@ -430,7 +443,7 @@ int main()
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		}
 			
-		// Rendering auf den Standard-Framebuffer
+		// Render to the default framebuffer
 		// --------------------------------------
 		{
 			if (renderBuffers) {
@@ -472,6 +485,7 @@ int main()
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -481,6 +495,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }

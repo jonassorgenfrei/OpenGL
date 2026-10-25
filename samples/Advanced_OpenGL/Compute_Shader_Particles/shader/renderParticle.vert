@@ -2,12 +2,12 @@
 
 // ----------------------------------------------------------------------------
 //
-// Attribute
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
-layout (location = 0) in vec4 vPosition;                    /**< Position des Partikels */
-layout (location = 1) in vec2 vVelocity;                    /**< Geschwindigkeit des Partikels */
+layout (location = 0) in vec4 vPosition;                    /**< Particle position */
+layout (location = 1) in vec2 vVelocity;                    /**< Particle velocity */
 
 out vec2 fVelocity;
 out vec2 fPosition;
@@ -18,16 +18,16 @@ out vec2 fPosition;
 //
 // ----------------------------------------------------------------------------
 
-layout (location = 0) uniform mat4 ProjectionMatrix;        /**< Transformation vom Kamera- ins Clipping-Koordinatensystem*/
+layout (location = 0) uniform mat4 ProjectionMatrix;        /**< Transforms from view space to clip space*/
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
 /**
- * Einsprungpunkt für den Vertex-Shader
+ * Entry point for the vertex shader
  */
 void main() {
     fVelocity = vVelocity;

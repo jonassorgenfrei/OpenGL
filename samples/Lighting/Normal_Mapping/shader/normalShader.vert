@@ -1,7 +1,7 @@
 #version 330 core
 /**
- * Using tangent space, to to lightning in a different coordinate space.
- * A coordinate space, where the normal map vectors always point roughly in the positive z direction.
+ * Perform lighting in tangent space, where decoded normal-map vectors point roughly along the positive z-axis.
+ *
  *
  */
 
@@ -43,7 +43,7 @@ void main() {
 
 	/* Larger Mesh: tangent vect. are generally averaged (smooth result) 
 	 *		Problem: maybe not perpendicular to each other => matrix wouldn'T be orthogonal anymore
-	 *		Handeling: Using Gram-Schmidt process (re-orthogonalize) 
+	 * Use the Gram-Schmidt process to re-orthogonalize the tangent basis.
 	 */
 	// re-orthogonalize T with respect to N
 	T = normalize(T - dot(T, N)*N);

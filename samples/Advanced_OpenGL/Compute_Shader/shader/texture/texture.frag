@@ -2,13 +2,13 @@
 
 // ----------------------------------------------------------------------------
 //
-// Attribute
+// Attributes
 //
 // ----------------------------------------------------------------------------
 
-in vec2 fTexCoord;                  /**< Textur-Koordinate */
+in vec2 fTexCoord;                  /**< Texture coordinate */
 
-out vec4 FragColor;                 /**< Farbe des Fragments */
+out vec4 FragColor;                 /**< Fragment color */
 
 // ----------------------------------------------------------------------------
 //
@@ -16,16 +16,16 @@ out vec4 FragColor;                 /**< Farbe des Fragments */
 //
 // ----------------------------------------------------------------------------
 
-layout (binding = 0) uniform sampler2D Texture;          /**< Textur für das Objekt */
+layout (binding = 0) uniform sampler2D Texture;          /**< Object texture */
 
 // ----------------------------------------------------------------------------
 //
-// Funktionen
+// Functions
 //
 // ----------------------------------------------------------------------------
 
 /**
- * Einsprungpunkt für den Fragment-Shader
+ * Entry point for the fragment shader
  */
 void main() {
     FragColor = texture(Texture, fTexCoord);

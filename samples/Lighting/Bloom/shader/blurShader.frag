@@ -6,7 +6,7 @@
  *  Becomes quickly extremely heavy on performance. Samples 1024 times for each fragment
  *
  *		Two-pass Gaussian blur
- *			seperate the 2d equation into 2 smaller equations
+ *			separate the 2D equation into two smaller equations
  *				- one describes the horizontal weights 1.
  *				- one describes the vertical weights 2.
  *			saves incredible amount of performance only 32+32 samples (comp. 1024 samples)

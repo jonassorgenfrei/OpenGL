@@ -1,31 +1,23 @@
 /*
- * Tessellation Control Shader - TCS
- *	optional
- *	ermoeglicht eine genauere Steuerung des Tessellation Prozesses
+ * Tessellation control shader (TCS)
  *
- *	Aufgabe:
- *		Aus Input Patch -> Output Patch fuer den TES zu erzeugen & Staerke bestimmen
- *
- *	Pro Vertex des Output Patches aufgerufen
- *		Zugriff auf alle Vertices des input Patches
- *		Legt Anzahl der Vertices pro OutputPatch fest
- *		Best. Unterteilungshaeufigkeit des Abstract patch
- *		Leitet Attribute an den TES weiter 
- *
+ * This optional stage runs once per output control point. Every invocation can
+ * read the complete input patch, writes one output control point, and can help
+ * choose the patch's inner and outer tessellation levels for the TES.
  */
  #version 430 core
 
- // Definiert die Anzahl von Kontrollpunkten des Output Patches
+ // Define the number of control points in the output patch.
  layout (vertices = 3) out;
 
- // Attribute des Input Patches (Länge abhängig vom Input Patch)
+ // Input-patch attributes; the array length equals the input patch size.
  in VS_OUT {
 	vec3 positionW;
 	vec3 normal;
 	vec2 texCoords;
  } tcs_in[];
 
- // Attribute des Output Patches (Länge abhängig vom Output Patch)
+ // Output-patch attributes; the array length equals the output patch size.
  out TCS_OUT {
 	vec3 positionW;
 	vec3 normal;
@@ -54,7 +46,7 @@
  }	 
 
  void main() {
-	// Hier 1 zu 1 Abbildung zwischen Input und Output Kontrollpunkten
+	// Copy each input control point to the corresponding output control point.
 	// gl_InvocationID = contains the index of the current invocation
 	tcs_out[gl_InvocationID].positionW = tcs_in[gl_InvocationID].positionW;
 	tcs_out[gl_InvocationID].normal = tcs_in[gl_InvocationID].normal;
@@ -65,7 +57,7 @@
     float EyeToVertexDistance1 = distance(viewPos, tcs_out[1].positionW);
     float EyeToVertexDistance2 = distance(viewPos, tcs_out[2].positionW);
 
-	// Die Tessellation Level müssen nur einem pro Patch definiert werden
+	// Tessellation levels are patch-wide, so only one invocation writes them.
 	// Calculate the tessellation levels
 	if(gl_InvocationID == 0){
 		gl_TessLevelOuter[0] = GetTessLevel(EyeToVertexDistance1, EyeToVertexDistance2);
@@ -75,25 +67,12 @@
 	}
  }
 
-/* Anmerkungen */
- /* Outer Subdivision:
-  *		Anzahl Unterteilungen der Kante 
-  *		in out Segmenten
-  */
-
-/* Inner Subdivision:
- *		Das innere Viereck wird in in-2 Segmente unterteilt 
- *		Bei in < 3 Degeneration zu Punkt
- */
-
 /*
- * Durch die Trennung inner/outer können
- * z.B. unterschiedlich tessellierte 
- * Patches aneinandergesetzt werden, 
- * ohne daß dabei Lücken entstehen.
+ * Outer levels control subdivision along patch edges; inner levels control the
+ * patch interior. Adjacent patches avoid cracks when their shared outer edge
+ * uses the same level. A triangle domain has three outer levels and one inner
+ * level.
  */
-
-// Fuer die Triangle Tessellation muss ein inneres und 3 aeussere Tessellation Level festgelegt werden
 /*	
 	gl_TessLevelInner[0] = ...;
 	gl_TessLevelOuter[0] = ...;
@@ -103,13 +82,11 @@
 
 
 /*
-* Bei Quads:
-* Verwendung: 4 äußeren und 2 inneren Tessellation Level
+* A quad domain uses four outer and two inner tessellation levels.
 */
 
 /*
-* Bei Lines:
-* Verwendung: 2 äußeren und keine inneren Tessellation Level
+* An isoline domain uses two outer levels and no inner levels.
 */
 
 

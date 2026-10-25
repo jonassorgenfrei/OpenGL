@@ -18,9 +18,11 @@
 #include "modules/light.h"
 #include "modules/material.h"
 #include "modules/window.h"
+#include "modules/help_overlay.h"
 
 #include <iostream>
 #include <random>
+#include <stdexcept>
 
 /* USING LEARNOPENGL CODE 1 OR OGLDEV 0*/
 #define LEARNOPENGL 1
@@ -52,7 +54,6 @@ int shaderTypeOGLDev = 0;
 bool a_pressed = false;
 bool d_pressed = false;
 bool b_pressed = false;
-bool h_pressed = false;
 bool n_pressed = false;
 
 bool debug = false;
@@ -110,6 +111,7 @@ int main()
 	if (window == NULL)
 	{
 		std::cout << "Failed to create GLFW window" << std::endl;
+		sample_help::shutdown();
 		glfwTerminate();
 		return -1;
 	}
@@ -132,8 +134,24 @@ int main()
 	}
 
 	icon(window);
+	sample_help::initialize(window, {
+		{"Esc", "Exit sample"},
+		{"Alt + LMB", "Orbit camera"},
+		{"Alt + MMB", "Pan camera"},
+		{"Alt + RMB", "Dolly camera"},
+		{"Mouse wheel", "Zoom camera"},
+#if LEARNOPENGL == 0
+		{"A", "Cycle SSAO shader"},
+#endif
+		{"B", "Toggle blur"},
+		{"D", "Toggle debug view"},
+#if LEARNOPENGL == 1
+		{"N", "Toggle Hammersley sampling"},
+#endif
+		{"Q / E", "Adjust sample radius"}
+	});
 
-	// configure global opengl state
+	// configure global OpenGL state
 	// -----------------------------
 	/* DEPTH BUFFER */
 	glEnable(GL_DEPTH_TEST);
@@ -147,7 +165,7 @@ int main()
 	Shader shaderSSAOBlur(FileSystem::getSamplePath("shader/ssao.vert").c_str(), FileSystem::getSamplePath("shader/ssao_blur.frag").c_str());
 #else
 	#if OGLDEPTHBUFFEROPT
-		throw std::exception("Not Implemented");
+		throw std::runtime_error("Not Implemented");
 	#else 
 		Shader shaderGeometryPass(FileSystem::getSamplePath("shader/oglGPass.vert").c_str(), FileSystem::getSamplePath("shader/oglGPass.frag").c_str());
 		Shader shaderLightingPass(FileSystem::getSamplePath("shader/oglLighting.vert").c_str(), FileSystem::getSamplePath("shader/oglLighting.frag").c_str());
@@ -332,7 +350,7 @@ int main()
 	// set initial camera rotation
 	camera.rotate(0, -45 * 10);
 
-	// shader configuration
+	// Shader configuration
 	// --------------------
 #if LEARNOPENGL
 	shaderLightingPass.use();
@@ -472,7 +490,7 @@ int main()
 		}
 #else 
 	#if OGLDEPTHBUFFEROPT
-		throw std::exception("Not Implemented");
+		throw std::runtime_error("Not Implemented");
 	#else 
 		
 			// Geometry Pass
@@ -559,6 +577,7 @@ int main()
 #endif
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
+		sample_help::render();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
@@ -568,6 +587,7 @@ int main()
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
+	sample_help::shutdown();
 	glfwTerminate();
 	return 0;
 }
@@ -782,24 +802,6 @@ void processInput(GLFWwindow *window)
 		std::cout << "Radius:" << radius << std::endl;
 	}
 
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
-		h_pressed = true;
-	}
-	if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE && h_pressed) {
-		std::cout << "Help:" << std::endl;
-//		std::cout << " F2: Toggle Fullscreen" << std::endl;
-#if LEARNOPENGL == 1
-		std::cout << " N: Toggle Hammersley" << std::endl;
-#endif
-		std::cout << " D: Toggle Debug" << std::endl;
-		std::cout << " E: Increase Sample Radius" << std::endl;
-		std::cout << " Q: Decrease Sample Radius" << std::endl;
-#if LEARNOPENGL == 0
-		std::cout << " A: Shader Type" << std::endl;
-#endif
-		h_pressed = false;
-	}
-
 }
 
 // glfw: whenever the mouse moves, this callback is called
@@ -914,7 +916,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 unsigned int loadTexture(char const *path, bool gammaCorrection)
 {
 	/*
-	 * Careful: specular-maps anf normal-maps are almost always in lin. space!!! Using SRGB will break down the lightning
+	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
 	 */
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
