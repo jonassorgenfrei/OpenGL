@@ -1,0 +1,7 @@
+CC0 1.0 Universal
+
+The source `kitune1.ply` Scaniverse capture is released as CC0 by WakuFactory.
+`fox_statue.ply` is a byte-for-byte copy of that source file and uses the same
+CC0 1.0 public-domain dedication.
+
+License text and details: https://creativecommons.org/publicdomain/zero/1.0/

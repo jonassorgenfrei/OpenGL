@@ -65,6 +65,14 @@ Boundary checks keep the simulated particles within the framebuffer area.
 A memory barrier makes the updated positions available to the particle rendering pass.
 Additive blending combines the rendered particles into a bright moving pattern.
 
+## [Gaussian Splatting](Gaussian_Splatting/)
+
+Loads a standard 3DGS PLY and renders anisotropic Gaussians with an instanced draw.
+The CPU sorts splats by camera-plane depth, and shaders project their covariance
+and evaluate view-dependent spherical-harmonic color. Premultiplied-alpha
+blending combines the splats. P switches to raw point samples, 0 through 3
+select the SH degree, and H shows the shared keyboard help.
+
 ## [Geometry Shader](Geometry_Shader/)
 
 Introduces a geometry shader that turns each input point into a small house shape.
