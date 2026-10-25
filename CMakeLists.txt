@@ -23,15 +23,18 @@ set(Advanced_OpenGL
     AdvancedOGL
     Anti_Aliasing_Off_Screen
     Anti_Aliasing_On_Screen
+    Batching
     Billboards
     Compute_Shader
     Compute_Shader_Particles
     Geometry_Shader
     Geometry_Shader_Exploding
+    Gaussian_Splatting
     Instancing
     no_Instancing_Space
     Instancing_Space
     Mesh_Shader
+    Occlusion_Query
     Order_Independent_Transparency_Depth_Peeling
     Order_Independent_Transparency_Weighted_Blended
     Stencil_Silhouette
