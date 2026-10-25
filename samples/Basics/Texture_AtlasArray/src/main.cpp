@@ -19,33 +19,10 @@ namespace
 constexpr int TileSize = 64;
 constexpr int TileCount = 4;
 
-std::vector<std::uint8_t> makeTile(int tile)
-{
-    const std::array<std::array<std::uint8_t, 3>, 4> colors = {
-        {{{235, 65, 45}}, {{45, 210, 95}}, {{50, 100, 240}}, {{245, 200, 40}}}};
-    std::vector<std::uint8_t> pixels(TileSize * TileSize * 4);
-    for (int y = 0; y < TileSize; ++y)
-        for (int x = 0; x < TileSize; ++x)
-        {
-            const bool checker = ((x / 8 + y / 8) & 1) != 0;
-            // Solid tile-colored edges make contamination from adjacent tiles visible.
-            const float brightness = x < 4 || y < 4 || x >= 60 || y >= 60 ? 1.0f : (checker ? 0.85f : 0.45f);
-            const int offset = (y * TileSize + x) * 4;
-            for (int c = 0; c < 3; ++c)
-                pixels[offset + c] = static_cast<std::uint8_t>(colors[tile][c] * brightness);
-            pixels[offset + 3] = 255;
-        }
-    return pixels;
-}
-
-void configureTexture(GLenum target)
-{
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glGenerateMipmap(target);
-}
+// Input, callbacks and rendering helpers are defined after main().
+std::vector<std::uint8_t> makeTile(int tile);
+void configureTexture(GLenum target);
+void processInput(int &lod, bool &inset, bool &storageView, bool &repeat);
 } // namespace
 
 int runSample()
@@ -125,27 +102,14 @@ int runSample()
     while (!glfwWindowShouldClose(window))
     {
         sample_input::poll(window);
-        if (sample_input::pressed[GLFW_KEY_UP])
-            lod = std::min(7, lod + 1);
-        if (sample_input::pressed[GLFW_KEY_DOWN])
-            lod = std::max(0, lod - 1);
-        if (sample_input::pressed[GLFW_KEY_G])
-            inset = !inset;
-        if (sample_input::pressed[GLFW_KEY_T])
-            repeat = !repeat;
-        if (sample_input::pressed[GLFW_KEY_M])
-            storageView = !storageView;
-        if (sample_input::pressed[GLFW_KEY_R])
-        {
-            lod = 3;
-            inset = false;
-            storageView = false;
-            repeat = true;
-        }
+        processInput(lod, inset, storageView, repeat);
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
         if (width <= 0 || height <= 0)
+        {
+            glfwWaitEventsTimeout(0.05);
             continue;
+        }
         const int footer = std::min(180, height / 3);
         glViewport(0, 0, width, height);
         glClearColor(0.025f, 0.03f, 0.045f, 1);
@@ -228,3 +192,54 @@ int main()
         return -1;
     }
 }
+
+namespace
+{
+std::vector<std::uint8_t> makeTile(int tile)
+{
+    const std::array<std::array<std::uint8_t, 3>, 4> colors = {
+        {{{235, 65, 45}}, {{45, 210, 95}}, {{50, 100, 240}}, {{245, 200, 40}}}};
+    std::vector<std::uint8_t> pixels(TileSize * TileSize * 4);
+    for (int y = 0; y < TileSize; ++y)
+        for (int x = 0; x < TileSize; ++x)
+        {
+            const bool checker = ((x / 8 + y / 8) & 1) != 0;
+            // Solid tile-colored edges make contamination from adjacent tiles visible.
+            const float brightness = x < 4 || y < 4 || x >= 60 || y >= 60 ? 1.0f : (checker ? 0.85f : 0.45f);
+            const int offset = (y * TileSize + x) * 4;
+            for (int c = 0; c < 3; ++c)
+                pixels[offset + c] = static_cast<std::uint8_t>(colors[tile][c] * brightness);
+            pixels[offset + 3] = 255;
+        }
+    return pixels;
+}
+
+void configureTexture(GLenum target)
+{
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glGenerateMipmap(target);
+}
+void processInput(int &lod, bool &inset, bool &storageView, bool &repeat)
+{
+    if (sample_input::pressed[GLFW_KEY_UP])
+        lod = std::min(7, lod + 1);
+    if (sample_input::pressed[GLFW_KEY_DOWN])
+        lod = std::max(0, lod - 1);
+    if (sample_input::pressed[GLFW_KEY_G])
+        inset = !inset;
+    if (sample_input::pressed[GLFW_KEY_T])
+        repeat = !repeat;
+    if (sample_input::pressed[GLFW_KEY_M])
+        storageView = !storageView;
+    if (sample_input::pressed[GLFW_KEY_R])
+    {
+        lod = 3;
+        inset = false;
+        storageView = false;
+        repeat = true;
+    }
+}
+} // namespace

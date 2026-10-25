@@ -30,54 +30,9 @@ bool gResidency = false;
 int gUploadBudget = 4;
 double gPendingScroll = 0.0;
 
-void processInput(float deltaTime)
-{
-    if (sample_input::pressed[GLFW_KEY_R])
-    {
-        gCenterX = StartX;
-        gCenterY = StartY;
-        gViewSpan = 0.025f;
-    }
-
-    if (sample_input::pressed[GLFW_KEY_SPACE])
-        gStreaming = !gStreaming;
-    if (sample_input::pressed[GLFW_KEY_V])
-        gResidency = !gResidency;
-    if (sample_input::pressed[GLFW_KEY_B])
-        gUploadBudget = gUploadBudget == 4 ? 1 : 4;
-    if (sample_input::pressed[GLFW_KEY_O])
-    {
-        gCenterX = gCenterY = 0.5f;
-        gViewSpan = 1.0f;
-    }
-    const float movement = gViewSpan * deltaTime * 0.8f;
-    if (sample_input::down[GLFW_KEY_A] || sample_input::down[GLFW_KEY_LEFT])
-        gCenterX -= movement;
-    if (sample_input::down[GLFW_KEY_D] || sample_input::down[GLFW_KEY_RIGHT])
-        gCenterX += movement;
-    if (sample_input::down[GLFW_KEY_S] || sample_input::down[GLFW_KEY_DOWN])
-        gCenterY -= movement;
-    if (sample_input::down[GLFW_KEY_W] || sample_input::down[GLFW_KEY_UP])
-        gCenterY += movement;
-    if (sample_input::down[GLFW_KEY_Q])
-        gViewSpan *= std::pow(0.35f, deltaTime);
-    if (sample_input::down[GLFW_KEY_E])
-        gViewSpan *= std::pow(2.85f, deltaTime);
-    if (gPendingScroll != 0.0)
-    {
-        gViewSpan *= std::pow(0.82f, static_cast<float>(gPendingScroll));
-        gPendingScroll = 0.0;
-    }
-    gViewSpan = std::clamp(gViewSpan, 0.003f, 1.0f);
-    const float halfSpan = gViewSpan * 0.5f;
-    gCenterX = std::clamp(gCenterX, halfSpan, 1.0f - halfSpan);
-    gCenterY = std::clamp(gCenterY, halfSpan, 1.0f - halfSpan);
-}
-
-void scrollCallback(GLFWwindow *, double, double yOffset)
-{
-    gPendingScroll += yOffset;
-}
+// Input, callbacks and rendering helpers are defined after main().
+void processInput(float deltaTime);
+void scroll_callback(GLFWwindow *, double, double yOffset);
 } // namespace
 
 int runSample()
@@ -85,7 +40,7 @@ int runSample()
     GLFWwindow *window = sample_window::create(WINDOW_WIDTH, WINDOW_HEIGHT, "Virtual Texturing");
     if (!window)
         return -1;
-    glfwSetScrollCallback(window, scrollCallback);
+    glfwSetScrollCallback(window, scroll_callback);
     sample_help::initialize(window, {{"Esc", "Exit sample"},
                                      {"WASD / arrows", "Pan texture"},
                                      {"Mouse wheel", "Zoom texture"},
@@ -326,3 +281,55 @@ int main()
         return -1;
     }
 }
+
+namespace
+{
+void processInput(float deltaTime)
+{
+    if (sample_input::pressed[GLFW_KEY_R])
+    {
+        gCenterX = StartX;
+        gCenterY = StartY;
+        gViewSpan = 0.025f;
+    }
+
+    if (sample_input::pressed[GLFW_KEY_SPACE])
+        gStreaming = !gStreaming;
+    if (sample_input::pressed[GLFW_KEY_V])
+        gResidency = !gResidency;
+    if (sample_input::pressed[GLFW_KEY_B])
+        gUploadBudget = gUploadBudget == 4 ? 1 : 4;
+    if (sample_input::pressed[GLFW_KEY_O])
+    {
+        gCenterX = gCenterY = 0.5f;
+        gViewSpan = 1.0f;
+    }
+    const float movement = gViewSpan * deltaTime * 0.8f;
+    if (sample_input::down[GLFW_KEY_A] || sample_input::down[GLFW_KEY_LEFT])
+        gCenterX -= movement;
+    if (sample_input::down[GLFW_KEY_D] || sample_input::down[GLFW_KEY_RIGHT])
+        gCenterX += movement;
+    if (sample_input::down[GLFW_KEY_S] || sample_input::down[GLFW_KEY_DOWN])
+        gCenterY -= movement;
+    if (sample_input::down[GLFW_KEY_W] || sample_input::down[GLFW_KEY_UP])
+        gCenterY += movement;
+    if (sample_input::down[GLFW_KEY_Q])
+        gViewSpan *= std::pow(0.35f, deltaTime);
+    if (sample_input::down[GLFW_KEY_E])
+        gViewSpan *= std::pow(2.85f, deltaTime);
+    if (gPendingScroll != 0.0)
+    {
+        gViewSpan *= std::pow(0.82f, static_cast<float>(gPendingScroll));
+        gPendingScroll = 0.0;
+    }
+    gViewSpan = std::clamp(gViewSpan, 0.003f, 1.0f);
+    const float halfSpan = gViewSpan * 0.5f;
+    gCenterX = std::clamp(gCenterX, halfSpan, 1.0f - halfSpan);
+    gCenterY = std::clamp(gCenterY, halfSpan, 1.0f - halfSpan);
+}
+
+void scroll_callback(GLFWwindow *, double, double yOffset)
+{
+    gPendingScroll += yOffset;
+}
+} // namespace

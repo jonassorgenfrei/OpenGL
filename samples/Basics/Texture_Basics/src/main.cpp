@@ -20,49 +20,9 @@ constexpr int WINDOW_WIDTH = 800;
 constexpr int WINDOW_HEIGHT = 600;
 float gMixValue = 0.2f;
 
-void processInput(float deltaTime)
-{
-    if (sample_input::down[GLFW_KEY_UP])
-        gMixValue += deltaTime;
-    if (sample_input::down[GLFW_KEY_DOWN])
-        gMixValue -= deltaTime;
-    if (sample_input::down[GLFW_KEY_R])
-        gMixValue = 0.2f;
-    gMixValue = std::max(0.0f, std::min(1.0f, gMixValue));
-}
-
-GLuint loadTexture(const char *path)
-{
-    int width = 0;
-    int height = 0;
-    int channels = 0;
-    unsigned char *pixels = stbi_load(path, &width, &height, &channels, 0);
-    if (!pixels)
-    {
-        std::cerr << "Failed to load texture: " << path << '\n';
-        return 0;
-    }
-
-    const GLenum formats[] = {GL_RED, GL_RG, GL_RGB, GL_RGBA};
-    const GLenum internalFormats[] = {GL_R8, GL_RG8, GL_RGB8, GL_RGBA8};
-    const GLenum sourceFormat = formats[channels - 1];
-    GLint unpackAlignment;
-    glGetIntegerv(GL_UNPACK_ALIGNMENT, &unpackAlignment);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // RGB rows need not be a multiple of four bytes.
-    GLuint texture = 0;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, internalFormats[channels - 1], width, height, 0, sourceFormat, GL_UNSIGNED_BYTE,
-                 pixels);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, unpackAlignment);
-    stbi_image_free(pixels);
-    return texture;
-}
+// Input, callbacks and rendering helpers are defined after main().
+void processInput(float deltaTime);
+GLuint loadTexture(const char *path);
 } // namespace
 
 int runSample()
@@ -123,6 +83,14 @@ int runSample()
         previousTime = time;
         processInput(deltaTime);
 
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(window, &width, &height);
+        if (width <= 0 || height <= 0)
+        {
+            glfwWaitEventsTimeout(0.05);
+            continue;
+        }
+
         glClearColor(0.08f, 0.10f, 0.13f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         glActiveTexture(GL_TEXTURE0);
@@ -172,3 +140,50 @@ int main()
         return -1;
     }
 }
+
+namespace
+{
+void processInput(float deltaTime)
+{
+    if (sample_input::down[GLFW_KEY_UP])
+        gMixValue += deltaTime;
+    if (sample_input::down[GLFW_KEY_DOWN])
+        gMixValue -= deltaTime;
+    if (sample_input::down[GLFW_KEY_R])
+        gMixValue = 0.2f;
+    gMixValue = std::max(0.0f, std::min(1.0f, gMixValue));
+}
+
+GLuint loadTexture(const char *path)
+{
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    unsigned char *pixels = stbi_load(path, &width, &height, &channels, 0);
+    if (!pixels)
+    {
+        std::cerr << "Failed to load texture: " << path << '\n';
+        return 0;
+    }
+
+    const GLenum formats[] = {GL_RED, GL_RG, GL_RGB, GL_RGBA};
+    const GLenum internalFormats[] = {GL_R8, GL_RG8, GL_RGB8, GL_RGBA8};
+    const GLenum sourceFormat = formats[channels - 1];
+    GLint unpackAlignment;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &unpackAlignment);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // RGB rows need not be a multiple of four bytes.
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormats[channels - 1], width, height, 0, sourceFormat, GL_UNSIGNED_BYTE,
+                 pixels);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, unpackAlignment);
+    stbi_image_free(pixels);
+    return texture;
+}
+} // namespace

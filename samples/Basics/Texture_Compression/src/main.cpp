@@ -56,88 +56,13 @@ int gSelected = 3;
 bool gAlpha = false, gDifference = false, gBlocks = false;
 float gZoom = 1.0f, gCenterX = 0.5f, gCenterY = 0.5f;
 
-std::string number(double value, int precision = 3)
-{
-    std::ostringstream text;
-    text << std::fixed << std::setprecision(precision) << value;
-    return text.str();
-}
-std::string sizeLabel(std::size_t bytes)
-{
-    return number(bytes / 1024.0, bytes % 1024 == 0 ? 0 : 1) + " KiB";
-}
-void scrollCallback(GLFWwindow *, double, double offset)
-{
-    gZoom = std::clamp(gZoom * std::pow(1.3f, static_cast<float>(offset)), 1.0f, 32.0f);
-}
-void processInput(float dt)
-{
-    for (int i = 0; i < static_cast<int>(Formats.size()); ++i)
-        if (sample_input::pressed[GLFW_KEY_1 + i])
-            gSelected = i;
-    if (sample_input::pressed[GLFW_KEY_A])
-        gAlpha = !gAlpha;
-    if (sample_input::pressed[GLFW_KEY_D])
-        gDifference = !gDifference;
-    if (sample_input::pressed[GLFW_KEY_B])
-        gBlocks = !gBlocks;
-    if (sample_input::pressed[GLFW_KEY_Z])
-        gZoom = gZoom < 4.0f ? 4.0f : (gZoom < 16.0f ? 16.0f : 1.0f);
-    if (sample_input::pressed[GLFW_KEY_R])
-    {
-        gZoom = 1.0f;
-        gCenterX = gCenterY = 0.5f;
-        gAlpha = gDifference = gBlocks = false;
-    }
-    const float step = dt * 0.6f / gZoom;
-    if (sample_input::down[GLFW_KEY_LEFT])
-        gCenterX -= step;
-    if (sample_input::down[GLFW_KEY_RIGHT])
-        gCenterX += step;
-    if (sample_input::down[GLFW_KEY_UP])
-        gCenterY += step;
-    if (sample_input::down[GLFW_KEY_DOWN])
-        gCenterY -= step;
-    const float halfSpan = 0.5f / gZoom;
-    gCenterX = std::clamp(gCenterX, halfSpan, 1.0f - halfSpan);
-    gCenterY = std::clamp(gCenterY, halfSpan, 1.0f - halfSpan);
-}
-GLuint createPreview(const Format &format, const compression::Asset &asset, const std::string &directory)
-{
-    compression::Asset decoded;
-    if (format.dxt)
-        decoded.payload =
-            compression::decodeDxt(asset.payload, compression::ImageWidth, compression::ImageHeight, format.dxt);
-    else
-    {
-        int width, height, channels;
-        std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels(
-            stbi_load((directory + "/" + format.preview).c_str(), &width, &height, &channels, 4), stbi_image_free);
-        if (!pixels || width != compression::ImageWidth || height != compression::ImageHeight)
-            throw std::runtime_error("Cannot load offline ASTC preview");
-        decoded.payload.assign(pixels.get(), pixels.get() + width * height * 4);
-    }
-    const GLuint texture = compression::uploadAsset(Formats[0], decoded);
-    if (!texture)
-        throw std::runtime_error("Cannot upload RGBA8 preview");
-    return texture;
-}
-void runBenchmark(const std::string &directory, std::array<Variant, 7> &variants)
-{
-    std::cout << "\nPrepared assets: median of 7 warm-cache read + completed upload trials (ms).\n";
-    for (std::size_t i = 0; i < Formats.size(); ++i)
-    {
-        variants[i].timing = compression::benchmark(directory, Formats[i], variants[i].supported);
-        const auto &t = variants[i].timing;
-        std::cout << Formats[i].name << ": payload " << compression::payloadSize(Formats[i]) << " B | read "
-                  << t.readMs;
-        if (variants[i].supported)
-            std::cout << " | upload " << t.uploadMs << " | load " << t.totalMs;
-        else
-            std::cout << " | upload/load N/A (RGBA8 preview)";
-        std::cout << '\n';
-    }
-}
+// Input, callbacks and rendering helpers are defined after main().
+std::string number(double value, int precision = 3);
+std::string sizeLabel(std::size_t bytes);
+void scroll_callback(GLFWwindow *, double, double offset);
+void processInput(float dt);
+GLuint createPreview(const Format &format, const compression::Asset &asset, const std::string &directory);
+void runBenchmark(const std::string &directory, std::array<Variant, 7> &variants);
 } // namespace
 
 int runSample()
@@ -145,7 +70,7 @@ int runSample()
     GLFWwindow *window = sample_window::create(1400, 980, "Texture Compression: offline assets, measured loading");
     if (!window)
         return -1;
-    glfwSetScrollCallback(window, scrollCallback);
+    glfwSetScrollCallback(window, scroll_callback);
     sample_help::initialize(window, {{"1 / 2 / 3 / 4", "RGBA8 / DXT1 / DXT3 / DXT5"},
                                      {"5 / 6 / 7", "ASTC 4x4 / 8x8 / 12x12"},
                                      {"A", "Show alpha channel"},
@@ -220,7 +145,10 @@ int runSample()
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
         if (width <= 0 || height <= 0)
+        {
+            glfwWaitEventsTimeout(0.05);
             continue;
+        }
         const float uiScale = std::min(width / 1400.0f, height / 800.0f);
         const int footer = static_cast<int>(345 * uiScale);
         const int imageSize = std::max(1, std::min(width / 2 - 24, std::max(1, height - footer - 55)));
@@ -360,3 +288,89 @@ int main()
         return -1;
     }
 }
+
+namespace
+{
+std::string number(double value, int precision)
+{
+    std::ostringstream text;
+    text << std::fixed << std::setprecision(precision) << value;
+    return text.str();
+}
+std::string sizeLabel(std::size_t bytes)
+{
+    return number(bytes / 1024.0, bytes % 1024 == 0 ? 0 : 1) + " KiB";
+}
+void scroll_callback(GLFWwindow *, double, double offset)
+{
+    gZoom = std::clamp(gZoom * std::pow(1.3f, static_cast<float>(offset)), 1.0f, 32.0f);
+}
+void processInput(float dt)
+{
+    for (int i = 0; i < static_cast<int>(Formats.size()); ++i)
+        if (sample_input::pressed[GLFW_KEY_1 + i])
+            gSelected = i;
+    if (sample_input::pressed[GLFW_KEY_A])
+        gAlpha = !gAlpha;
+    if (sample_input::pressed[GLFW_KEY_D])
+        gDifference = !gDifference;
+    if (sample_input::pressed[GLFW_KEY_B])
+        gBlocks = !gBlocks;
+    if (sample_input::pressed[GLFW_KEY_Z])
+        gZoom = gZoom < 4.0f ? 4.0f : (gZoom < 16.0f ? 16.0f : 1.0f);
+    if (sample_input::pressed[GLFW_KEY_R])
+    {
+        gZoom = 1.0f;
+        gCenterX = gCenterY = 0.5f;
+        gAlpha = gDifference = gBlocks = false;
+    }
+    const float step = dt * 0.6f / gZoom;
+    if (sample_input::down[GLFW_KEY_LEFT])
+        gCenterX -= step;
+    if (sample_input::down[GLFW_KEY_RIGHT])
+        gCenterX += step;
+    if (sample_input::down[GLFW_KEY_UP])
+        gCenterY += step;
+    if (sample_input::down[GLFW_KEY_DOWN])
+        gCenterY -= step;
+    const float halfSpan = 0.5f / gZoom;
+    gCenterX = std::clamp(gCenterX, halfSpan, 1.0f - halfSpan);
+    gCenterY = std::clamp(gCenterY, halfSpan, 1.0f - halfSpan);
+}
+GLuint createPreview(const Format &format, const compression::Asset &asset, const std::string &directory)
+{
+    compression::Asset decoded;
+    if (format.dxt)
+        decoded.payload =
+            compression::decodeDxt(asset.payload, compression::ImageWidth, compression::ImageHeight, format.dxt);
+    else
+    {
+        int width, height, channels;
+        std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels(
+            stbi_load((directory + "/" + format.preview).c_str(), &width, &height, &channels, 4), stbi_image_free);
+        if (!pixels || width != compression::ImageWidth || height != compression::ImageHeight)
+            throw std::runtime_error("Cannot load offline ASTC preview");
+        decoded.payload.assign(pixels.get(), pixels.get() + width * height * 4);
+    }
+    const GLuint texture = compression::uploadAsset(Formats[0], decoded);
+    if (!texture)
+        throw std::runtime_error("Cannot upload RGBA8 preview");
+    return texture;
+}
+void runBenchmark(const std::string &directory, std::array<Variant, 7> &variants)
+{
+    std::cout << "\nPrepared assets: median of 7 warm-cache read + completed upload trials (ms).\n";
+    for (std::size_t i = 0; i < Formats.size(); ++i)
+    {
+        variants[i].timing = compression::benchmark(directory, Formats[i], variants[i].supported);
+        const auto &t = variants[i].timing;
+        std::cout << Formats[i].name << ": payload " << compression::payloadSize(Formats[i]) << " B | read "
+                  << t.readMs;
+        if (variants[i].supported)
+            std::cout << " | upload " << t.uploadMs << " | load " << t.totalMs;
+        else
+            std::cout << " | upload/load N/A (RGBA8 preview)";
+        std::cout << '\n';
+    }
+}
+} // namespace

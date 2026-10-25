@@ -63,6 +63,11 @@ inline void icon(GLFWwindow* window) {
 // Common OpenGL 3.3 setup for the texture lessons. Each sample owns its render loop.
 namespace sample_window
 {
+inline void framebuffer_size_callback(GLFWwindow *, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
 inline GLFWwindow *create(int width, int height, const char *title)
 {
     if (!glfwInit())
@@ -92,7 +97,7 @@ inline GLFWwindow *create(int width, int height, const char *title)
     int framebufferWidth, framebufferHeight;
     glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
     glViewport(0, 0, framebufferWidth, framebufferHeight);
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow *, int w, int h) { glViewport(0, 0, w, h); });
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     icon(window);
     return window;
 }
