@@ -31,7 +31,6 @@ W toggles wireframe, and F toggles frame-rate reporting for inspecting the runni
 
 ## [Vertex Animation Texture](Vertex_Animation_Texture/)
 
-A minimal example of the VAT slide in chapter 02 (Mesh und Textur).
 A 33 x 17 grid waves like a flag; its left edge stays fixed.
 At startup, 64 animation frames are baked into an RGB32F texture:
 each column represents one vertex, each row one frame, and RGB stores object-space XYZ.
