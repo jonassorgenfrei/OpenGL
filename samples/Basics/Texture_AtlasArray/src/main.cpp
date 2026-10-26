@@ -107,7 +107,12 @@ int main()
         glBindTexture(GL_TEXTURE_2D, atlas);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TileSize * 2, TileSize * 2, 0, GL_RGBA, GL_UNSIGNED_BYTE,
                      atlasPixels.data());
-        configureTexture(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glGenerateMipmap(GL_TEXTURE_2D);
 
         // Array: four equally sized 256x256 layers, selected by a third coordinate.
         glGenTextures(1, &tileArray);
@@ -118,7 +123,12 @@ int main()
         for (int tile = 0; tile < TileCount; ++tile)
             glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, tile, TileSize, TileSize, 1, GL_RGBA, GL_UNSIGNED_BYTE,
                             tiles[tile].data());
-        configureTexture(GL_TEXTURE_2D_ARRAY);
+
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
         // set up vertex data and configure vertex attributes
         // --------------------------------------------------
@@ -137,6 +147,7 @@ int main()
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
         glEnableVertexAttribArray(1);
+
         // build and compile our shader program
         // ------------------------------------
         Shader shader(FileSystem::getSamplePath("shader/atlas_array.vert").c_str(),
@@ -299,14 +310,7 @@ std::vector<std::uint8_t> loadTile(int tile)
     return pixels;
 }
 
-void configureTexture(GLenum target)
-{
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glGenerateMipmap(target);
-}
+
 void processInput(int &lod, bool &inset, bool &storageView, bool &repeat)
 {
     if (sample_input::pressed[GLFW_KEY_UP])
