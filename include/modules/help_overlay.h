@@ -80,7 +80,7 @@ public:
 	}
 
 	/** Handles the H-key edge and draws either the full panel or compact hint. */
-	void render()
+	void render(int topInset = 0)
 	{
 		if (!initialized_ || !window_)
 			return;
@@ -94,6 +94,9 @@ public:
 		int height = 0;
 		glfwGetFramebufferSize(window_, &width, &height);
 		if (width <= 0 || height <= 0)
+			return;
+		topInset = std::max(0, topInset);
+		if (height <= topInset + 44)
 			return;
 
 		// The overlay must be transparent to the scene renderer. Capture every GL
@@ -116,12 +119,12 @@ public:
 		text_.setWindowSize(width, height);
 
 		if (visible_)
-			renderPanel(width, height);
+			renderPanel(width, height, topInset);
 		else
 		{
 			const float hintWidth = 86.0f;
-			text_.RenderBox(12.0f, 12.0f, hintWidth, 32.0f, {0.035f, 0.045f, 0.065f, 0.78f});
-			renderText("H  Help", 23.0f, 21.0f, 0.72f, {0.86f, 0.90f, 0.98f, 1.0f});
+			text_.RenderBox(12.0f, topInset + 12.0f, hintWidth, 32.0f, {0.035f, 0.045f, 0.065f, 0.78f});
+			renderText("H  Help", 23.0f, topInset + 21.0f, 0.72f, {0.86f, 0.90f, 0.98f, 1.0f});
 		}
 
 		state.restore();
@@ -193,16 +196,16 @@ private:
 	};
 
 	/** Lays out a responsive panel and clips shortcut rows to the framebuffer. */
-	void renderPanel(int width, int height)
+	void renderPanel(int width, int height, int topInset)
 	{
 		const float scale = width < 900 ? 0.72f : 0.82f;
 		const float lineHeight = 25.0f * scale;
 		const float panelWidth = std::min(530.0f, static_cast<float>(width) - 24.0f);
 		const float panelHeight = std::min(
 			86.0f + lineHeight * static_cast<float>(shortcuts_.size()),
-			static_cast<float>(height) - 24.0f);
+			static_cast<float>(height - topInset) - 24.0f);
 		const float x = 18.0f;
-		const float y = 18.0f;
+		const float y = topInset + 18.0f;
 		text_.RenderBox(x, y, panelWidth, panelHeight, {0.025f, 0.032f, 0.052f, 0.92f});
 		text_.RenderBox(x, y, 5.0f, panelHeight, {0.20f, 0.63f, 1.0f, 1.0f});
 		renderText("Keyboard shortcuts", x + 22.0f, y + 18.0f, 1.0f, {0.95f, 0.97f, 1.0f, 1.0f});
@@ -248,9 +251,9 @@ inline void initialize(GLFWwindow* window, std::vector<Shortcut> shortcuts)
 }
 
 /** Draws help explicitly before the sample presents its framebuffer. */
-inline void render()
+inline void render(int topInset = 0)
 {
-	overlay().render();
+	overlay().render(topInset);
 }
 
 /** Call while the sample's context is current, before glfwTerminate. */
