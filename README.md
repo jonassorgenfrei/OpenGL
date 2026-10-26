@@ -19,7 +19,8 @@ Start with [Texture Basics](samples/Basics/Texture_Basics/), then explore:
 
 - [Texture Atlas / Texture Array](samples/Basics/Texture_AtlasArray/): compare
   the same stone, grass, wood, and metal images in atlas rectangles and array
-  layers side by side. Press `1` for material detail or `2` for mip bleeding;
+  layers side by side, with a permanent preview of the complete atlas at mip 0.
+  Press `1` for material detail or `2` for mip bleeding;
   inspect storage with `M` and experiment with repetition and a base-level UV inset.
 - [Texture Compression](samples/Basics/Texture_Compression/): compare a real
   photograph in RGBA8, DXT1/BC1, DXT3/BC2, DXT5/BC3, and three ASTC block sizes.

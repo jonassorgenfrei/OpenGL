@@ -113,8 +113,6 @@ int main()
         shader.use();
         shader.setInt("containerTexture", 0);
         shader.setInt("faceTexture", 1);
-        std::cout << "Texture Basics controls:\n"
-                  << "  Up/Down: blend textures  R: reset  Esc: quit\n";
 
         double previousTime = glfwGetTime();
         double nextTitleUpdate = 0.0;
@@ -155,7 +153,7 @@ int main()
             {
                 std::ostringstream title;
                 title << "Texture Basics | blend " << std::fixed << std::setprecision(0) << gMixValue * 100.0f
-                      << "% | [Up/Down] blend [R] reset [Esc] quit";
+                      << "%";
                 glfwSetWindowTitle(window, title.str().c_str());
                 nextTitleUpdate = time + 0.2;
             }

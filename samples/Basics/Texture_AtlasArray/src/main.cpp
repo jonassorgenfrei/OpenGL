@@ -161,8 +161,7 @@ int main()
         shader.setInt("tileArray", 1);
         int lod = 0;
         bool inset = false, storageView = false, repeat = false;
-        std::cout << "Atlas / array: identical stone, grass, wood and metal; 1 MiB base payload each.\n"
-                  << "1: detail  2: mip bleeding  Up/Down: mip  G: inset  T: repetition  M: storage  R: reset  H: help\n";
+        std::cout << "Atlas / array: identical stone, grass, wood and metal; 1 MiB base payload each.\n";
         // render loop
         // -----------
         while (!glfwWindowShouldClose(window))
@@ -178,7 +177,11 @@ int main()
                 glfwWaitEventsTimeout(0.05);
                 continue;
             }
-            const int footer = std::min(180, height / 3);
+            const int footer = std::min(154, height / 3);
+            const int columnWidth = width / 3;
+            const int panelWidth = std::max(1, columnWidth - 24);
+            const int panelHeight = std::max(1, height - footer - 55);
+            const int previewSize = std::min(panelWidth, panelHeight);
             glViewport(0, 0, width, height);
             // render
             // ------
@@ -194,11 +197,20 @@ int main()
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D_ARRAY, tileArray);
             glBindVertexArray(vao);
+            // Show the complete base-level atlas independently of comparison settings.
+            // UVs cover [0,1] without tile selection, repetition or inset.
+            shader.setBool("useArray", false);
+            shader.setBool("storageView", true);
+            shader.setFloat("lod", 0.0f);
+            glViewport(12 + (panelWidth - previewSize) / 2,
+                       footer + (panelHeight - previewSize) / 2, previewSize, previewSize);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+            shader.setBool("storageView", storageView);
+            shader.setFloat("lod", static_cast<float>(lod));
             for (int panel = 0; panel < 2; ++panel)
             {
                 shader.setBool("useArray", panel == 1);
-                glViewport(panel * (width / 2) + 12, footer, std::max(1, width / 2 - 24),
-                           std::max(1, height - footer - 55));
+                glViewport((panel + 1) * columnWidth + 12, footer, panelWidth, panelHeight);
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
             }
             glViewport(0, 0, width, height);
@@ -210,19 +222,19 @@ int main()
                 const float scale = std::min(0.8f, width / 1500.0f);
                 auto label = [&](const std::string &line, float x, float y)
                 { text.RenderText(line, x, y, scale, {0.9f, 0.94f, 1.0f}); };
-                label("ATLAS: sampler2D, UV rectangle", 115, 20);
-                label("ARRAY: sampler2DArray, UV + layer", width / 2.0f + 20, 20);
+                label("FULL ATLAS: 512 x 512", 15, 20);
+                label("ATLAS: UV rectangle", columnWidth + 15.0f, 20);
+                label("ARRAY: UV + layer", 2 * columnWidth + 15.0f, 20);
+                label("All four materials | mip 0", 15, 40);
                 for (int panel = 0; panel < 2; ++panel)
                     for (int tile = 0; tile < TileCount; ++tile)
                     {
-                        const float panelWidth = static_cast<float>(std::max(1, width / 2 - 24));
-                        const float panelHeight = static_cast<float>(std::max(1, height - footer - 55));
-                        const float x = panel * (width / 2.0f) + 20 + (tile % 2) * panelWidth / 2;
-                        const float y = 65 + (1 - tile / 2) * panelHeight / 2;
+                        const float x = (panel + 1) * columnWidth + 20.0f + (tile % 2) * panelWidth / 2.0f;
+                        const float y = 65 + (1 - tile / 2) * panelHeight / 2.0f;
                         const std::string name = std::string(MaterialNames[tile]) +
-                            (panel == 0 ? " | atlas tile " : " | layer ") + std::to_string(tile);
-                        text.RenderText(name, x + 1, y + 1, scale, {0.0f, 0.0f, 0.0f});
-                        label(name, x, y);
+                            (panel == 0 ? " | tile " : " | layer ") + std::to_string(tile);
+                        text.RenderText(name, x + 1, y + 1, scale * 0.85f, {0.0f, 0.0f, 0.0f});
+                        text.RenderText(name, x, y, scale * 0.85f, {0.9f, 0.94f, 1.0f});
                     }
                 label("Same materials: 512x512 atlas vs four 256x256 layers; 1 MiB base payload each.", 15,
                       static_cast<float>(height - footer + 12));
@@ -232,21 +244,18 @@ int main()
                       15, static_cast<float>(height - footer + 38));
                 label("Look for grass leaking into stone or wood at atlas edges; array layers stay separate.", 15,
                       static_cast<float>(height - footer + 64));
-                label("Try mip 0 + G: inset fixes base filtering. Raise mip: atlas needs padding and per-tile mip "
-                      "generation.",
+                label("Inset fixes base filtering. Coarser atlas mips need padding and per-tile mip generation.",
                       15, static_cast<float>(height - footer + 90));
                 label("Atlas packs different rectangles; arrays require equal layer size/format and isolate each tile.", 15,
                       static_cast<float>(height - footer + 116));
-                label("1 detail | 2 bleeding | Up/Down mip | G inset | T repeat | M storage | R reset | H help", 15,
-                      static_cast<float>(height - footer + 142));
                 glDisable(GL_BLEND);
             }
             const std::string title =
-                "Texture Atlas / Array | mip " + std::to_string(lod) + " | G inset | T repeat | M storage | H help";
+                "Texture Atlas / Array | mip " + std::to_string(lod);
             glfwSetWindowTitle(window, title.c_str());
             // help overlay and swap buffers
             // -----------------------------
-            sample_help::render();
+            sample_help::render(55); // Keep the hint and expanded help below the column headers.
             glfwSwapBuffers(window);
         }
         text.release();

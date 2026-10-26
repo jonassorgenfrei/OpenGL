@@ -139,10 +139,6 @@ int main()
         std::cout << "Virtual texture: " << virtual_texture::VirtualSize << " x " << virtual_texture::VirtualSize
                   << " RGBA8 = " << fullMiB << " MiB base image; bounded cache + table = " << std::fixed
                   << std::setprecision(2) << cacheMiB << " MiB.\n";
-        std::cout
-            << "Virtual Texturing controls:\n"
-            << "  WASD/arrows: pan  mouse wheel or Q/E: zoom  R: close-up  O: overview\n"
-            << "  V: residency colors  Space: pause streaming  C: clear detail  B: upload budget  H: help  Esc: quit\n";
 
         double previousTime = glfwGetTime();
         double nextTitleUpdate = 0.0;
@@ -165,7 +161,7 @@ int main()
                 continue;
             }
             // Render and hit-test the same panel rectangles, in framebuffer pixels.
-            const int footer = std::min(150, height / 3);
+            const int footer = std::min(124, height / 3);
             const int left = width * 2 / 3;
             const int panelWidth = std::max(1, width - left - 15);
             const int panelHeight = std::max(1, (height - footer - 70) / 2);
@@ -247,10 +243,10 @@ int main()
                 auto label = [&](const std::string &line, float x, float y)
                 { text.RenderText(line, x, y, scale, {0.9f, 0.94f, 1.0f}); };
                 label(gResidency ? "Virtual view: green = requested detail, orange = coarse fallback"
-                                 : "NASA Blue Marble: streamed satellite image (V: residency colors)",
-                      115, 17);
-                label("Overview: click to jump; yellow = view", static_cast<float>(left + 10), 17);
-                label("Physical cache: hover a slot to locate it", static_cast<float>(left + 10),
+                                 : "NASA Blue Marble: streamed satellite image",
+                      15, 17);
+                label("Overview: yellow = visible region", static_cast<float>(left + 10), 17);
+                label("Physical cache: resident texture pages", static_cast<float>(left + 10),
                       static_cast<float>(height - footer - panelHeight - 23));
                 std::ostringstream memory, activity;
                 memory << virtual_texture::VirtualSize << " x " << virtual_texture::VirtualSize << " RGBA8: " << std::fixed
@@ -278,15 +274,11 @@ int main()
                     }
                 }
                 else
-                    hoverInfo << "Hover the physical cache to mark its page in cyan. Space pauses streaming; C clears "
-                                 "detail; B slows uploads.";
+                    hoverInfo << "The cyan marker links a physical cache slot to its page in the virtual image.";
                 label(hoverInfo.str(), 15, static_cast<float>(height - footer + 64));
-                label(
-                    "WASD/arrows pan | wheel/Q/E zoom | click overview to jump | V colors | O overview | R Italy | H help",
-                    15, static_cast<float>(height - footer + 90));
                 label("NASA Blue Marble, July 2004 | 16K image tiles read from disk; full image stays out of GPU and CPU "
                       "memory.",
-                      15, static_cast<float>(height - footer + 116));
+                      15, static_cast<float>(height - footer + 90));
                 glDisable(GL_BLEND);
             }
 
@@ -296,13 +288,13 @@ int main()
                 title << "Virtual Texturing | cache " << virtualTexture.residentCount << "/" << virtualTexture.slots.size()
                       << ", uploads " << virtualTexture.uploadsThisFrame << "/frame"
                       << ", mip " << virtualTexture.activeMip << ", view " << std::fixed << std::setprecision(1)
-                      << gViewSpan * 100.0f << "% | [WASD/arrows] pan [wheel/Q/E] zoom [R] reset [Esc] quit";
+                      << gViewSpan * 100.0f << "%";
                 glfwSetWindowTitle(window, title.str().c_str());
                 nextTitleUpdate = time + 0.2;
             }
             // help overlay and swap buffers
             // -----------------------------
-            sample_help::render();
+            sample_help::render(45); // Keep help below the view and overview headers.
             glfwSwapBuffers(window);
         }
 

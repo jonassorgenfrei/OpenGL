@@ -234,7 +234,7 @@ int main()
                 auto label = [&](const std::string &line, float x, float y, glm::vec3 color = glm::vec3(0.88f, 0.93f, 1.0f))
                 { text.RenderText(line, x * uiScale, y * uiScale, 0.76f * uiScale, color); };
                 const float top = (height - footer) / uiScale;
-                label(gAlpha ? "REFERENCE: RGBA8 alpha" : "REFERENCE: RGBA8 photograph + alpha band", 115, 19);
+                label(gAlpha ? "REFERENCE: RGBA8 alpha" : "REFERENCE: RGBA8 photograph + alpha band", 15, 19);
                 std::string selected = Formats[gSelected].name;
                 if (!variants[gSelected].supported)
                     selected += " (RGBA8 decoded preview)";
@@ -264,7 +264,7 @@ int main()
                     if (i == gSelected)
                         text.RenderBox(10 * uiScale, (y - 3) * uiScale, width - 20 * uiScale, 23 * uiScale,
                                        {0.07f, 0.18f, 0.28f, 1.0f});
-                    label("[" + std::to_string(i + 1) + "] " + format.name, 25, y);
+                    label(format.name, 25, y);
                     label(format.blockSize ? std::to_string(format.blockSize) + "x" + std::to_string(format.blockSize)
                                            : "--",
                           210, y);
@@ -297,22 +297,19 @@ int main()
                       "= read + upload.",
                       15, top + 277);
                 label(variants[gSelected].supported
-                          ? "Measured warm-cache wall times; encoding is offline. Results vary with driver/cache state. T "
-                            "repeats timings."
+                          ? "Measured warm-cache wall times; encoding is offline. Results vary with driver/cache state."
                           : variants[gSelected].status +
                                 "; quality preview decoded to RGBA8. Compressed GPU upload/load timings are N/A.",
                       15, top + 301);
-                label("Photo: Hannes Roest / Wikimedia Commons, CC BY-SA 3.0 | Bottom quarter: added alpha ramp | 1-7 "
-                      "format, A alpha, D error, Z zoom, B blocks, H help",
+                label("Photo: Hannes Roest / Wikimedia Commons, CC BY-SA 3.0 | Bottom quarter: added alpha ramp",
                       15, top + 325);
                 glDisable(GL_BLEND);
             }
-            const std::string title = std::string("Texture Compression | ") + Formats[gSelected].name +
-                                      " | [1-7] format [A] alpha [D] error [T] timings [H] help";
+            const std::string title = std::string("Texture Compression | ") + Formats[gSelected].name;
             glfwSetWindowTitle(window, title.c_str());
             // help overlay and swap buffers
             // -----------------------------
-            sample_help::render();
+            sample_help::render(55); // Keep help below the image headers.
             glfwSwapBuffers(window);
         }
         text.release();
