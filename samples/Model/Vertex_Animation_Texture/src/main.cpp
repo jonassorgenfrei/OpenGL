@@ -90,19 +90,6 @@ int main()
                       FileSystem::getSamplePath("shader/vat.frag").c_str());
     Shader previewShader(FileSystem::getSamplePath("shader/preview.vert").c_str(),
                          FileSystem::getSamplePath("shader/preview.frag").c_str());
-    int meshLinked = GL_FALSE;
-    int previewLinked = GL_FALSE;
-    glGetProgramiv(meshShader.ID, GL_LINK_STATUS, &meshLinked);
-    glGetProgramiv(previewShader.ID, GL_LINK_STATUS, &previewLinked);
-    if (!meshLinked || !previewLinked)
-    {
-        sample_help::shutdown();
-        glDeleteProgram(meshShader.ID);
-        glDeleteProgram(previewShader.ID);
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return -1;
-    }
 
     // bake and upload the animation texture once
     // ------------------------------------------
