@@ -40,10 +40,3 @@ The topology stays fixed and no vertex positions are uploaded during playback.
 The fragment shader derives face normals from the deformed surface.
 The top-right preview remaps signed positions to visible colors; its white row marks playback.
 
-Build with `cmake --build build --config Release --target Vertex_Animation_Texture`.
-On Windows, run `bin/Model/Release/Vertex_Animation_Texture.exe`.
-Requires OpenGL 3.3; no external model or animation asset is needed.
-
-- **Space:** pause/resume; **Right:** pause and advance one baked frame.
-- **I:** toggle frame interpolation; **W:** toggle wireframe.
-- **T:** toggle the VAT preview; **R:** restart; **H:** help; **Esc:** exit.
