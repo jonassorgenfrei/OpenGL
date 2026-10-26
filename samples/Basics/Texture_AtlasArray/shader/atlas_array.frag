@@ -13,8 +13,8 @@ void main()
 {
     // Both panels use the same tile IDs and local coordinates. A real mesh
     // would pass an atlas rectangle or a flat array-layer index per material.
-    vec2 grid = texCoord * (storageView ? 2.0 : 4.0);
-    ivec2 cell = min(ivec2(floor(grid)), ivec2(storageView ? 1 : 3));
+    vec2 grid = texCoord * 2.0;
+    ivec2 cell = min(ivec2(floor(grid)), ivec2(1));
     int tile = (cell.x + cell.y * 2) % 4;
     vec2 localUv = fract(grid) * (storageView ? 1.0 : repetitions);
     vec3 color;
@@ -30,7 +30,8 @@ void main()
         vec2 origin = vec2(tile % 2, tile / 2);
         // A half-texel inset fixes base-level bilinear bleed only. Generating
         // mipmaps for the WHOLE atlas still mixes tiles at coarse levels.
-        if (inset) localUv = mix(vec2(0.5 / 64.0), vec2(63.5 / 64.0), localUv);
+        vec2 tileSize = vec2(textureSize(atlas, 0)) / 2.0;
+        if (inset) localUv = mix(0.5 / tileSize, 1.0 - 0.5 / tileSize, localUv);
         vec2 atlasUv = (origin + localUv) / 2.0;
         color = textureLod(atlas, atlasUv, lod).rgb;
     }

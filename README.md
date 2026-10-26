@@ -18,8 +18,9 @@ Samples are grouped into:
 Start with [Texture Basics](samples/Basics/Texture_Basics/), then explore:
 
 - [Texture Atlas / Texture Array](samples/Basics/Texture_AtlasArray/): compare
-  UV rectangles and array layers side by side, inspect storage, and experiment
-  with repetition, filtering bleed, mip levels, and a base-level UV inset.
+  the same stone, grass, wood, and metal images in atlas rectangles and array
+  layers side by side. Press `1` for material detail or `2` for mip bleeding;
+  inspect storage with `M` and experiment with repetition and a base-level UV inset.
 - [Texture Compression](samples/Basics/Texture_Compression/): compare a real
   photograph in RGBA8, DXT1/BC1, DXT3/BC2, DXT5/BC3, and three ASTC block sizes.
   Inspect alpha and compression artifacts, then compare payload savings with

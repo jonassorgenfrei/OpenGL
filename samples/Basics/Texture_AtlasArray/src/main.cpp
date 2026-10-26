@@ -1,5 +1,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include "stb_image.h"
 #include "modules/filesystem.h"
 #include "modules/shader_m.h"
 #include "modules/window.h"
@@ -10,6 +11,7 @@
 #include <array>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -20,12 +22,17 @@ namespace
 constexpr unsigned int SCR_WIDTH = 1200;
 constexpr unsigned int SCR_HEIGHT = 800;
 
-constexpr int TileSize = 64;
+constexpr int TileSize = 256;
 constexpr int TileCount = 4;
+constexpr int MaxAtlasLod = 9;
+const std::array<const char *, TileCount> MaterialNames = {"Stone", "Grass", "Wood", "Metal"};
+const std::array<const char *, TileCount> MaterialPaths = {
+    "content/images/brickwall.jpg", "content/images/grass/albedo.png",
+    "content/images/wood.png", "content/images/metal.png"};
 
 // Input, callbacks and rendering helpers are defined after main().
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-std::vector<std::uint8_t> makeTile(int tile);
+std::vector<std::uint8_t> loadTile(int tile);
 void configureTexture(GLenum target);
 void processInput(int &lod, bool &inset, bool &storageView, bool &repeat);
 } // namespace
@@ -72,6 +79,7 @@ int main()
         framebuffer_size_callback(window, framebufferWidth, framebufferHeight);
         icon(window);
         sample_help::initialize(window, {{"Esc", "Exit sample"},
+                                         {"1 / 2", "Material detail / mip bleeding comparison"},
                                          {"Up / Down", "Increase / decrease mip level"},
                                          {"G", "Atlas base-level half-texel inset"},
                                          {"T", "Repeat tiles 1 / 4 times"},
@@ -85,7 +93,7 @@ int main()
         std::array<std::vector<std::uint8_t>, TileCount> tiles;
         for (int tile = 0; tile < TileCount; ++tile)
         {
-            tiles[tile] = makeTile(tile);
+            tiles[tile] = loadTile(tile);
             for (int y = 0; y < TileSize; ++y)
                 for (int x = 0; x < TileSize; ++x)
                 {
@@ -93,7 +101,7 @@ int main()
                     std::copy_n(&tiles[tile][(y * TileSize + x) * 4], 4, &atlasPixels[destination]);
                 }
         }
-        // Atlas: one 128x128 image, each tile selected by UV scale and offset.
+        // Atlas: one 512x512 image, each material selected by UV scale and offset.
         glGenTextures(1, &atlas);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, atlas);
@@ -101,7 +109,7 @@ int main()
                      atlasPixels.data());
         configureTexture(GL_TEXTURE_2D);
 
-        // Array: four equally sized 64x64 layers, selected by a third coordinate.
+        // Array: four equally sized 256x256 layers, selected by a third coordinate.
         glGenTextures(1, &tileArray);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D_ARRAY, tileArray);
@@ -140,10 +148,10 @@ int main()
         shader.use();
         shader.setInt("atlas", 0);
         shader.setInt("tileArray", 1);
-        int lod = 3;
-        bool inset = false, storageView = false, repeat = true;
-        std::cout << "Atlas / array: identical four tiles, 64 KiB base payload each.\n"
-                  << "Up/Down: mip  G: inset  T: repetition  M: storage  R: reset  H: help\n";
+        int lod = 0;
+        bool inset = false, storageView = false, repeat = false;
+        std::cout << "Atlas / array: identical stone, grass, wood and metal; 1 MiB base payload each.\n"
+                  << "1: detail  2: mip bleeding  Up/Down: mip  G: inset  T: repetition  M: storage  R: reset  H: help\n";
         // render loop
         // -----------
         while (!glfwWindowShouldClose(window))
@@ -193,20 +201,32 @@ int main()
                 { text.RenderText(line, x, y, scale, {0.9f, 0.94f, 1.0f}); };
                 label("ATLAS: sampler2D, UV rectangle", 115, 20);
                 label("ARRAY: sampler2DArray, UV + layer", width / 2.0f + 20, 20);
-                label("Same four tiles; one texture binding per approach; 64 KiB base image payload each.", 15,
+                for (int panel = 0; panel < 2; ++panel)
+                    for (int tile = 0; tile < TileCount; ++tile)
+                    {
+                        const float panelWidth = static_cast<float>(std::max(1, width / 2 - 24));
+                        const float panelHeight = static_cast<float>(std::max(1, height - footer - 55));
+                        const float x = panel * (width / 2.0f) + 20 + (tile % 2) * panelWidth / 2;
+                        const float y = 65 + (1 - tile / 2) * panelHeight / 2;
+                        const std::string name = std::string(MaterialNames[tile]) +
+                            (panel == 0 ? " | atlas tile " : " | layer ") + std::to_string(tile);
+                        text.RenderText(name, x + 1, y + 1, scale, {0.0f, 0.0f, 0.0f});
+                        label(name, x, y);
+                    }
+                label("Same materials: 512x512 atlas vs four 256x256 layers; 1 MiB base payload each.", 15,
                       static_cast<float>(height - footer + 12));
-                label("Mip level: " + std::to_string(lod) + " (array max 6) | Atlas base-level inset: " +
+                label("Mip level: " + std::to_string(lod) + " (array max 8) | Atlas base-level inset: " +
                           (inset ? "ON" : "OFF") + " | Tile repeats: " + (repeat ? "4" : "1") + " | " +
                           (storageView ? "STORAGE VIEW" : "MATERIAL GRID"),
                       15, static_cast<float>(height - footer + 38));
-                label("Observe colored seams in the atlas. Array filtering and mipmaps stay inside each layer.", 15,
+                label("Look for grass leaking into stone or wood at atlas edges; array layers stay separate.", 15,
                       static_cast<float>(height - footer + 64));
                 label("Try mip 0 + G: inset fixes base filtering. Raise mip: atlas needs padding and per-tile mip "
                       "generation.",
                       15, static_cast<float>(height - footer + 90));
                 label("Atlas packs different rectangles; arrays require equal layer size/format and isolate each tile.", 15,
                       static_cast<float>(height - footer + 116));
-                label("Up/Down mip | G inset | T repeat | M storage layout | R reset | H help | Esc exit", 15,
+                label("1 detail | 2 bleeding | Up/Down mip | G inset | T repeat | M storage | R reset | H help", 15,
                       static_cast<float>(height - footer + 142));
                 glDisable(GL_BLEND);
             }
@@ -249,21 +269,32 @@ void framebuffer_size_callback(GLFWwindow *, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-std::vector<std::uint8_t> makeTile(int tile)
+std::vector<std::uint8_t> loadTile(int tile)
 {
-    const std::array<std::array<std::uint8_t, 3>, 4> colors = {
-        {{{235, 65, 45}}, {{45, 210, 95}}, {{50, 100, 240}}, {{245, 200, 40}}}};
+    // Normalize the existing material images once; both storage methods receive
+    // exactly the same pixels. Box filtering preserves detail when downsampling.
+    int width = 0, height = 0, channels = 0;
+    stbi_set_flip_vertically_on_load(true);
+    const std::string path = FileSystem::getPath(MaterialPaths[tile]);
+    std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> source(
+        stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha), stbi_image_free);
+    if (!source)
+        throw std::runtime_error("Could not load material texture: " + path);
     std::vector<std::uint8_t> pixels(TileSize * TileSize * 4);
     for (int y = 0; y < TileSize; ++y)
         for (int x = 0; x < TileSize; ++x)
         {
-            const bool checker = ((x / 8 + y / 8) & 1) != 0;
-            // Solid tile-colored edges make contamination from adjacent tiles visible.
-            const float brightness = x < 4 || y < 4 || x >= 60 || y >= 60 ? 1.0f : (checker ? 0.85f : 0.45f);
-            const int offset = (y * TileSize + x) * 4;
-            for (int c = 0; c < 3; ++c)
-                pixels[offset + c] = static_cast<std::uint8_t>(colors[tile][c] * brightness);
-            pixels[offset + 3] = 255;
+            const int x0 = x * width / TileSize, y0 = y * height / TileSize;
+            const int x1 = std::max(x0 + 1, (x + 1) * width / TileSize);
+            const int y1 = std::max(y0 + 1, (y + 1) * height / TileSize);
+            std::array<std::uint64_t, 4> sum{};
+            for (int sy = y0; sy < y1; ++sy)
+                for (int sx = x0; sx < x1; ++sx)
+                    for (int c = 0; c < 4; ++c)
+                        sum[c] += source.get()[(sy * width + sx) * 4 + c];
+            const int count = (x1 - x0) * (y1 - y0);
+            for (int c = 0; c < 4; ++c)
+                pixels[(y * TileSize + x) * 4 + c] = static_cast<std::uint8_t>(sum[c] / count);
         }
     return pixels;
 }
@@ -279,7 +310,7 @@ void configureTexture(GLenum target)
 void processInput(int &lod, bool &inset, bool &storageView, bool &repeat)
 {
     if (sample_input::pressed[GLFW_KEY_UP])
-        lod = std::min(7, lod + 1);
+        lod = std::min(MaxAtlasLod, lod + 1);
     if (sample_input::pressed[GLFW_KEY_DOWN])
         lod = std::max(0, lod - 1);
     if (sample_input::pressed[GLFW_KEY_G])
@@ -288,9 +319,16 @@ void processInput(int &lod, bool &inset, bool &storageView, bool &repeat)
         repeat = !repeat;
     if (sample_input::pressed[GLFW_KEY_M])
         storageView = !storageView;
-    if (sample_input::pressed[GLFW_KEY_R])
+    if (sample_input::pressed[GLFW_KEY_R] || sample_input::pressed[GLFW_KEY_1])
     {
-        lod = 3;
+        lod = 0;
+        inset = false;
+        storageView = false;
+        repeat = false;
+    }
+    if (sample_input::pressed[GLFW_KEY_2])
+    {
+        lod = 6;
         inset = false;
         storageView = false;
         repeat = true;
