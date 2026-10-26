@@ -73,6 +73,7 @@ set(Model
     Basic
     Advanced_Model
     Skeletal_Animation
+    Vertex_Animation_Texture
 )
 
 set(PBR
