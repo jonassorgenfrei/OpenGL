@@ -38,6 +38,15 @@ Multisampling improves coverage at the cube's geometric edges.
 The application enables multisample rasterization without a separate offscreen resolve pass.
 This provides a smaller counterpart to the offscreen anti-aliasing example.
 
+## [Batching](Batching/)
+
+Compares rendering the same 36 quads with individual draw calls and a static geometry batch.
+The unbatched side positions a shared mesh with a uniform and submits one draw per quad.
+The batched side stores all transformed vertices in one buffer and draws them together.
+Labels show 36 geometry draw calls versus one, excluding text and help rendering.
+Both sides use compatible shaders and render state to isolate submission overhead.
+The example illustrates the trade-off between fewer draw calls and coarser culling granularity.
+
 ## [Billboards](Billboards/)
 
 Generates camera-facing textured quads from points with a geometry shader.
@@ -126,6 +135,15 @@ The supplied mesh shader builds a small colored shape from five vertices and fou
 Per-vertex and per-primitive data are passed to the fragment stage for coloring.
 The application starts this pipeline with glDrawMeshTasksNV instead of a conventional mesh draw.
 Running this example requires a driver and GPU that expose the NVIDIA mesh shader extension.
+
+## [Occlusion Query](Occlusion_Query/)
+
+Demonstrates conditional rendering with an animated gear moving behind an occluder.
+A conservative bounding box is tested with GL_ANY_SAMPLES_PASSED while color and depth writes are disabled.
+The query result controls whether the actual gear geometry is drawn.
+A bounding-box visualization and status text make the visibility decision observable.
+The demo waits for the current query result so the status matches the draw decision, which can stall the CPU.
+A positive bounding-box result means the object is potentially visible, not necessarily visible.
 
 ## [Order Independent Transparency Depth Peeling](Order_Independent_Transparency_Depth_Peeling/)
 

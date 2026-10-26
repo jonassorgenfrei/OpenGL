@@ -28,3 +28,15 @@ The Animator updates the animation time and calculates the final bone transforma
 The vertex shader blends bone matrices using the bone indices and weights attached to each vertex.
 The animated positions are then rendered with the model's surface textures.
 W toggles wireframe, and F toggles frame-rate reporting for inspecting the running animation.
+
+## [Vertex Animation Texture](Vertex_Animation_Texture/)
+
+A 33 x 17 grid waves like a flag; its left edge stays fixed.
+At startup, 64 animation frames are baked into an RGB32F texture:
+each column represents one vertex, each row one frame, and RGB stores object-space XYZ.
+The vertex shader uses `gl_VertexID` and `texelFetch` to read two frames and
+interpolates their positions, including the transition from the last frame to the first.
+The topology stays fixed and no vertex positions are uploaded during playback.
+The fragment shader derives face normals from the deformed surface.
+The top-right preview remaps signed positions to visible colors; its white row marks playback.
+
