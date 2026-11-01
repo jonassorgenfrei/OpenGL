@@ -3,13 +3,10 @@ include(FetchContent)
 option(OPENGL_FETCH_DEPENDENCIES "Download and build pinned dependencies" ON)
 
 if(OPENGL_FETCH_DEPENDENCIES)
-    # GLAD 0.1.36 declares a policy version older than CMake 4 supports.
-    # Keep pinned dependencies configurable without overriding a user setting.
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND
-       NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
+    # Pinned dependencies still declare minimum versions older than CMake 4 accepts.
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0 AND NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
         set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
     endif()
-
     # Static dependencies keep the samples runnable without copying DLLs.
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
@@ -32,11 +29,25 @@ if(OPENGL_FETCH_DEPENDENCIES)
         set(FT_DISABLE_${package} ON CACHE BOOL "" FORCE)
     endforeach()
     set(GLM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(GLAD_PROFILE core CACHE STRING "" FORCE)
-    set(GLAD_API "gl=4.6" CACHE STRING "" FORCE)
-    set(GLAD_ALL_EXTENSIONS ON CACHE BOOL "" FORCE)
-    set(GLAD_REPRODUCIBLE ON CACHE BOOL "" FORCE)
-    find_package(Python REQUIRED COMPONENTS Interpreter)
+    # Reuse the build script's portable Python during IDE regeneration too.
+    # An explicitly selected interpreter always takes precedence.
+    if(WIN32 AND NOT Python_EXECUTABLE)
+        foreach(candidate
+                "${CMAKE_BINARY_DIR}/tools/python/python.exe"
+                "${PROJECT_SOURCE_DIR}/build/windows/tools/python/python.exe")
+            if(EXISTS "${candidate}")
+                set(Python_EXECUTABLE "${candidate}" CACHE FILEPATH "Python interpreter for GLAD" FORCE)
+                break()
+            endif()
+        endforeach()
+    endif()
+    find_package(Python 3.7 QUIET COMPONENTS Interpreter)
+    if(NOT Python_FOUND)
+        message(FATAL_ERROR
+            "GLAD requires Python 3.7 or newer. On Windows, run scripts/build.ps1 "
+            "to prepare a portable interpreter, or configure with "
+            "-DPython_EXECUTABLE:FILEPATH=<path-to-python.exe>.")
+    endif()
 
     FetchContent_Declare(glm
         GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG 1.0.1 GIT_SHALLOW TRUE)
@@ -47,11 +58,14 @@ if(OPENGL_FETCH_DEPENDENCIES)
     FetchContent_Declare(freetype
         GIT_REPOSITORY https://github.com/freetype/freetype.git GIT_TAG VER-2-13-3 GIT_SHALLOW TRUE)
     FetchContent_Declare(glad
-        GIT_REPOSITORY https://github.com/Dav1dde/glad.git GIT_TAG v0.1.36 GIT_SHALLOW TRUE)
+        GIT_REPOSITORY https://github.com/Dav1dde/glad.git GIT_TAG v0.1.36 GIT_SHALLOW TRUE
+        # Define generation locally to support isolated Python and IDE builds.
+        SOURCE_SUBDIR opengl-local-build)
     FetchContent_Declare(stb
         GIT_REPOSITORY https://github.com/nothings/stb.git
         GIT_TAG f0569113c93ad095470c54bf34a17b36646bbbb5)
     FetchContent_MakeAvailable(glm glfw assimp freetype glad stb)
+    include("${CMAKE_CURRENT_LIST_DIR}/Glad.cmake")
     set(STB_INCLUDE_DIRS "${stb_SOURCE_DIR}")
     set(FREETYPE_TARGET freetype)
 else()

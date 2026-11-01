@@ -1,0 +1,32 @@
+Fronalpstock landscape texture and prepared derivatives
+
+Original photograph: Fronalpstock big.jpg
+Author: Hannes Roest (Hannes R?st on Wikimedia Commons)
+Source and attribution:
+https://commons.wikimedia.org/wiki/File:Fronalpstock_big.jpg
+Original download:
+https://upload.wikimedia.org/wikipedia/commons/3/3f/Fronalpstock_big.jpg
+
+License selected for this photograph and ALL image derivatives in this folder:
+Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
+https://creativecommons.org/licenses/by-sa/3.0/
+Full license: https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+The original is copyright Hannes R?st. Attribution is required. You may share
+and adapt the image under the license terms; adaptations must be shared under
+the same or a compatible license. No endorsement by the photographer is implied.
+This notice concerns the imagery, not the sample's source code.
+
+Changes in this repository:
+- Center-cropped and resampled to 1024 x 1024 using Lanczos (Pillow 12.0.0).
+- RGB remains a photograph. An artificial left-to-right 8-bit alpha ramp was
+  added to the bottom quarter to compare BC2/DXT3 and BC3/DXT5 transparency.
+- Stored as landscape.png and a top-row-first uncompressed RGBA8 DDS reference.
+- BC1/DXT1 (RGB), BC2/DXT3 and BC3/DXT5 use the sample's small offline encoders.
+- ASTC 4x4, 8x8, 12x12 use Arm astcenc 5.7.0, LDR linear profile, medium preset.
+- preview_*.png contain offline ASTC decodes for drivers without ASTC support.
+- No AI-generated image content.
+
+Reproduction: scripts/prepare_texture_compression.py and the optional
+Texture_Compression_Prepare target. Normal builds and runs need neither Python
+nor an ASTC encoder, because the prepared assets are included.

@@ -49,7 +49,10 @@ set(Basics
     Camera
     Shader
     Text
-    Texture
+    Texture_Basics
+    Texture_AtlasArray
+    Texture_Compression
+    Texture_VirtualTexturing
     Transformation
 )
 
@@ -127,13 +130,13 @@ endmacro()
 
 function(add_sample_directory target_name samplePath)
   string(CONCAT SAMPLE_DIR_CODE "#ifdef SAMPLE_${target_name}\n"
-  "const char * logl_sample = \"${samplePath}\";\n"
+  "inline const char * logl_sample = \"${samplePath}\";\n"
   "#endif //SAMPLE_${target_name} \n"
   )
 
   write_file(${CMAKE_BINARY_DIR}/configuration/sample_directories.h "${SAMPLE_DIR_CODE}" APPEND)
 
-  target_compile_definitions(${target_name} PUBLIC SAMPLE_${NAME})
+  target_compile_definitions(${target_name} PUBLIC SAMPLE_${target_name})
 endfunction()
 
 function(create_project_from_sources folder sample)
@@ -226,3 +229,8 @@ foreach(FOLDER ${FOLDERS})
 endforeach(FOLDER)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# Optional offline asset preparation; normal builds use the bundled DDS/ASTC files.
+add_executable(Texture_Compression_Prepare EXCLUDE_FROM_ALL
+    samples/Basics/Texture_Compression/tools/prepare_dxt.cpp)
+set_property(TARGET Texture_Compression_Prepare PROPERTY FOLDER "Tools")
