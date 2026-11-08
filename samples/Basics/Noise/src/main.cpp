@@ -23,8 +23,10 @@
 #include <sstream>
 #include <stdexcept>
 
-namespace
-{
+void processInput(float deltaTime);
+void framebufferSizeCallback(GLFWwindow*, int width, int height);
+const char* noiseName();
+
 constexpr unsigned int SCR_WIDTH = 1000;
 constexpr unsigned int SCR_HEIGHT = 700;
 
@@ -32,42 +34,6 @@ int gNoiseType = 1;
 float gScale = 7.0f;
 float gAnimationTime = 0.0f;
 bool gPaused = false;
-
-const char *noiseName()
-{
-    constexpr const char *names[] = {"Value", "Perlin", "Fractal Perlin (fBm)", "Animated 3D Perlin"};
-    return names[gNoiseType];
-}
-
-void framebufferSizeCallback(GLFWwindow *, int width, int height)
-{
-    glViewport(0, 0, width, height);
-}
-
-void processInput(float deltaTime)
-{
-    for (int index = 0; index < 4; ++index)
-    {
-        if (sample_input::pressed[GLFW_KEY_1 + index])
-            gNoiseType = index;
-    }
-
-    if (sample_input::pressed[GLFW_KEY_SPACE])
-        gPaused = !gPaused;
-    if (sample_input::down[GLFW_KEY_UP] || sample_input::down[GLFW_KEY_EQUAL])
-        gScale += 5.0f * deltaTime;
-    if (sample_input::down[GLFW_KEY_DOWN] || sample_input::down[GLFW_KEY_MINUS])
-        gScale -= 5.0f * deltaTime;
-    if (sample_input::pressed[GLFW_KEY_R])
-    {
-        gNoiseType = 1;
-        gScale = 7.0f;
-        gAnimationTime = 0.0f;
-        gPaused = false;
-    }
-    gScale = std::clamp(gScale, 1.0f, 30.0f);
-}
-} // namespace
 
 int main()
 {
@@ -191,4 +157,39 @@ int main()
         glfwTerminate();
         return -1;
     }
+}
+
+const char* noiseName()
+{
+    constexpr const char* names[] = { "Value", "Perlin", "Fractal Perlin (fBm)", "Animated 3D Perlin" };
+    return names[gNoiseType];
+}
+
+void framebufferSizeCallback(GLFWwindow*, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
+void processInput(float deltaTime)
+{
+    for (int index = 0; index < 4; ++index)
+    {
+        if (sample_input::pressed[GLFW_KEY_1 + index])
+            gNoiseType = index;
+    }
+
+    if (sample_input::pressed[GLFW_KEY_SPACE])
+        gPaused = !gPaused;
+    if (sample_input::down[GLFW_KEY_UP] || sample_input::down[GLFW_KEY_EQUAL])
+        gScale += 5.0f * deltaTime;
+    if (sample_input::down[GLFW_KEY_DOWN] || sample_input::down[GLFW_KEY_MINUS])
+        gScale -= 5.0f * deltaTime;
+    if (sample_input::pressed[GLFW_KEY_R])
+    {
+        gNoiseType = 1;
+        gScale = 7.0f;
+        gAnimationTime = 0.0f;
+        gPaused = false;
+    }
+    gScale = std::clamp(gScale, 1.0f, 30.0f);
 }
