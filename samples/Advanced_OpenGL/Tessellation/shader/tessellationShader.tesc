@@ -78,5 +78,8 @@
  * patch interior. Adjacent patches avoid cracks when their shared outer edge
  * uses the same level. A triangle domain has three outer levels and one inner
  * level.
+ *
+ * A quad domain uses four outer and two inner tessellation levels.
+ *
+ *  An isoline domain uses two outer levels and no inner levels.
  */
-
