@@ -1,3 +1,12 @@
+/*
+    Texture atlas and texture array comparison
+
+    Displays the same four materials in a packed 2D atlas and in separate
+    texture-array layers. Adjustable mip levels, repetition, and a half-texel
+    inset demonstrate atlas bleeding and the isolation provided by array layers.
+    Use M to inspect storage and H to see all interactive controls.
+*/
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "stb_image.h"

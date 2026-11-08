@@ -84,7 +84,6 @@ Optional green/orange residency colors distinguish requested detail from coarse 
 Pause and clear detail to observe fallback, then resume with one or four uploads per frame.
 Use WASD/arrows to pan, wheel or Q/E to zoom, Space to pause, C to clear, B for the budget,
 V for residency colors, O for overview, R for the Italy close-up, and H for help.
-The sample README includes a guided experiment and explains costs and implementation limits.
 
 ## [Camera](Camera/)
 

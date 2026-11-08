@@ -1,3 +1,13 @@
+/*
+    Procedural noise comparison
+
+    Compares interpolated value noise, Perlin gradient noise, layered Perlin
+    noise (fBm), and temporally coherent animated 3D Perlin noise. All variants
+    are evaluated in the fragment shader without reading a noise texture.
+    Use 1-4 to select a variant, Up/Down to change its spatial scale, and Space
+    to pause the animated mode.
+*/
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
