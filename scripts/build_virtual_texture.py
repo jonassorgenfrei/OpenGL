@@ -2,7 +2,8 @@
 """Offline preparation of the virtual-texturing sample's indexed JPEG tile pack.
 
 Requires Pillow (runtime samples only need the existing stb_image dependency).
-Run with a high-resolution square source; see the sample README for provenance.
+Run with a high-resolution square source. The bundled source image provenance is
+recorded in content/images/virtual_texturing/blue_marble_july_c1.LICENSE.txt.
 """
 import argparse
 import io

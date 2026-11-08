@@ -47,6 +47,7 @@ set(Advanced_OpenGL
 set(Basics
     CoordinateSystem
     Camera
+    Noise
     Shader
     Text
     Texture_Basics
