@@ -81,5 +81,5 @@
  *
  * A quad domain uses four outer and two inner tessellation levels.
  *
- *  An isoline domain uses two outer levels and no inner levels.
+ * An isoline domain uses two outer levels and no inner levels.
  */
