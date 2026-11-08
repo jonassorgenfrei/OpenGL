@@ -13,6 +13,13 @@ Samples are grouped into:
 - [Shadows](samples/Shadows/README.md)
 - [Advanced OpenGL](samples/Advanced_OpenGL/README.md)
 
+## Procedural noise example
+
+[Noise Types](samples/Basics/Noise/) compares value noise, Perlin gradient
+noise, layered Perlin/fBm, and animated 3D Perlin noise in one interactive
+OpenGL 3.3 sample. Press `1`-`4` to switch variants, use Up/Down to change the
+spatial scale, and press `Space` to pause the animated mode.
+
 ## Texture learning examples
 
 Start with [Texture Basics](samples/Basics/Texture_Basics/), then explore:
