@@ -9,10 +9,9 @@
 
  #version 430 core
 
- // Use a triangle domain, equal spacing, and counter-clockwise winding.
- // Fractional spacing modes provide smoother transitions between levels.
- // 
- layout(triangles, equal_spacing, ccw)in;
+ // Fractional-odd spacing avoids abrupt integer-sized topology changes when
+ // the keyboard multiplier or camera-dependent tessellation level changes.
+ layout(triangles, fractional_odd_spacing, ccw) in;
 
 
  // TCS output attributes; the array length equals the output patch size.
@@ -44,20 +43,7 @@
     return vec3(gl_TessCoord.x) * v0 + vec3(gl_TessCoord.y) * v1 + vec3(gl_TessCoord.z) * v2;
 } 
 
- // gl_TessCoord contains the generated vertex's barycentric coordinates.
- vec4 interpolate4D(vec4 v0, vec4 v1, vec4 v2){
-	return	gl_TessCoord.x*v0		// Interpolate the three control-point attributes
-		+	gl_TessCoord.y*v1		// using the generated vertex's barycentric
-		+	gl_TessCoord.z*v2;		// coordinates inside the triangle patch.
- }
- 
  void main() {
-	/* Quad domains provide 2D coordinates for bilinear interpolation. */
-
-	/* For isolines, x is the position along a line and y selects the line. */
-	// float u = gl_TessCoord.x; // Read the tessellation coordinate (u, v).
-	// float v = gl_TessCoord.y;
-
 	// Interpolate the attributes of the output vertex using the barycentric coordinates
 	tes_out.texCoords = interpolate2D(tes_in[0].texCoords, tes_in[1].texCoords, tes_in[2].texCoords);
 	tes_out.normal = interpolate3D(tes_in[0].normal, tes_in[1].normal, tes_in[2].normal);
@@ -70,24 +56,4 @@
 
 	gl_Position = projection * view * vec4(tes_out.positionW,1.0); // Project the displaced world-space position.
  }
-
- /*
-	// Alternative interpolation approach
-	void main() {
-		
-		float u = gl_TessCoord.x; // Read the tessellation coordinate (u, v).
-		float v = gl_TessCoord.y;
-
-		vec4 tmp1 = mix(gl_in[1].gl_Position, gl_in[0].gl_Position, u); // Interpolate one side of the rectangular patch.
-		vec4 tmp2 = mix(gl_in[2].gl_Position, gl_in[3].gl_Position, u); // Interpolate the opposite side.
-
-		vec4 position = mix(tmp1, tmp2, v);
-		// modify position (extrude along normal ... )
-		gl_Position = projection * view * model * position;	
-	}
- */
-
-
-	
-	 
 

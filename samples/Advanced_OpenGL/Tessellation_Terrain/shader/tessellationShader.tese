@@ -33,13 +33,8 @@
  uniform vec2 texelSize;
 
  void main() {
-	/* Quad domains provide 2D coordinates for bilinear interpolation. */
-
-	/* For isolines, x is the position along a line and y selects the line. */
 	float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
-	//float width = 2624;
-	//float height = 1756;
     vec2 t00 = tes_in[0].texCoords;
     vec2 t01 = tes_in[1].texCoords;
     vec2 t10 = tes_in[2].texCoords;
@@ -72,13 +67,12 @@
 	// displace point along normal
 	p += normal * tes_out.Height;
 
-	float height_scale = 64;
-	float left  = texture(heightMap, texCoord + vec2(-texelSize.x, 0.0)).r * height_scale * 2.0 - 1.0;
-	float right = texture(heightMap, texCoord + vec2( texelSize.x, 0.0)).r * height_scale * 2.0 - 1.0;
-	float up    = texture(heightMap, texCoord + vec2(0.0,  texelSize.y)).r * height_scale * 2.0 - 1.0;
-	float down  = texture(heightMap, texCoord + vec2(0.0, -texelSize.y)).r * height_scale * 2.0 - 1.0;
+	const float heightScale = 64.0;
+	float left  = texture(heightMap, texCoord + vec2(-texelSize.x, 0.0)).r * heightScale;
+	float right = texture(heightMap, texCoord + vec2( texelSize.x, 0.0)).r * heightScale;
+	float up    = texture(heightMap, texCoord + vec2(0.0,  texelSize.y)).r * heightScale;
+	float down  = texture(heightMap, texCoord + vec2(0.0, -texelSize.y)).r * heightScale;
 
-	// TODO: FIX NORMAL!
 	tes_out.normal = normalize(vec3(left - right, 2.0, up - down));
 	
 	// output patch point position in clip space

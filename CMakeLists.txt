@@ -195,8 +195,16 @@ function(create_project_from_sources folder sample)
   
   foreach(SHADER ${SHADERS})
       if(WIN32)
-          # configure_file(${SHADER} "test")
-          add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SHADER} $<TARGET_FILE_DIR:${NAME}>)
+          # Targets in the same category share an output directory. Keep their
+          # shader copies separate so parallel builds cannot concurrently overwrite
+          # common names such as shader.vert and shaderfs2.frag.
+          set(SHADER_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:${NAME}>/${NAME}")
+          add_custom_command(TARGET ${NAME} PRE_BUILD
+              COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUTPUT_DIRECTORY}"
+              COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                  "${SHADER}" "${SHADER_OUTPUT_DIRECTORY}"
+              VERBATIM
+          )
       elseif(UNIX AND NOT APPLE)
           file(COPY ${SHADER} DESTINATION ${CMAKE_SOURCE_DIR}/bin/${folder})
       elseif(APPLE)

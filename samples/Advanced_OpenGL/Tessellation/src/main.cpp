@@ -23,13 +23,11 @@
 
 #include "modules/shader_m.h"
 #include "modules/camera.h"
-#include "modules/model.h"
 #include "modules/filesystem.h"
-#include "modules/light.h"
-#include "modules/material.h"
 #include "modules/window.h"
 #include "modules/help_overlay.h"
 
+#include <algorithm>
 #include <iostream>
 
 // callbacks
@@ -38,7 +36,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // current Mouse position 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
-void drawPlane(void);
 /* load texture */
 unsigned int loadTexture(const char *path, bool gammaCorrection);
 
@@ -47,7 +44,13 @@ const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 float heightScale = 1.0;
 bool Wpressed = false;
+bool Mpressed = false;
+bool increaseTessellationPressed = false;
+bool decreaseTessellationPressed = false;
 bool wireframe = false;
+int materialIndex = 0;
+int displayMode = 0;
+float tessellationMultiplier = 1.0f;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -112,6 +115,9 @@ int main()
 		{"Alt + RMB", "Dolly camera"},
 		{"Mouse wheel", "Zoom camera"},
 		{"W", "Toggle wireframe"},
+		{"M", "Switch material"},
+		{"1 / 2", "Texture / UV view"},
+		{"+ / -", "Adjust tessellation"},
 		{"Q / E", "Adjust scale"}
 	});
 
@@ -127,16 +133,14 @@ int main()
 	
 	// load textures
 	// -------------
-	/* Bricks
-	unsigned int diffuseMap = loadTexture(FileSystem::getPath("content/images/bricks2.jpg").c_str(),false);
-	unsigned int depthMap = loadTexture(FileSystem::getPath("content/images/bricks2_disp.jpg").c_str(), false); // DepthMap => inverse of the heightmap (easier to fake depth instead of height)
-	unsigned int normalMap = loadTexture(FileSystem::getPath("content/images/bricks2_normal.jpg").c_str(), false);
-	*/
-
-	/* wood */
-	unsigned int diffuseMap = loadTexture(FileSystem::getPath("content/images/wood.png").c_str(),false);
-	unsigned int depthMap = loadTexture(FileSystem::getPath("content/images/toy_box_disp.png").c_str(), false); // DepthMap => inverse of the heightmap (easier to fake depth instead of height)
-	unsigned int normalMap = loadTexture(FileSystem::getPath("content/images/toy_box_normal.png").c_str(), false);
+	unsigned int diffuseMaps[] = {
+		loadTexture(FileSystem::getPath("content/images/bricks2.jpg").c_str(), false),
+		loadTexture(FileSystem::getPath("content/images/wood.png").c_str(), false)
+	};
+	unsigned int depthMaps[] = {
+		loadTexture(FileSystem::getPath("content/images/bricks2_disp.jpg").c_str(), false),
+		loadTexture(FileSystem::getPath("content/images/toy_box_disp.png").c_str(), false)
+	};
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
@@ -165,18 +169,14 @@ int main()
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 	glBindVertexArray(0);
+	glPatchParameteri(GL_PATCH_VERTICES, 3);
 
 
 	// Shader configuration
 	// --------------------
 	shader.use();
 	shader.setInt("diffuseMap", 0);
-	shader.setInt("normalMap", 1);
-	shader.setInt("depthMap", 2);
-
-	// lighting info
-	// -------------
-	glm::vec3 lightPos(0.5f, 1.0f, 0.3f);
+	shader.setInt("depthMap", 1);
 
 	GLint maxPatchVertices = 0;
 	// Driver Definies max patch Vertices
@@ -212,20 +212,19 @@ int main()
 		shader.setMat4("view", camera.GetViewMatrix());
 
 		glm::mat4 model(1.0);
-		//model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
 		shader.setMat4("model", model);
 		// set Eye 
 		shader.setVec3("viewPos", camera.Position);
 		shader.setFloat("gDispFactor", heightScale);
+		shader.setFloat("tessellationMultiplier", tessellationMultiplier);
+		shader.setInt("displayMode", displayMode);
 		
 		// Floor 
 		glBindVertexArray(planeVAO);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, diffuseMap);
+		glBindTexture(GL_TEXTURE_2D, diffuseMaps[materialIndex]);
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, normalMap);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glBindTexture(GL_TEXTURE_2D, depthMaps[materialIndex]);
 		glDrawArrays(GL_PATCHES, 0, 6);
 
 
@@ -239,7 +238,9 @@ int main()
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
 	glDeleteVertexArrays(1, &planeVAO);
-	glDeleteBuffers(1, &planeVBO);;
+	glDeleteBuffers(1, &planeVBO);
+	glDeleteTextures(2, diffuseMaps);
+	glDeleteTextures(2, depthMaps);
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
@@ -257,8 +258,6 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
-
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
 		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
@@ -274,20 +273,52 @@ void processInput(GLFWwindow *window)
 		wireframe = !wireframe;
 	}
 
+	if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) {
+		Mpressed = true;
+	}
+
+	if (Mpressed && glfwGetKey(window, GLFW_KEY_M) == GLFW_RELEASE) {
+		Mpressed = false;
+		materialIndex = 1 - materialIndex;
+		std::cout << "Material: " << (materialIndex == 0 ? "bricks" : "wood/toy-box") << std::endl;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+		displayMode = 0;
+	}
+	else if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
+		displayMode = 1;
+	}
+
+	const bool increaseTessellation =
+		glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS ||
+		glfwGetKey(window, GLFW_KEY_KP_ADD) == GLFW_PRESS;
+	if (increaseTessellation) {
+		increaseTessellationPressed = true;
+	}
+	else if (increaseTessellationPressed) {
+		increaseTessellationPressed = false;
+		tessellationMultiplier = std::min(2.0f, tessellationMultiplier + 0.125f);
+		std::cout << "Tessellation multiplier: " << tessellationMultiplier << std::endl;
+	}
+
+	const bool decreaseTessellation =
+		glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS ||
+		glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS;
+	if (decreaseTessellation) {
+		decreaseTessellationPressed = true;
+	}
+	else if (decreaseTessellationPressed) {
+		decreaseTessellationPressed = false;
+		tessellationMultiplier = std::max(0.125f, tessellationMultiplier - 0.125f);
+		std::cout << "Tessellation multiplier: " << tessellationMultiplier << std::endl;
+	}
+
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-		if (heightScale > 0.0f) {
-			heightScale -= 0.0005f;
-		}
-		else {
-			heightScale = 0.0f;
-		}
+		heightScale = std::max(0.0f, heightScale - deltaTime * 0.5f);
 	}
 	else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-		if (heightScale < 2.0f) {
-			heightScale += 0.0005f;
-		} else {
-			heightScale = 2.0f;
-		}
+		heightScale = std::min(2.0f, heightScale + deltaTime * 0.5f);
 	}
 }
 
@@ -330,7 +361,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 		lastX = xpos;
 		lastY = ypos;
 
-		//camera.ProcessMouseMovement(xoffset, yoffset);
 		if (xoffset > 0) {
 			camera.translate(LEFT, xoffset*0.05);
 		}
@@ -352,17 +382,12 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 		if (firstMouse)
 		{
 			lastX = xpos;
-			//lastY = ypos;
 			firstMouse = false;
 		}
 
 		float xoffset = xpos - lastX;
-		//float yoffset = lastY - ypos;
-		// reversed since y-coordinates range from bottom to top
 		lastX = xpos;
-		//lastY = ypos;
 
-		//camera.ProcessMouseMovement(xoffset, yoffset);
 		if (xoffset > 0) {
 			camera.translate(FORWARD, xoffset*0.05);
 		}
