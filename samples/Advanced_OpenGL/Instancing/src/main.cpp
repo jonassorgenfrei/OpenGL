@@ -121,17 +121,24 @@ int main()
 	};
 
 	unsigned int VBO, VAO;
+
 	glGenBuffers(1, &VBO);
+
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
+
+	// define instanced array data
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+	// positions
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
+	// colors
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
 	glBindVertexArray(0);
 	
+	// create individual transformation matrices for each instance
 	glm::vec2 translations[100];
 	int index = 0;
 	float offset = 0.1f;
@@ -146,9 +153,12 @@ int main()
 		}
 	}
 
+	// extra buffer for instanced array
 	unsigned int instanceVBO;
 	/* Allows to pass a lot more data */
+
 	glGenBuffers(1, &instanceVBO);
+	// translation of each quad of the 100 instances
 	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * 100, &translations[0], GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -163,6 +173,28 @@ int main()
 		shader.setVec2(("offsets["+index+"]").c_str(), translations[i]);
 	}*/
 
+	// Extend the VAO with instance data from an ordinary VBO; the attribute
+	// divisor below makes the attribute advance per instance rather than per vertex.
+	glBindVertexArray(VAO);
+	// enable the vertex attribute for the instanced array
+	glEnableVertexAttribArray(2);
+
+	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+	// set the vertex attribute pointer for the instanced array
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	// advance per instance
+	glVertexAttribDivisor(2, 1);		//This function tells OpenGL when to update 
+	// the content of a vertex attribute to the next element.
+	// 
+	// first attribute vertex attribute in question
+	// second parameter the attribute divisor
+	// default: 0 -> update the vertex attribute each iteration of the vertex shader
+	//			1 -> update content of the vertex attribute when we start to render a new instance (effectively:  vert. attrib at attrib loc 2 is an instanced array)
+	//			2 -> update content every 2 instances and so on
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 	// render loop
 	// -----------
 	while (!glfwWindowShouldClose(window))
@@ -173,16 +205,6 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		shader.use();
-		glEnableVertexAttribArray(2);
-		glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glVertexAttribDivisor(2, 1);		//This function tells OpenGL when to update the content of a vertex attribute to the next element.
-		//first attribute vertex attribute in question
-		//second parameter the attribute divisor
-		// default: 0 -> update the vertex attribute each iteration of the vertex shader
-		//			1 -> update content of the vertex attribute when we start to render a new instance (effectively:  vert. attrib at attrib loc 2 is an instanced array)
-		//			2 -> update content every 2 instances and so on
 
 		glBindVertexArray(VAO);
 		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, 100);

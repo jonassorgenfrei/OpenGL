@@ -165,10 +165,11 @@ int main()
 		// If a second has passed.
 		if (currentFrame - previousTime >= 1.0)
 		{
-			std::cout << "FPS:" << frameCount << std::endl;
+			std::cout << "FPS:" << frameCount << " Amount Rocks: " << amount << std::endl;
 			frameCount = 0;
 			previousTime = currentFrame;
 		}
+
 
 		// input
 		// -----
