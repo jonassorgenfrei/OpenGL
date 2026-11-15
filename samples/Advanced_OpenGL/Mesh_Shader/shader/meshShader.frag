@@ -9,15 +9,22 @@ layout(location=1) __perprimitiveNV in InterpolantsP {
     vec3 color;
 } INP;
 
+uniform int outputMode;
+
 void main()
 {
-    // per vertex color interpolation
-    //OutColor = vec4(INV.color, 1.0);
-    // pre primitive color (interpolation)
-    OutColor = vec4(INP.color, 1.0);
-    
-    // primitive id
-    //OutColor = vec4(1.0);
-    //OutColor *= float(gl_PrimitiveID)/4+1.0/4;
+    if (outputMode == 0) {
+        // Per-vertex color interpolation.
+        OutColor = vec4(INV.color, 1.0);
+    }
+    else if (outputMode == 1) {
+        // Per-primitive color.
+        OutColor = vec4(INP.color, 1.0);
+    }
+    else {
+        // Primitive ID as a grayscale value.
+        OutColor = vec4(1.0);
+        OutColor *= float(gl_PrimitiveID) / 4.0 + 1.0 / 4.0;
+    }
 }
     

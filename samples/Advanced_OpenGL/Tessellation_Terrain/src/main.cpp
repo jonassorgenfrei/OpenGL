@@ -12,10 +12,6 @@
  * prevents cracks between neighboring patches.
  */
 
-// USE TESSELLATION SHADER
-#define USE_TESSELLATION 1
-
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -27,14 +23,12 @@
 
 #include "modules/shader_m.h"
 #include "modules/camera.h"
-#include "modules/model.h"
 #include "modules/filesystem.h"
-#include "modules/light.h"
-#include "modules/material.h"
 #include "modules/window.h"
 #include "modules/help_overlay.h"
 
 #include <iostream>
+#include <string>
 
 // callbacks
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -45,19 +39,29 @@ void processInput(GLFWwindow *window);
 
 /* load texture */
 unsigned int loadTexture(const char *path, bool gammaCorrection);
-Mesh createTerrain(int width, int height, int nrChannels, stbi_us* data);
+
+struct TerrainMesh {
+	unsigned int VAO = 0;
+	unsigned int VBO = 0;
+	unsigned int EBO = 0;
+	unsigned int numStrips = 0;
+	unsigned int indicesPerStrip = 0;
+};
+
+TerrainMesh createTerrain(int width, int height, int nrChannels, const stbi_us* data);
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
-#if USE_TESSELLATION
 const unsigned int NUM_PATCH_PTS = 4;
-#endif
 
 bool Wpressed = false;
 bool Fpressed = false;
+bool Tpressed = false;
 bool wireframe = false;
+bool useTessellation = true;
+int displayMode = 0;
 
 // camera
 Camera camera(glm::vec3(67.0f, 627.5f, 169.9f),
@@ -66,7 +70,7 @@ Camera camera(glm::vec3(67.0f, 627.5f, 169.9f),
 float lastX = SCR_WIDTH / 2.0;
 float lastY = SCR_HEIGHT / 2.0;
 bool firstMouse = true;
-bool printFPS = false;
+bool showFPS = true;
 
 // timing 
 float deltaTime = 0.0f; // time between current frame and last frame
@@ -88,7 +92,7 @@ int main()
 
 	// glfw window creation
 	// --------------------
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Advanced GL", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Tessellation Terrain | measuring FPS...", NULL, NULL);
 	/* creates and configures default framebuffer */
 	
 	if (window == NULL)
@@ -124,14 +128,14 @@ int main()
 		{"Alt + MMB", "Pan camera"},
 		{"Alt + RMB", "Dolly camera"},
 		{"Mouse wheel", "Zoom camera"},
-		{"F", "Toggle FPS logging"},
-		{"W", "Toggle wireframe"}
+		{"F", "Toggle FPS display"},
+		{"W", "Toggle wireframe"},
+		{"T", "Tessellated / mesh terrain"},
+		{"1 / 2", "Height / normal view"}
 	});
-#if USE_TESSELLATION
 	GLint maxTessLevel;
 	glGetIntegerv(GL_MAX_TESS_GEN_LEVEL, &maxTessLevel);
 	std::cout << "Max available tess level: " << maxTessLevel << std::endl;
-#endif
 
 	// configure global OpenGL state
 	// -----------------------------
@@ -140,41 +144,32 @@ int main()
 
 	// build and compile shader program(s)
 	// ------------------------------------
-#if USE_TESSELLATION
-	Shader shader(FileSystem::getSamplePath("shader/tessellationShader.vert").c_str(), FileSystem::getSamplePath("shader/tessellationShader.frag").c_str(), NULL, FileSystem::getSamplePath("shader/tessellationShader.tesc").c_str(), FileSystem::getSamplePath("shader/tessellationShader.tese").c_str());
-#else
-	Shader shader(FileSystem::getSamplePath("shader/vertexShader.vert").c_str(), FileSystem::getSamplePath("shader/fragmentShader.frag").c_str());
-#endif
+	Shader tessellationShader(FileSystem::getSamplePath("shader/tessellationShader.vert").c_str(), FileSystem::getSamplePath("shader/tessellationShader.frag").c_str(), nullptr, FileSystem::getSamplePath("shader/tessellationShader.tesc").c_str(), FileSystem::getSamplePath("shader/tessellationShader.tese").c_str());
+	Shader meshShader(FileSystem::getSamplePath("shader/vertexShader.vert").c_str(), FileSystem::getSamplePath("shader/fragmentShader.frag").c_str());
 	// load textures
 	// -------------
 	// read in height map data
-#if USE_TESSELLATION
+	stbi_set_flip_vertically_on_load(true);
 	unsigned int texture = loadTexture(FileSystem::getPath("content/images/iceland_heightmap.png").c_str(), false);
 
-	int width = 2624;
-	int height = 1756;
-
-	shader.use();
-	shader.setInt("heightMap", 0);
-	shader.setVec2("texelSize", glm::vec2(1.0f/width, 1.0f/height));
-
-#else
-	stbi_set_flip_vertically_on_load(true);
 	int width, height, nrChannels;
 	stbi_us* data = stbi_load_16(FileSystem::getPath("content/images/iceland_heightmap.png").c_str(), &width, &height, &nrChannels, 0);
-	if (data)
+	if (!data)
 	{
-		std::cout << "Loaded heightmap of size " << height << " x " << width << std::endl;
+		std::cout << "Failed to load heightmap" << std::endl;
+		glDeleteTextures(1, &texture);
+		sample_help::shutdown();
+		glfwTerminate();
+		return -1;
 	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-#endif
+	std::cout << "Loaded heightmap of size " << width << " x " << height << std::endl;
+
+	tessellationShader.use();
+	tessellationShader.setInt("heightMap", 0);
+	tessellationShader.setVec2("texelSize", glm::vec2(1.0f / width, 1.0f / height));
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
-#if USE_TESSELLATION
 	std::vector<float> vertices;
 
 
@@ -211,7 +206,7 @@ int main()
 			vertices.push_back(-width / 2.0f + width * (i + 1) / (float)rez); // v.z
 			vertices.push_back((i + 1) / (float)rez); // u
 			vertices.push_back((j + 1) / (float)rez); // v
-}
+		}
 	}
 	std::cout << "Loaded " << rez * rez << " patches of 4 control points each" << std::endl;
 	std::cout << "Processing " << rez * rez * 4 << " vertices in vertex shader" << std::endl;
@@ -235,16 +230,12 @@ int main()
 	// specify number of vertices that make up each of the primitives 
 	// Patch --> abstract primitive compromised of a set of n vertices
 	glPatchParameteri(GL_PATCH_VERTICES, NUM_PATCH_PTS);
-#else
+
 	// create vertices matching width and height of the loaded texture
-	Mesh terrain = createTerrain(width, height, nrChannels, data);
+	TerrainMesh terrain = createTerrain(width, height, nrChannels, data);
 
 	// release the image data
 	stbi_image_free(data);
-
-	const int numStrips = (height - 1) ;
-	const int numTrisPerStrip = (width) * 2 - 2;
-#endif
 
 	int frameCount = 0;
 	double previousTime = glfwGetTime();
@@ -263,19 +254,21 @@ int main()
 		deltaTime = currentFrame - lastFrame; // time per frame 
 		lastFrame = currentFrame;
 
-		// fps
-		if (printFPS) {
+		// Update the window title once per second to keep the FPS readable.
+		if (showFPS) {
 			frameCount++;
-			// If a second has passed.
-			if (currentFrame - previousTime >= 1.0)
+			const double elapsed = currentFrame - previousTime;
+			if (elapsed >= 1.0)
 			{
-				std::cout << "FPS:" << frameCount << std::endl;
+				const int framesPerSecond = static_cast<int>(frameCount / elapsed + 0.5);
+				const std::string title = "Tessellation Terrain | " + std::to_string(framesPerSecond) + " FPS";
+				glfwSetWindowTitle(window, title.c_str());
 				frameCount = 0;
 				previousTime = currentFrame;
 			}
 		} else {
 			frameCount = 0;
-			previousTime = glfwGetTime();
+			previousTime = currentFrame;
 		}
 
 		// Check and call events
@@ -286,33 +279,38 @@ int main()
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		shader.use();
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (GLfloat)SCR_WIDTH / (GLfloat)SCR_HEIGHT, 0.1f, 100000.0f);
-		shader.setMat4("projection", projection);
-		shader.setMat4("view", camera.GetViewMatrix());
-
 		glm::mat4 model(1.0f);
-		//model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-		shader.setMat4("model", model);
 		
 		// render the terrain 
-#if USE_TESSELLATION
-		glBindVertexArray(terrainVAO);
-		// draw patches
-		// Each patch contains four control points, and the grid contains rez * rez patches.
-		glDrawArrays(GL_PATCHES, 0, NUM_PATCH_PTS* rez* rez);
-#else
-		glBindVertexArray(terrain.VAO);
-		
-		// height -1 draw calls
-		for (unsigned int strip = 0; strip < numStrips; strip++)
+		if (useTessellation)
 		{
-			glDrawElements(GL_TRIANGLE_STRIP,   // primitive type
-				numTrisPerStrip + 2,   // number of indices to render
-				GL_UNSIGNED_INT,     // index data type
-				(void*)(sizeof(unsigned int) * (numTrisPerStrip + 2) * strip)); // offset to starting index
+			tessellationShader.use();
+			tessellationShader.setMat4("projection", projection);
+			tessellationShader.setMat4("view", camera.GetViewMatrix());
+			tessellationShader.setMat4("model", model);
+			tessellationShader.setInt("displayMode", displayMode);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glBindVertexArray(terrainVAO);
+			glDrawArrays(GL_PATCHES, 0, NUM_PATCH_PTS * rez * rez);
 		}
-#endif
+		else
+		{
+			meshShader.use();
+			meshShader.setMat4("projection", projection);
+			meshShader.setMat4("view", camera.GetViewMatrix());
+			meshShader.setMat4("model", model);
+			meshShader.setInt("displayMode", displayMode);
+			glBindVertexArray(terrain.VAO);
+			for (unsigned int strip = 0; strip < terrain.numStrips; strip++)
+			{
+				glDrawElements(GL_TRIANGLE_STRIP,
+					terrain.indicesPerStrip,
+					GL_UNSIGNED_INT,
+					(void*)(sizeof(unsigned int) * terrain.indicesPerStrip * strip));
+			}
+		}
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
 		sample_help::render();
@@ -322,10 +320,12 @@ int main()
 
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
-#if USE_TESSELLATION
 	glDeleteVertexArrays(1, &terrainVAO);
 	glDeleteBuffers(1, &terrainVBO);
-#endif
+	glDeleteVertexArrays(1, &terrain.VAO);
+	glDeleteBuffers(1, &terrain.VBO);
+	glDeleteBuffers(1, &terrain.EBO);
+	glDeleteTextures(1, &texture);
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
@@ -342,8 +342,6 @@ void processInput(GLFWwindow *window)
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
-
-	float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
 
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
@@ -366,11 +364,27 @@ void processInput(GLFWwindow *window)
 
 	if (Fpressed && glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
 		Fpressed = false;
-		if (!printFPS) {
-			std::cout << "PRINT FPS" << std::endl;
-		}
+		showFPS = !showFPS;
+		glfwSetWindowTitle(window, showFPS
+			? "Tessellation Terrain | measuring FPS..."
+			: "Tessellation Terrain");
+	}
 
-		printFPS = !printFPS;
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+		Tpressed = true;
+	}
+
+	if (Tpressed && glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE) {
+		Tpressed = false;
+		useTessellation = !useTessellation;
+		std::cout << "Terrain renderer: " << (useTessellation ? "GPU tessellation" : "CPU mesh") << std::endl;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+		displayMode = 0;
+	}
+	else if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
+		displayMode = 1;
 	}
 
 }
@@ -414,7 +428,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 		lastX = xpos;
 		lastY = ypos;
 
-		//camera.ProcessMouseMovement(xoffset, yoffset);
 		if (xoffset > 0) {
 			camera.translate(LEFT, xoffset*0.05);
 		}
@@ -436,17 +449,12 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 		if (firstMouse)
 		{
 			lastX = xpos;
-			//lastY = ypos;
 			firstMouse = false;
 		}
 
 		float xoffset = xpos - lastX;
-		//float yoffset = lastY - ypos;
-		// reversed since y-coordinates range from bottom to top
 		lastX = xpos;
-		//lastY = ypos;
 
-		//camera.ProcessMouseMovement(xoffset, yoffset);
 		if (xoffset > 0) {
 			camera.translate(FORWARD, xoffset*0.05);
 		}
@@ -466,33 +474,22 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	
 }
 
-Mesh createTerrain(int width, int height, int nrChannels, stbi_us* data) {
+TerrainMesh createTerrain(int width, int height, int nrChannels, const stbi_us* data) {
+	std::vector<float> vertices;
+	vertices.reserve(static_cast<size_t>(height) * width * 3);
 
-	// time intensive O(n2) & memory intensive ~72mb 
-	// fixed resolution
-	std::vector<Vertex> vertices;
-	// reserve data
-	vertices.reserve(height * width*sizeof(Vertex));
-
-	float yScale = 64.0f / 256.0f, yShift = 16.0f;
-	unsigned int bytePerPixel = nrChannels;
+	const unsigned int channels = nrChannels;
 	for (int i = 0; i < height; i++)
 	{
 		for (int j = 0; j < width; j++)
 		{
-			stbi_us* texel = data + (j + width * i) * bytePerPixel;	// calculating the pointer offset
-			const stbi_us y = *texel; // derefernce the pointer to a value, use first channel, convert short to 
-
-			Vertex vertex;
-
-			vertex.Position.x = -width / 2.0f + j;   // vx
-			vertex.Position.y = (float)y*0.0025f * yScale - yShift;   // vy
-			vertex.Position.z = -height / 2.0f + i;   // vz
-
-			vertices.push_back(vertex);
+			const stbi_us heightValue = data[(j + width * i) * channels];
+			vertices.push_back(-width / 2.0f + j);
+			vertices.push_back(static_cast<float>(heightValue) / 65535.0f * 64.0f - 16.0f);
+			vertices.push_back(-height / 2.0f + i);
 		}
 	}
-	std::cout << "Loaded " << vertices.size() / 3 << " vertices" << std::endl;
+	std::cout << "Loaded " << vertices.size() / 3 << " mesh vertices" << std::endl;
 
 	// create mesh as triangle stripes
 	std::vector<unsigned int> indices;
@@ -508,14 +505,25 @@ Mesh createTerrain(int width, int height, int nrChannels, stbi_us* data) {
 	}
 	std::cout << "Loaded " << indices.size() << " indices" << std::endl;
 
-	const int numStrips = (height - 1);
-	const int numTrisPerStrip = (width) * 2 - 2;
-	std::cout << "Created lattice of " << numStrips << " strips with " << numTrisPerStrip << " triangles each" << std::endl;
-	std::cout << "Created " << numStrips * numTrisPerStrip << " triangles total" << std::endl;
+	TerrainMesh terrain;
+	terrain.numStrips = height - 1;
+	terrain.indicesPerStrip = width * 2;
+	std::cout << "Created lattice of " << terrain.numStrips << " strips with "
+		<< terrain.indicesPerStrip - 2 << " triangles each" << std::endl;
 
-	std::vector<Texture> tex = std::vector<Texture>();
+	glGenVertexArrays(1, &terrain.VAO);
+	glGenBuffers(1, &terrain.VBO);
+	glGenBuffers(1, &terrain.EBO);
+	glBindVertexArray(terrain.VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, terrain.VBO);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrain.EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+	glBindVertexArray(0);
 
-	return Mesh(vertices, indices, tex);
+	return terrain;
 }
 
 

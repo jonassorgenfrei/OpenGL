@@ -1,3 +1,12 @@
+/*
+    Texture basics
+
+    Loads two images with stb_image, uploads them as OpenGL 2D textures, and
+    blends them on an indexed rectangle. The sample introduces texture units,
+    sampler configuration, wrapping, filtering, mipmaps, and texture coordinates.
+    Use Up/Down to change the blend and R to reset it.
+*/
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "stb_image.h"
