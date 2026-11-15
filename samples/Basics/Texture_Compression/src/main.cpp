@@ -1,3 +1,12 @@
+/*
+    Texture compression comparison
+
+    Compares an RGBA8 reference with BC1/DXT1, BC2/DXT3, BC3/DXT5, and several
+    ASTC block sizes. Alpha and error views, zoom, and a block grid expose format
+    artifacts while the statistics table reports payload and upload costs.
+    Use keys 1-7 to select a format and H to see all interactive controls.
+*/
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <stb_image.h>

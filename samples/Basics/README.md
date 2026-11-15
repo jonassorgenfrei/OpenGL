@@ -7,6 +7,16 @@ and frame-based keyboard input from `include/modules/sample_input.h`. They reuse
 the existing `Shader`, `TextRenderer`, and help overlay. Texture uploads,
 render-state changes, and draw calls stay explicit in the samples.
 
+## [Noise](Noise/)
+
+Compares value noise, Perlin gradient noise, fractal Perlin noise (fBm), and
+temporally coherent animated 3D Perlin noise in a fragment shader.
+The modes expose how corner values differ from corner gradients and how multiple
+octaves add detail at progressively smaller scales.
+Animation uses time as the third noise coordinate, so the pattern evolves instead
+of sliding across the screen.
+Use 1-4 to select a mode, Up/Down to change scale, Space to pause, and H for help.
+
 ## [Transformation](Transformation/)
 
 Demonstrates translation, rotation, and scaling with GLM transformation matrices.
@@ -74,7 +84,6 @@ Optional green/orange residency colors distinguish requested detail from coarse 
 Pause and clear detail to observe fallback, then resume with one or four uploads per frame.
 Use WASD/arrows to pan, wheel or Q/E to zoom, Space to pause, C to clear, B for the budget,
 V for residency colors, O for overview, R for the Italy close-up, and H for help.
-The sample README includes a guided experiment and explains costs and implementation limits.
 
 ## [Camera](Camera/)
 

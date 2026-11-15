@@ -1,3 +1,12 @@
+/*
+    Virtual texturing
+
+    Streams visible tiles from a prefiltered 16K NASA Blue Marble image into a
+    bounded physical cache and resolves them through a page-table texture. The
+    overview, cache visualization, residency colors, and upload-budget controls
+    make page requests, fallback, and slot reuse visible. Press H for controls.
+*/
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
