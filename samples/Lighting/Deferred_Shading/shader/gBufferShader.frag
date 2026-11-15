@@ -13,7 +13,7 @@ uniform sampler2D texture_diffuse1;
 uniform sampler2D texture_specular1;
 
 /**
- * it's extremly important to keep all variables in the same coord. space!!!!!!!
+ * It is essential to keep every stored variable in the same coordinate space.
  */
 void main() 
 {

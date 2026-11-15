@@ -29,11 +29,11 @@ void main() {
 	float Specular = texture(gAlbedoSpec, TexCoords).a;
 
 	// then calculate lighting as usual
-	vec3 lighting = Albedo * 0.1; // hard-corded ambient component
+	vec3 lighting = Albedo * 0.1; // fixed ambient component
 	vec3 viewDir = normalize(viewPos - FragPos);
 
 	for(int i = 0; i < NR_LIGHTS; ++i){
-		// calc distance between light source and curr. fragment
+		// Calculate the distance between the light source and current fragment.
 		float distance = length(lights[i].Position - FragPos);
 		if(distance < lights[i].Radius){
 			// diffuse

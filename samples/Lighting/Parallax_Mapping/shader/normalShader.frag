@@ -10,174 +10,163 @@ in VS_OUT {
 	vec3 TangentFragPos;
 } fs_in;
 
-in mat3 tbn;
-
 uniform sampler2D diffuseMap;
+
 /*
- * Normal vectors in normal map are expressed in tangent space 
- * (normals always point roughly in the positive z direction)
+ * Normal vectors in a normal map are expressed in tangent space and point
+ * roughly in the positive z direction.
  */
 uniform sampler2D normalMap;
 uniform sampler2D depthMap;
 
 uniform float height_scale;
-
-uniform vec3 lightPos;
-
+uniform bool parallaxEnabled;
+uniform bool normalMappingEnabled;
+uniform bool showNormals;
+uniform int parallaxMethod;
 
 /*
  * ParallaxMapping
- *	@param - fragment's texture coordinates
- *	@param - fragment-to-view direction in Tangent Space
- *	@return displaced texture coordinates
+ *  @param texCoords - fragment texture coordinates
+ *  @param viewDir   - fragment-to-view direction in tangent space
+ *  @return displaced texture coordinates
+ *
+ * The keyboard selects the implementation at runtime:
+ *  1 = single-sample parallax mapping
+ *  2 = steep parallax mapping
+ *  3 = parallax occlusion mapping
  */
-vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir){
-	vec2 currentTexCoords = texCoords;
+vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir)
+{
+	/*
+	 * Parallax Mapping (one sample)
+	 *
+	 * Sample the depth at the original coordinate and offset the coordinate
+	 * along the projected view direction. Dividing by viewDir.z increases the
+	 * displacement at grazing angles. Clamping z avoids an unstable division
+	 * when the view direction is almost parallel to the surface.
+	 */
+	if (parallaxMethod == 1) {
+		float depth = texture(depthMap, texCoords).r;
+		vec2 p = viewDir.xy / max(viewDir.z, 0.05) * depth * height_scale;
+		return texCoords - p;
+	}
 
-	/* Steep Parallax Mapping */
-
-	//	takes multiple samples to better pinpoint vector
-	//		divides total depth range into multiple layers of the same height/depthMap
-	// Sample successive depth-map layers while shifting the texture coordinates
-	// along P, stopping when the sampled depth falls below the current layer.
-	//		Problem: based on finite number of samples: getting: aliasing effects and clear distinctions between layers 
-
+	/*
+	 * Steep Parallax Mapping
+	 *
+	 * Divide the complete depth range into layers and shift the texture
+	 * coordinate by a small step for every layer. Stop at the first point at
+	 * which the sampled depth lies above the current layer depth. More layers
+	 * reduce visible stepping, but require more texture samples.
+	 */
 	const float minLayers = 8.0;
 	const float maxLayers = 32.0;
 
-	// looking straight onto a surface, there isn't much tex. displ. going on
-	// from a an angle a lot more displacement
-	// number of depth layers
-	float numLayers = mix(maxLayers, minLayers, abs(dot(vec3(0.0, 0.0, 1.0), viewDir)));
-			// dot Product of viewDir and pos z direction (== surface normal in tangent space) use result to align num. of samples 
-
-
-	// calculate the size of each layer
+	// Looking straight at the surface needs fewer samples than a grazing angle.
+	float numLayers = mix(maxLayers, minLayers, abs(viewDir.z));
 	float layerDepth = 1.0 / numLayers;
-	// depth of current layerDepth
 	float currentLayerDepth = 0.0;
-	// the amount to shift the texture coordinates per layer (from vector p)
-	//vec2 P = viewDir.xy * height_scale;
 
-	vec2 P = viewDir.xy / viewDir.z * height_scale;
-
+	vec2 P = viewDir.xy / max(viewDir.z, 0.05) * height_scale;
 	vec2 deltaTexCoords = P / numLayers;
-
-	// get initial values 
+	vec2 currentTexCoords = texCoords;
 	float currentDepthMapValue = texture(depthMap, currentTexCoords).r;
 
-	// loop over each depth layer and stop until we find the texture coord. offset along vec P that first returns a depth that's below the (displaced surface)
-	while(currentLayerDepth < currentDepthMapValue) {
-		// shift texture coordinates along direction of P
+	while (currentLayerDepth < currentDepthMapValue) {
 		currentTexCoords -= deltaTexCoords;
 		currentDepthMapValue = texture(depthMap, currentTexCoords).r;
-		//get depth of next layer
 		currentLayerDepth += layerDepth;
-	} 
-	// much more accuracy !
+	}
 
-	/* ------------------------- */
-	
-	/* Reliefe Parallax Mapping */
-	// most accurate result, BUT: more performance heavy
-	/* ------------------------- */
+	// Steep parallax uses the first sample beyond the intersection.
+	if (parallaxMethod == 2)
+		return currentTexCoords;
 
-	/* Parallax Occlusion Mapping */
-	// more efficient, almost same result as Reliefe Parallax Mapping 
-	// based on same principles as steep parallax Mapping
-	//	instead of taking 1. coord after collision 
-	//		-> lin. interpolate on how far the surface height is from the depth layer's calue of both layers
-
-	// get texture coordinates before collsion (reverse operations)
-	vec2 prevTexCoords = currentTexCoords + deltaTexCoords;
-
-	// get depth after and before collision for lin. interpolation
+	/*
+	 * Parallax Occlusion Mapping
+	 *
+	 * Steep parallax only finds an interval containing the intersection.
+	 * Interpolate between the samples before and after the collision for a
+	 * smoother result without the cost of a full relief-mapping refinement.
+	 */
+	vec2 previousTexCoords = currentTexCoords + deltaTexCoords;
 	float afterDepth = currentDepthMapValue - currentLayerDepth;
-	float beforeDepth = texture(depthMap, prevTexCoords).r - currentLayerDepth + layerDepth;
-
-	// interpolation of texture coordinates (Parallax Occlusion Mapping)
+	float beforeDepth = texture(depthMap, previousTexCoords).r
+		- currentLayerDepth + layerDepth;
 	float weight = afterDepth / (afterDepth - beforeDepth);
-	vec2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
-	currentTexCoords = finalTexCoords;
-	/* ------------------------- */
 
-
-	/* Parallax Mapping 1 Sample */
-	
-	/* 
-	float height = texture(depthMap, texCoords).r;	// sample from depth Map the current fragment H(A)
-	vec2 p = viewDir.xy / viewDir.z * (height * height_scale); 
-	// calculate P as the x and y component of the tangent-space viewDir vec devided by its y component and scale it by the fragment's height
-	// division viewDir.xy / viewDir.z: viewDir -> normal. .z = 0.0 .. 1.0 | when viewDir almost parallel .z ~ 0
-	// height_scale uniform for extra control as the parallax effect
-	// WITHOUT Z DIVISION: Parallax Mapping with Offset Limiting
-	currentTexCoords = texCoords - p; */
-
-	/* ------------------------- */
-
-	return currentTexCoords; // subtract vec p from the texture coord. to get fin. displaced texture coord.
+	return mix(currentTexCoords, previousTexCoords, weight);
 }
 
 /*
- * Blinn-Phong lighting model
+ * Blinn-Phong lighting model. The normal and every position passed to this
+ * function are expressed in tangent space.
  */
-vec3 BlinnPhong(vec3 normal, vec3 fragPos, vec3 lightPosition, vec3 viewPos, vec3 lightColor) {
-	//diffuse
-	vec3 lightDir = normalize(lightPosition - fragPos);
+vec3 BlinnPhong(
+	vec3 normal,
+	vec3 fragPosition,
+	vec3 lightPosition,
+	vec3 viewPosition,
+	vec3 lightColor)
+{
+	// Diffuse reflection
+	vec3 lightDir = normalize(lightPosition - fragPosition);
 	float diff = max(dot(lightDir, normal), 0.0);
-	vec3 diffuse = diff*lightColor;
+	vec3 diffuse = diff * lightColor;
 
-	// specular 
-	vec3 viewDir = normalize(viewPos - fragPos);
-	vec3 reflectDir = reflect(-lightDir, normal);
-	
-	float spec = 0.0;
-
-	vec3 halfwayDir = normalize(lightDir + viewDir); //vector between LightDir Vec and View Vec 
-	//specular shiniess exponent
-	spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
-	//  clamped dot product
-	
+	// Specular reflection
+	vec3 viewDir = normalize(viewPosition - fragPosition);
+	vec3 halfwayDir = normalize(lightDir + viewDir);
+	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
 	vec3 specular = spec * vec3(0.2);
-	// simple attenuation
-	float max_distance = 1.5;
-	float distance = length(lightPosition - fragPos);
-	float attentuation = 1.0 / distance;
-	// Without gamma correction => lin. function gives much more plausible results
 
-	return diffuse+specular;
+	return diffuse + specular;
 }
 
-/* 
- * Using TBN-Matrix (2 ways to use it) 
- *	1) giving TBN Matrix to fs and using it to transform normals (Tangent Space -> world space)
- *	2) taking inverse of TBN and transform any vector from world to tangent space (world space -> tangent space)
- *		Advantage: all other vectors can be transformed in the vertex Shader (vs runs less often then fs)
+/*
+ * There are two common ways to use the TBN matrix:
+ *  1) transform the sampled normal from tangent space to world space;
+ *  2) transform light, view, and fragment positions to tangent space in the
+	 *     vertex shader. This sample uses the second approach.
  */
-void main() 
+void main()
 {
-	// offset texture coordinates with Parallax Mapping
+	// Offset the texture coordinates using the selected parallax implementation.
 	vec3 viewDir = normalize(fs_in.TangentViewPos - fs_in.TangentFragPos);
-	vec2 texCoords = ParallaxMapping(fs_in.TexCoords, viewDir);
-	
-	// discard fragment whenever it samples outside the def. coord Range
-	if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
-		discard; // !!!! doesn't work properly on all types of surfaces 
+	vec2 texCoords = parallaxEnabled
+		? ParallaxMapping(fs_in.TexCoords, viewDir)
+		: fs_in.TexCoords;
 
-	// sample textures with new texture coords
+	/*
+	 * Discard fragments whose displaced coordinates leave the texture. This
+	 * works for the demonstration quad, but is not suitable for every surface.
+	 */
+	if (any(greaterThan(texCoords, vec2(1.0))) ||
+		any(lessThan(texCoords, vec2(0.0))))
+		discard;
+
 	vec3 color = texture(diffuseMap, texCoords).rgb;
 
-	// obtain normal from normal map in range [0,1]
-	vec3 normal = texture(normalMap, texCoords).rgb;
-	// transform normal vector to range [-1, 1]
-	normal = normalize(normal * 2.0 - 1.0);
-	
-    // ambient
-    vec3 ambient = 0.1 * color;
+	// Decode the sampled normal from [0, 1] to tangent-space range [-1, 1].
+	vec3 mappedNormal = texture(normalMap, texCoords).rgb;
+	mappedNormal = normalize(mappedNormal * 2.0 - 1.0);
 
-	vec3 blinnPhong = BlinnPhong(normal, fs_in.TangentFragPos, fs_in.TangentLightPos, fs_in.TangentViewPos, color);
-	
-	FragColor = vec4(ambient + blinnPhong, 1.0);
-	// show normal
-	// FragColor = vec4(inverse(tbn)*normal,1);
+	// The geometric normal is +z in tangent space.
+	vec3 normal = normalMappingEnabled ? mappedNormal : vec3(0.0, 0.0, 1.0);
+
+	if (showNormals) {
+		FragColor = vec4(normal * 0.5 + 0.5, 1.0);
+		return;
+	}
+
+	vec3 ambient = 0.1 * color;
+	vec3 lighting = BlinnPhong(
+		normal,
+		fs_in.TangentFragPos,
+		fs_in.TangentLightPos,
+		fs_in.TangentViewPos,
+		color);
+
+	FragColor = vec4(ambient + lighting, 1.0);
 }
