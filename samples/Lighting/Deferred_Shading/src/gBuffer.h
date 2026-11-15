@@ -1,8 +1,6 @@
 #ifndef G_BUFFER_H
 #define G_BUFFER_H
 
-#define ZERO_MEM(a) memset(a, 0, sizeof(a))
-
 #include <glad/glad.h>
 
 #include <iostream>
@@ -17,67 +15,73 @@ class GBuffer {
 			GBUFFER_NUM_TEXTURES
 		};
 
-		GBuffer() {
-			m_fbo = 0;
-			m_depthTexture = 0;
-			m_finalTexture = 0;
-			ZERO_MEM(m_textures);
-		};
+		GBuffer() = default;
+		GBuffer(const GBuffer&) = delete;
+		GBuffer& operator=(const GBuffer&) = delete;
 
 		~GBuffer() {
+			destroy();
+		}
+
+		void destroy() {
 			if (m_fbo != 0) {
 				glDeleteFramebuffers(1, &m_fbo);
+				m_fbo = 0;
 			}
 
 			if (m_textures[0] != 0) {
-				glDeleteTextures(sizeof(m_textures)/sizeof(m_textures[0]), m_textures);
+				glDeleteTextures(GBUFFER_NUM_TEXTURES, m_textures);
+				for (GLuint& texture : m_textures)
+					texture = 0;
 			}
 
 			if (m_depthTexture != 0) {
 				glDeleteTextures(1, &m_depthTexture);
+				m_depthTexture = 0;
 			}
 
 			if (m_finalTexture != 0) {
 				glDeleteTextures(1, &m_finalTexture);
+				m_finalTexture = 0;
 			}
-		};
+		}
 
-		bool init(unsigned int WindowWidth, unsigned int WindowHeight) {
+		bool init(unsigned int windowWidth, unsigned int windowHeight) {
 			// Create the FBO
 			glGenFramebuffers(1, &m_fbo);
 			glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
 			
 			// create gBuffer Textures
-			glGenTextures(sizeof(m_textures) / sizeof(m_textures[0]), m_textures);
+			glGenTextures(GBUFFER_NUM_TEXTURES, m_textures);
 			glGenTextures(1, &m_depthTexture);
 
 			glGenTextures(1, &m_finalTexture); // allocate output (final) texture
 
-			for (unsigned int i = 0; i < sizeof(m_textures) / sizeof(m_textures[0]); i++) {
+			for (unsigned int i = 0; i < GBUFFER_NUM_TEXTURES; i++) {
 				// creates the storage area of the texture (without initializing it)
 				glBindTexture(GL_TEXTURE_2D, m_textures[i]);
 					//if texture id is ALBEDOSPEC using RGBA
-				glTexImage2D(GL_TEXTURE_2D, 0, (i == GBUFFER_TEXTURE_TYPE_ALBEDOSPEC) ? GL_RGBA32F : GL_RGB32F, WindowWidth, WindowHeight, 0, (i == GBUFFER_TEXTURE_TYPE_ALBEDOSPEC) ? GL_RGBA : GL_RGB, GL_FLOAT, NULL);
+				glTexImage2D(GL_TEXTURE_2D, 0, (i == GBUFFER_TEXTURE_TYPE_ALBEDOSPEC) ? GL_RGBA32F : GL_RGB32F, windowWidth, windowHeight, 0, (i == GBUFFER_TEXTURE_TYPE_ALBEDOSPEC) ? GL_RGBA : GL_RGB, GL_FLOAT, nullptr);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // prevents unnecessary interpolation between the texels that might create some fine distortions
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 				// attaches the texture to the FBO as a target
 				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, m_textures[i], 0);
 			}
 
-			// depth (explicitly, because it requires diff. format and is attached to the FBO at a diff. spot)
+			// Depth/stencil requires a different format and attachment point.
 			glBindTexture(GL_TEXTURE_2D, m_depthTexture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH32F_STENCIL8, WindowWidth, WindowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL); // allocates one byte of stencil data per pixel
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH32F_STENCIL8, windowWidth, windowHeight, 0, GL_DEPTH_STENCIL, GL_FLOAT_32_UNSIGNED_INT_24_8_REV, nullptr);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, m_depthTexture, 0);// attached to Depth & Stencil attachment
 		
 			//final 
 			glBindTexture(GL_TEXTURE_2D, m_finalTexture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WindowWidth, WindowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, windowWidth, windowHeight, 0, GL_RGBA, GL_FLOAT, nullptr);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, m_finalTexture, 0); // attach to color attachment 4
 
 			// explicitly tell OpenGL which color attachments to be used (of. FB)
 			// enable writing to all four textures
 			GLenum drawBuffer[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
-			glDrawBuffers(sizeof(drawBuffer)/sizeof(drawBuffer[0]), drawBuffer); // supplying array if attchment locations 
+			glDrawBuffers(GBUFFER_NUM_TEXTURES, drawBuffer); // supply all geometry attachments
 
 			// finally check if FB is complete
 			if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -99,24 +103,24 @@ class GBuffer {
 		
 		}
 		void bindForGeomPass() {
-			// now we keep changing the FBO, config the draw buffers for the attributes !
+			// Configure all geometry attachments as draw buffers.
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
 			GLenum drawBuffer[] = { GL_COLOR_ATTACHMENT0,
 				GL_COLOR_ATTACHMENT1,
 				GL_COLOR_ATTACHMENT2,
 				GL_COLOR_ATTACHMENT3 };
-			glDrawBuffers(sizeof(drawBuffer) / sizeof(drawBuffer[0]), drawBuffer); // supplying array if attchment locations 
+			glDrawBuffers(GBUFFER_NUM_TEXTURES, drawBuffer);
 		};
 		void bindForStencilPass() {
 			// must disable the draw buffers
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
 			glDrawBuffer(GL_NONE);
-			// avoid garbaging the final buffer with a black image of the bounding sphere!
+			// Avoid overwriting the final color texture with the stencil sphere.
 		};
 		void bindForLightPass() {
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
 			glDrawBuffer(GL_COLOR_ATTACHMENT4);
-			for (unsigned int i = 0; i < sizeof(m_textures) / sizeof(m_textures[0]); i++) {
+			for (unsigned int i = 0; i < GBUFFER_NUM_TEXTURES; i++) {
 				glActiveTexture(GL_TEXTURE0 + i); // Binding default 3 textures
 				glBindTexture(GL_TEXTURE_2D, m_textures[GBUFFER_TEXTURE_TYPE_POSITION + i]);
 			}
@@ -157,10 +161,10 @@ class GBuffer {
 		}
 
 	private:
-		GLuint m_fbo;
-		GLuint m_textures[GBUFFER_NUM_TEXTURES]; // Textures for the vertex attributes
-		GLuint m_depthTexture; // Texture to serve as the depth buffer
-		GLuint m_finalTexture; // final texture for the color
+		GLuint m_fbo = 0;
+		GLuint m_textures[GBUFFER_NUM_TEXTURES]{}; // Textures for the vertex attributes
+		GLuint m_depthTexture = 0; // Texture to serve as the depth buffer
+		GLuint m_finalTexture = 0; // final texture for the color
 };
 
 #endif // !G_BUFFER_H

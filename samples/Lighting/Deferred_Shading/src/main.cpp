@@ -2,8 +2,6 @@
  *	Deferred Shading
  */
 
-#define LEARNOPENGL 0 // 0 ogldev | 1 learnogl
-
 #define GLM_FORCE_SILENT_WARNINGS 1
 
 #include <glad/glad.h>
@@ -12,10 +10,6 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-#include "stb_image.h"
-
 #include "modules/shader_m.h"
 #include "modules/camera.h"
 #include "modules/model.h"
@@ -33,8 +27,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // current Mouse position 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
-/* load texture */
-unsigned int loadTexture(const char *path, bool gammaCorrection);
 void renderQuad();
 void renderCube();
 void renderSphere();
@@ -51,10 +43,21 @@ bool firstMouse = true;
 
 bool debug = false;
 bool debugKeyPressed = false;
+bool useLightVolumes = true;
+bool implementationKeyPressed = false;
 
 // timing 
 float deltaTime = 0.0f; // time between current frame and last frame
 float lastFrame = 0.0f; // time of last frame
+
+unsigned int sphereVAO = 0;
+unsigned int sphereVBO = 0;
+unsigned int sphereEBO = 0;
+unsigned int indexCount = 0;
+unsigned int cubeVAO = 0;
+unsigned int cubeVBO = 0;
+unsigned int quadVAO = 0;
+unsigned int quadVBO = 0;
 
 int main()
 {
@@ -108,7 +111,8 @@ int main()
 		{"Alt + MMB", "Pan camera"},
 		{"Alt + RMB", "Dolly camera"},
 		{"Mouse wheel", "Zoom camera"},
-		{"D", "Toggle debug view"}
+		{"D", "Toggle G-buffer debug view"},
+		{"I", "Toggle fullscreen / light-volume lighting"}
 	});
 
 	// configure global OpenGL state
@@ -139,31 +143,12 @@ int main()
 	objectPositions.push_back(glm::vec3(-3.0, -3.0, 3.0));
 	objectPositions.push_back(glm::vec3(0.0, -3.0, 3.0));
 	objectPositions.push_back(glm::vec3(3.0, -3.0, 3.0));
-	
-
-	/*Model object(FileSystem::getPath("content/models/backpack/backpack.obj").c_str());
-	std::vector<glm::vec3> objectPositions;
-	objectPositions.push_back(glm::vec3(-3.0, -0.5, -3.0));
-	objectPositions.push_back(glm::vec3(0.0, -0.5, -3.0));
-	objectPositions.push_back(glm::vec3(3.0, -0.5, -3.0));
-	objectPositions.push_back(glm::vec3(-3.0, -0.5, 0.0));
-	objectPositions.push_back(glm::vec3(0.0, -0.5, 0.0));
-	objectPositions.push_back(glm::vec3(3.0, -0.5, 0.0));
-	objectPositions.push_back(glm::vec3(-3.0, -0.5, 3.0));
-	objectPositions.push_back(glm::vec3(0.0, -0.5, 3.0));
-	objectPositions.push_back(glm::vec3(3.0, -0.5, 3.0));
-	*/
-
-	
-	// load textures
-	// -------------
 	// G-Buffer Setup 
 	// --------------
-#if LEARNOPENGL
-	// learnopenGL
-	unsigned int gBuffer;
-	glGenFramebuffers(1, &gBuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+	// Fullscreen deferred shading G-buffer.
+	unsigned int fullscreenGBuffer;
+	glGenFramebuffers(1, &fullscreenGBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, fullscreenGBuffer);
 	unsigned int gPosition, gNormal, gAlbedoSpec;
 
 	// position color buffer
@@ -204,16 +189,18 @@ int main()
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
 	// finally check if FB is complete
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "Framebuffer not complete!" << std::endl;
+		std::cout << "Fullscreen G-buffer not complete!" << std::endl;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-#else
-	// OpenGLDev
-	GBuffer gBuffer = GBuffer();
-	if (!gBuffer.init(SCR_WIDTH, SCR_HEIGHT)) {
-		std::cout << "Failed to initialise GBuffer" << std::endl;
-		exit(1);
+
+	// Deferred shading with stencil-bounded light volumes.
+	GBuffer volumeGBuffer;
+	if (!volumeGBuffer.init(SCR_WIDTH, SCR_HEIGHT)) {
+		std::cout << "Failed to initialise light-volume G-buffer" << std::endl;
+		volumeGBuffer.destroy();
+		sample_help::shutdown();
+		glfwTerminate();
+		return -1;
 	}
-#endif // LEARNOPENGL
 
 	// lighting info
 	// -------------
@@ -266,29 +253,23 @@ int main()
 		// render
 		// ------
 
-		// 1. geometry pass: render all geometric/color data to g-buffer
-#if LEARNOPENGL
-		//learnopenGl
-		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the current FBO (G buffer)
-#else 
-		//OpenGLdev
-		gBuffer.startFrame(); // inform GBuffer about the start of new Frames
+		// 1. geometry pass: render all geometric/color data to the active G-buffer.
+		glDepthMask(GL_TRUE);
+		if (!useLightVolumes) {
+			glBindFramebuffer(GL_FRAMEBUFFER, fullscreenGBuffer);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		}
+		else {
+			volumeGBuffer.startFrame(); // clear the intermediate lighting texture
 
-		// only geometry pass updates the depth buffer
-		glDepthMask(GL_TRUE); // enable writing into depth buffer befoe clearing it!
+			// Only the geometry pass updates the depth buffer.
+			volumeGBuffer.bindForGeomPass();
+			glEnable(GL_DEPTH_TEST);
 		
-		gBuffer.bindForGeomPass(); //setting GBuffer object for writing
-		glEnable(GL_DEPTH_TEST);
-		
-		// prevent anything but this pass from writing into the depth buffer
-		// needs the depth buffer in order to populate the G-Buffer with closest pixels
-		// The lighting pass processes one texel per screen pixel and does not write geometry depth.
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the current FBO (G buffer)
-	
-				 
-		//glDisable(GL_BLEND); // manipulated elsewhere
-#endif //LEARNOPENGL		
+			// The lighting pass processes one texel per screen pixel and does not
+			// write geometry depth, so populate depth only here.
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		}
 
 			glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 			glm::mat4 view = camera.GetViewMatrix();
@@ -304,21 +285,22 @@ int main()
 				gBufferShader.setMat4("model", model);
 				object.Draw(gBufferShader);
 			}
-#if !LEARNOPENGL
+			if (useLightVolumes) {
 			// When we get here the depth buffer is already populated and the stencil pass
 			// depends on it, but it does not write to it.
-			glDepthMask(GL_FALSE);
-
-#endif
+				glDepthMask(GL_FALSE);
+			}
 			glBindFramebuffer(GL_FRAMEBUFFER, 0); // DrawFramebuffer
 
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			// 2. lighting pass: use g-buffer to calculate the scene's lighting
-#if LEARNOPENGL
+			// 2. lighting pass: use the G-buffer to calculate the scene's lighting.
+			if (!useLightVolumes) {
 			
 			//learnOpenGL.com
 			/*
-				Problem unnessary Function calls
+			 * This straightforward implementation evaluates every light in one
+			 * fullscreen pass. It is simple, but performs work for lights that do
+			 * not influence the current pixel.
 			 */
 			// render 2D screen-filled quad & execute an exp. lighting fs on each pixel
 			lightingPassShader.use();
@@ -353,7 +335,7 @@ int main()
 
 			// copy depth information stored in the geometry pass into the default 
 			// framebuffer's depth buffer
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer); // specify read buffer
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, fullscreenGBuffer); // specify read buffer
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
 			// blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
 			// the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the
@@ -362,8 +344,8 @@ int main()
 				0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
 			); // allows to copy user-defined region of a framebuffer to a user-defined region of another framebuffer
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-#else
+			}
+			else {
 			//OpenGLDev
 
 			/*
@@ -373,7 +355,7 @@ int main()
 			 */
 			glEnable(GL_STENCIL_TEST); // enable stencil test
 			
-			gBuffer.bindForReading(); // set Buffer for reading
+			volumeGBuffer.bindForReading(); // set Buffer for reading
 			glClear(GL_COLOR_BUFFER_BIT); // clear color buffer
 
 			/* Separate pass-specific shaders avoid a runtime branch in one large shader. */
@@ -394,6 +376,7 @@ int main()
 			pointLightShader.setInt("gNormal", 1);
 			pointLightShader.setInt("gAlbedoSpec", 2);
 			pointLightShader.setVec2("gScreenSize", glm::vec2(SCR_WIDTH, SCR_HEIGHT));
+			pointLightShader.setFloat("gSpecularPower", 32.0f);
 
 			stencilTestShader.use();
 			stencilTestShader.setMat4("projection", projection);
@@ -418,7 +401,7 @@ int main()
 				// 2.5 Begin the stencil pass.
 				stencilTestShader.use();
 				// Disable color/depth write and enable stencil
-				gBuffer.bindForStencilPass(); // only bind stencil buffer
+				volumeGBuffer.bindForStencilPass(); // only bind stencil buffer
 				glEnable(GL_DEPTH_TEST);
 
 				glDisable(GL_CULL_FACE); // disable culling because we want to process both, the front and the 
@@ -434,24 +417,24 @@ int main()
 				stencilTestShader.setMat4("model", model);
 				renderSphere(); // render bounding sphere based on the light params 
 
-				gBuffer.bindForReadingTex();
+				volumeGBuffer.bindForReadingTex();
 				
 				// END Stencil Pass
 
 				// Clear and rebuild stencil for every light. Reusing values would make it
 				// impossible to tell which overlapping light volume marked a pixel.
 
-				gBuffer.bindForLightPass(); // setup GBuffer
+				volumeGBuffer.bindForLightPass(); // setup GBuffer
 				pointLightShader.use();
 
 				glStencilFunc(GL_NOTEQUAL, 0, 0xFF); // set up stencil 
 				// test to pass, when the stencil value is not equal to zero
 
-				glDisable(GL_DEPTH_TEST); // disable depth test dont need; on some GPUs performance +
-				/* Blending for both light types, each light Source handled by its own
+				glDisable(GL_DEPTH_TEST); // the stencil test already limits affected pixels
+				/* Blending for both light types, each light source handled by its own
 				   draw call.
-				   Blending: takes a SRCcolor (out of FS) abd a DESTcolor (FB)
-							performs calc. on them
+				   Blending combines a source color (fragment shader) with the
+				   destination color already stored in the framebuffer.
 				 */
 				glEnable(GL_BLEND); // Enable Blending
 				glBlendEquation(GL_FUNC_ADD); // GPU will simply add the source and the destination
@@ -463,7 +446,7 @@ int main()
 				glEnable(GL_CULL_FACE); // enable culling of the front face polygons
 				glCullFace(GL_FRONT); // because the camera may be inside the light volume
 				// and if we do back face culling as normally we will not see the light until we exit its
-				// colume 
+				// volume
 		
 				// Render bounding sphere as usual
 				pointLightShader.setMat4("model", model);
@@ -487,17 +470,17 @@ int main()
 			 */
 			glDisable(GL_STENCIL_TEST); // disable stencil test
 
-			gBuffer.bindForLightPass();
+			volumeGBuffer.bindForLightPass();
 			// For DIRECTIONAL LIGHTS
-			/* Render Quad from (-1,-1) to (1,1) after Multilication with identity Matrix: after persp. devide and screen space transform 
+			/* Render a quad from (-1,-1) to (1,1). After perspective division and the screen-space transform,
 				result as Quad from (0,0) to (SCREEN_WIDTH, SCREEN_HEIGHT) */
 			dirLightShader.use();
-			//gBuffer.bindForReadingTex();
 			dirLightShader.setVec3("viewPos", camera.Position);
 			dirLightShader.setInt("gPosition", 0);
 			dirLightShader.setInt("gNormal", 1);
 			dirLightShader.setInt("gAlbedoSpec", 2);
 			dirLightShader.setVec2("gScreenSize", glm::vec2(SCR_WIDTH, SCR_HEIGHT));
+			dirLightShader.setFloat("gSpecularPower", 32.0f);
 			dirLightShader.setVec3("gDirectionalLight.Base.Color", glm::vec3(1.0,1.0,1.0));
 			dirLightShader.setFloat("gDirectionalLight.Base.AmbientIntensity", 0.05f*2);
 			dirLightShader.setFloat("gDirectionalLight.Base.DiffuseIntensity", 0.05f*2);
@@ -509,9 +492,13 @@ int main()
 			renderQuad();
 			glDisable(GL_BLEND);
 			/* DS FINAL PASS */
-			gBuffer.bindForFinalPass();
+			volumeGBuffer.bindForFinalPass();
 			glBlitFramebuffer(0,0, SCR_WIDTH, SCR_HEIGHT,
 								0,0, SCR_WIDTH, SCR_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+			// Copy geometry depth as well so the forward-rendered light markers are
+			// occluded by the scene in the same way as in the fullscreen path.
+			glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT,
+				0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 			// blit from the color buffer inside the G Buffer into the screen
 			// added an intermediate color buffer because:
 			//		the G Buffer combines as a target the values from the depth buffer
@@ -525,10 +512,11 @@ int main()
 			//		default FBO color buffer
 
 			// due to complexity of the GBuffer class
-
-#endif
+			}
 			
 			// render all light cubes with forward rendering as we'd normally do
+			glDepthMask(GL_TRUE);
+			glEnable(GL_DEPTH_TEST);
 			shaderLightBox.use();
 			shaderLightBox.setMat4("projection", projection);
 			shaderLightBox.setMat4("view", view);
@@ -544,46 +532,42 @@ int main()
 			if (debug) {
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the current FBO (G buffer)
 
-				// draw 4 GBuffer Textures as quads on full screen
-#if LEARNOPENGL
-				glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-#else
-				gBuffer.bindForReading(); // SOURCE FBO to be bound to GL_READ_FRAMEBUFFER
-#endif
+				// Draw the G-buffer textures as four screen quadrants.
+				if (useLightVolumes)
+					volumeGBuffer.bindForReading();
+				else
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, fullscreenGBuffer);
 				GLsizei HalfWidth = (GLsizei)(SCR_WIDTH / 2.0f);
 				GLsizei HalfHeight = (GLsizei)(SCR_HEIGHT / 2.0f);
 
 
 				// copy from the G buffer textures into the screen 
-#if LEARNOPENGL
-				glReadBuffer(GL_COLOR_ATTACHMENT0);
-#else
-				gBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_POSITION); // Bind specific texture to GL_READ_BUFFER (only can copy from a single Texture at a time)
-#endif
+				if (useLightVolumes)
+					volumeGBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_POSITION);
+				else
+					glReadBuffer(GL_COLOR_ATTACHMENT0);
 				glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, // SRC_RECTANGLE
-					0, 0, HalfWidth, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);// Destination Rectangle; SRC {Color, Depth or Stenticle Buffer}; Handle possible scaling {GL_NEAREST, GL_LINEAR (only for GL_COLOR_BUFFER_BIT)}
+					0, 0, HalfWidth, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);// Destination rectangle; source can be color, depth, or stencil; scaling uses GL_NEAREST or GL_LINEAR (color only).
 
-#if LEARNOPENGL
-				glReadBuffer(GL_COLOR_ATTACHMENT1);
-#else
-				gBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_ALBEDOSPEC);
-#endif
+				if (useLightVolumes)
+					volumeGBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_ALBEDOSPEC);
+				else
+					glReadBuffer(GL_COLOR_ATTACHMENT2);
 				glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT,
 					0, HalfHeight, HalfWidth, SCR_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-#if LEARNOPENGL
-				glReadBuffer(GL_COLOR_ATTACHMENT2);
-#else
-				gBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_NORMAL);
-#endif
+				if (useLightVolumes)
+					volumeGBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_NORMAL);
+				else
+					glReadBuffer(GL_COLOR_ATTACHMENT1);
 				glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT,
 					HalfWidth, HalfHeight, SCR_WIDTH, SCR_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-#if !LEARNOPENGL
-				gBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_TEXCOORD);
-				glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT,
-					HalfWidth, 0, SCR_WIDTH, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-#endif
+				if (useLightVolumes) {
+					volumeGBuffer.setReadBuffer(GBuffer::GBUFFER_TEXTURE_TYPE_TEXCOORD);
+					glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT,
+						HalfWidth, 0, SCR_WIDTH, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+				}
 			}
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
@@ -592,8 +576,19 @@ int main()
 		glfwPollEvents();
 	}
 
-	// optional: de-allocate all resources once they've outlived their purpose:
-	// ------------------------------------------------------------------------
+	glDeleteFramebuffers(1, &fullscreenGBuffer);
+	glDeleteTextures(1, &gPosition);
+	glDeleteTextures(1, &gNormal);
+	glDeleteTextures(1, &gAlbedoSpec);
+	glDeleteRenderbuffers(1, &rboDepth);
+	glDeleteVertexArrays(1, &sphereVAO);
+	glDeleteBuffers(1, &sphereVBO);
+	glDeleteBuffers(1, &sphereEBO);
+	glDeleteVertexArrays(1, &cubeVAO);
+	glDeleteBuffers(1, &cubeVBO);
+	glDeleteVertexArrays(1, &quadVAO);
+	glDeleteBuffers(1, &quadVBO);
+	volumeGBuffer.destroy();
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
@@ -604,9 +599,6 @@ int main()
 
 // renderSphere() renders a 1x1 3D sphere in NDC.
 // -------------------------------------------------
-unsigned int sphereVAO = 0;
-unsigned int indexCount;
-
 void renderSphere()
 {
 	// initialize (if necessary)
@@ -614,9 +606,8 @@ void renderSphere()
 	{
 		glGenVertexArrays(1, &sphereVAO);
 
-		unsigned int vbo, ebo;
-		glGenBuffers(1, &vbo);
-		glGenBuffers(1, &ebo);
+		glGenBuffers(1, &sphereVBO);
+		glGenBuffers(1, &sphereEBO);
 
 		std::vector<glm::vec3> positions;
 		std::vector<glm::vec2> uv;
@@ -684,9 +675,9 @@ void renderSphere()
 			}
 		}
 		glBindVertexArray(sphereVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, sphereVBO);
 		glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), &data[0], GL_STATIC_DRAW);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphereEBO);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
 		GLsizei stride = (3 + 2 + 3) * sizeof(float);
 		glEnableVertexAttribArray(0);
@@ -704,8 +695,6 @@ void renderSphere()
 
 // renderCube() renders a 1x1 3D cube in NDC.
 // -------------------------------------------------
-unsigned int cubeVAO = 0;
-unsigned int cubeVBO = 0;
 void renderCube()
 {
 	// initialize (if necessary)
@@ -779,8 +768,6 @@ void renderCube()
 
 // renderQuad() renders a 1x1 XY quad in NDC
 // -----------------------------------------
-unsigned int quadVAO = 0;
-unsigned int quadVBO;
 void renderQuad()
 {
 	if (quadVAO == 0)
@@ -817,8 +804,6 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
-	(void)cameraSpeed;
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
 		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
@@ -833,6 +818,16 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE)
 	{
 		debugKeyPressed = false;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS && !implementationKeyPressed)
+	{
+		useLightVolumes = !useLightVolumes;
+		implementationKeyPressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_RELEASE)
+	{
+		implementationKeyPressed = false;
 	}
 }
 
@@ -944,53 +939,4 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	// height will be significantly larger than specified on retina displays.
 	(void)window;
 	glViewport(0, 0, width, height);
-}
-
-// utility function for loading a 2D texture from file
-// ---------------------------------------------------
-unsigned int loadTexture(char const *path, bool gammaCorrection)
-{
-	/*
-	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
-	 */
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
-
-	int width, height, nrComponents;
-	unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
-	if (data)
-	{
-		GLenum internalFormat = 0;
-		GLenum dataFormat = 0;
-		if (nrComponents == 1) {
-			internalFormat = dataFormat = GL_RED;
-		}
-		else if (nrComponents == 3) {
-			internalFormat = (gammaCorrection) ? GL_SRGB : GL_RGB;	// GL_SRGB => OpenGL will correct image to linear color space
-			dataFormat = GL_RGB;
-		}
-		else if (nrComponents == 4) {
-			internalFormat = (gammaCorrection) ? GL_SRGB_ALPHA : GL_RGBA; // GL_SRGB_ALPHA => OpenGL will correct image to linear color space
-			dataFormat = GL_RGBA;
-		}
-
-		if (internalFormat && dataFormat){
-			glBindTexture(GL_TEXTURE_2D, textureID);
-			glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
-			glGenerateMipmap(GL_TEXTURE_2D);
-
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		}
-		stbi_image_free(data);
-	}
-	else
-	{
-		std::cout << "Texture failed to load at path: " << path << std::endl;
-		stbi_image_free(data);
-	}
-
-	return textureID;
 }
