@@ -65,11 +65,17 @@
 	gl_Position = projection * view * vec4(tes_out.positionW,1.0); // Project the displaced world-space position.
  }
 
- /*
-  * Educational reference: alternative bilinear interpolation for a quad
-  * domain. A quad TES would read gl_TessCoord.xy, interpolate each opposite
-  * edge, and then interpolate between those two results.
-  *
+#if 0
+	// Educational reference: alternative bilinear interpolation for a quad
+	// domain. A quad TES would read gl_TessCoord.xy, interpolate each opposite
+	// edge, and then interpolate between those two results.
+
+	/* Quad domains provide 2D coordinates for bilinear interpolation. */
+
+	/* For isolines, x is the position along a line and y selects the line. */
+	// float u = gl_TessCoord.x; // Read the tessellation coordinate (u, v).
+	// float v = gl_TessCoord.y;
+
 	void main() {
 		float u = gl_TessCoord.x;
 		float v = gl_TessCoord.y;
@@ -81,5 +87,5 @@
 		// Modify position here, for example by displacing it along a normal.
 		gl_Position = projection * view * model * position;
 	}
-  */
+#endif
 
