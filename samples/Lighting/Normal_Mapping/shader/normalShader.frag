@@ -3,7 +3,6 @@
 out vec4 FragColor;
 
 in VS_OUT {
-	vec3 FragPos;
 	vec2 TexCoords;
 	vec3 TangentLightPos;
 	vec3 TangentViewPos;
@@ -11,73 +10,32 @@ in VS_OUT {
 } fs_in;
 
 uniform sampler2D diffuseMap;
-
-/*
- * Normal vectors in normal map are expressed in tangent space 
- * (normals always point roughly in the positive z direction)
- */
 uniform sampler2D normalMap;
+uniform bool normalMappingEnabled;
+uniform bool showNormals;
 
-uniform vec3 lightPos;
-uniform vec3 viewPos;
+vec3 blinnPhong(vec3 normal, vec3 color)
+{
+	vec3 lightDir = normalize(fs_in.TangentLightPos - fs_in.TangentFragPos);
+	vec3 viewDir = normalize(fs_in.TangentViewPos - fs_in.TangentFragPos);
+	vec3 halfwayDir = normalize(lightDir + viewDir);
 
-/*
- * Blinn-Phong lighting model
- */
-vec3 BlinnPhong(vec3 normal, vec3 fragPosition, vec3 lightPosition, vec3 viewPosition, vec3 lightColor) {
-	//diffuse
-	vec3 lightDir = normalize(lightPosition - fragPosition);
-	float diff = max(dot(lightDir, normal), 0.0);
-	vec3 diffuse = diff*lightColor;
-
-	// specular 
-	vec3 viewDir = normalize(viewPosition - fragPosition);
-	vec3 reflectDir = reflect(-lightDir, normal);
-	
-	float spec = 0.0;
-
-	vec3 halfwayDir = normalize(lightDir + viewDir); //vector between LightDir Vec and View Vec 
-	//specular shiniess exponent
-	spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
-	//  clamped dot product
-	
-	vec3 specular = spec * vec3(0.2);
-	// simple attenuation
-	float max_distance = 1.5;
-	float distance = length(lightPosition - fragPosition);
-	float attentuation = 1.0 / distance;
-	// Without gamma correction => lin. function gives much more plausible results
-
-	return diffuse+specular;
+	float diffuseStrength = max(dot(lightDir, normal), 0.0);
+	float specularStrength = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
+	return diffuseStrength * color + specularStrength * vec3(0.2);
 }
 
-
-/* 
- * Using TBN-Matrix (2 ways to use it) 
- *	1) giving TBN Matrix to fs and using it to transform normals (Tangent Space -> world space)
- *	2) taking inverse of TBN and transform any vector from world to tangent space (world space -> tangent space)
- *		Advantage: all other vectors can be transformed in the vertex Shader (vs runs less often then fs)
- */
-
-void main() 
+void main()
 {
-	// get diffuse color
-    vec3 color = texture(diffuseMap, fs_in.TexCoords).rgb;
-    // ambient
-    vec3 ambient = 0.1 * color;
-	
-	// obtain normal from normal map in range [0,1]
-	vec3 normal = texture(normalMap, fs_in.TexCoords).rgb;
-	
-	// transform normal vector to range [-1, 1]
-	normal = normalize(normal * 2.0 - 1.0);
+	vec3 color = texture(diffuseMap, fs_in.TexCoords).rgb;
+	vec3 mappedNormal = normalize(texture(normalMap, fs_in.TexCoords).rgb * 2.0 - 1.0);
+	vec3 normal = normalMappingEnabled ? mappedNormal : vec3(0.0, 0.0, 1.0);
 
-	// use tangent space
-	vec3 blinnPhong = BlinnPhong(normal, fs_in.TangentFragPos, fs_in.TangentLightPos, fs_in.TangentViewPos, color);
+	if (showNormals) {
+		FragColor = vec4(normal * 0.5 + 0.5, 1.0);
+		return;
+	}
 
-	// no tangent space, not this leads to wrong lightng
-	//vec3 blinnPhong = BlinnPhong(normal, fs_in.FragPos, lightPos, viewPos, color);
-	
-	FragColor = vec4(ambient + blinnPhong, 1.0);
-
+	vec3 ambient = 0.1 * color;
+	FragColor = vec4(ambient + blinnPhong(normal, color), 1.0);
 }

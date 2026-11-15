@@ -1,9 +1,4 @@
 #version 330 core
-/**
- * Perform lighting in tangent space, where decoded normal-map vectors point roughly along the positive z-axis.
- *
- *
- */
 
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
@@ -12,7 +7,6 @@ layout (location = 3) in vec3 aTangent;
 layout (location = 4) in vec3 aBitangent;
 
 out VS_OUT {
-	vec3 FragPos;
 	vec2 TexCoords;
 	vec3 TangentLightPos;
 	vec3 TangentViewPos;
@@ -22,45 +16,28 @@ out VS_OUT {
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
-
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
-void main() {
-	vs_out.FragPos = vec3(model * vec4(aPos, 1.0));
-	vs_out.TexCoords = aTexCoords;
-
+void main()
+{
+	vec3 fragPos = vec3(model * vec4(aPos, 1.0));
 	mat3 normalMatrix = transpose(inverse(mat3(model)));
+	vec3 N = normalize(normalMatrix * aNormal);
+	vec3 T = normalize(mat3(model) * aTangent);
+	T = normalize(T - dot(T, N) * N);
+	vec3 B = cross(N, T);
 
-	/* 
-	 * Tangent Space 
-	 *	space that's local to the surface of a triangle
-	 *	TBN-Matrix: Tangent, Bitangent, Normal
-	 */
-	// no normal matrix used, vectors might get scaling and/or translation
-	vec3 T = normalize(vec3(model*vec4(aTangent, 0.0)));		// transform to coord. System to work in (WORLD SPACE)
-	vec3 N = normalize(vec3(model*vec4(aNormal, 0.0)));			// transform to coord. System to work in (WORLD SPACE)
+	// Preserve the handedness encoded by the mesh's bitangent.
+	vec3 meshBitangent = normalize(mat3(model) * aBitangent);
+	B *= dot(B, meshBitangent) < 0.0 ? -1.0 : 1.0;
 
-	/* Larger Mesh: tangent vect. are generally averaged (smooth result) 
-	 *		Problem: maybe not perpendicular to each other => matrix wouldn'T be orthogonal anymore
-	 * Use the Gram-Schmidt process to re-orthogonalize the tangent basis.
-	 */
-	// re-orthogonalize T with respect to N
-	T = normalize(T - dot(T, N)*N);
-	vec3 B = cross(N,T);
+	// The transpose converts world-space vectors into tangent space.
+	mat3 worldToTangent = transpose(mat3(T, B, N));
+	vs_out.TexCoords = aTexCoords;
+	vs_out.TangentLightPos = worldToTangent * lightPos;
+	vs_out.TangentViewPos = worldToTangent * viewPos;
+	vs_out.TangentFragPos = worldToTangent * fragPos;
 
-	/* TBN must form a right handed orrd system
-	 * Some models have symetric UVs. Check and fixed
-	 */
-	if (dot(cross(N, T), B) < 0.0)
-                T = T * -1.0;
-
-	//vec3 B = normalize(vec3(model*vec4(aBitangent, 0.0)));		// transform to coord. System to work in (WORLD SPACE) 
-	mat3 TBN = transpose(mat3(T,B,N)); // same like inverse, cause orthogonal matrix: transpose == inverse. Calc transpose is faster
-	
-	vs_out.TangentLightPos = TBN * lightPos;
-	vs_out.TangentViewPos = TBN * viewPos;
-	vs_out.TangentFragPos = TBN * vec3(model * vec4(aPos, 0.0));
-
-	gl_Position = projection * view * model * vec4(aPos, 1.0);
+	gl_Position = projection * view * vec4(fragPos, 1.0);
 }

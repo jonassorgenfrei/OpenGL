@@ -10,16 +10,11 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
 #include "stb_image.h"
 
 #include "modules/shader_m.h"
 #include "modules/camera.h"
-#include "modules/model.h"
 #include "modules/filesystem.h"
-#include "modules/light.h"
-#include "modules/material.h"
 #include "modules/window.h"
 #include "modules/help_overlay.h"
 
@@ -33,16 +28,21 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 void drawPlane(void);
 /* load texture */
-unsigned int loadTexture(const char *path, bool gammaCorrection);
+unsigned int loadTexture(const char *path);
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 float heightScale = 0.1;
-bool Wpressed = false;
-bool wireframe = false;
-
-int texture = 0; // 0 - wood 1 - bricks
+bool parallaxEnabled = true;
+bool normalMappingEnabled = true;
+bool showNormals = false;
+bool parallaxKeyPressed = false;
+bool normalMappingKeyPressed = false;
+bool showNormalsKeyPressed = false;
+bool textureKeyPressed = false;
+int parallaxMethod = 3;
+int texture = 0; // 0 - wood, 1 - bricks
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -53,6 +53,8 @@ bool firstMouse = true;
 // timing 
 float deltaTime = 0.0f; // time between current frame and last frame
 float lastFrame = 0.0f; // time of last frame
+unsigned int quadVAO = 0;
+unsigned int quadVBO = 0;
 
 int main()
 {
@@ -106,8 +108,12 @@ int main()
 		{"Alt + MMB", "Pan camera"},
 		{"Alt + RMB", "Dolly camera"},
 		{"Mouse wheel", "Zoom camera"},
-		{"W", "Toggle wireframe"},
-		{"Q / E", "Adjust height scale"}
+		{"P", "Toggle parallax mapping"},
+		{"N", "Toggle normal map / geometric normal"},
+		{"V", "Visualize the selected normal"},
+		{"1 / 2 / 3", "Basic / steep / occlusion parallax"},
+		{"T", "Switch wood / brick textures"},
+		{"Q / E", "Decrease / increase height scale"}
 	});
 
 	// configure global OpenGL state
@@ -123,44 +129,15 @@ int main()
 	// load textures
 	// -------------
 	/* Bricks */
-	unsigned int bricks_diffuseMap = loadTexture(FileSystem::getPath("content/images/bricks2.jpg").c_str(),false);
-	unsigned int bricks_depthMap = loadTexture(FileSystem::getPath("content/images/bricks2_disp.jpg").c_str(), false); // DepthMap => inverse of the heightmap (easier to fake depth instead of height)
-	unsigned int bricks_normalMap = loadTexture(FileSystem::getPath("content/images/bricks2_normal.jpg").c_str(), false);
+	unsigned int bricks_diffuseMap = loadTexture(FileSystem::getPath("content/images/bricks2.jpg").c_str());
+	unsigned int bricks_depthMap = loadTexture(FileSystem::getPath("content/images/bricks2_disp.jpg").c_str());
+	unsigned int bricks_normalMap = loadTexture(FileSystem::getPath("content/images/bricks2_normal.jpg").c_str());
 	
 
 	/* Wood */
-	unsigned int wood_diffuseMap = loadTexture(FileSystem::getPath("content/images/wood.png").c_str(),false);
-	unsigned int wood_depthMap = loadTexture(FileSystem::getPath("content/images/toy_box_disp.png").c_str(), false); // DepthMap => inverse of the heightmap (easier to fake depth instead of height)
-	unsigned int wood_normalMap = loadTexture(FileSystem::getPath("content/images/toy_box_normal.png").c_str(), false);
-
-	// set up vertex data (and buffer(s)) and configure vertex attributes
-	// ------------------------------------------------------------------
-	float planeVertices[] = {
-		// positions            // normals         // texcoords
-		-1.0f, 1.0f,  0.0f,		0.0f, 0.0f, 1.0f,  0.0f,  1.0f,
-		-1.0f, -1.0f,  0.0f,	0.0f, 0.0f, 1.0f,  0.0f,  0.0f,
-		1.0f, -1.0f, 0.0f,		0.0f, 0.0f, 1.0f,  1.0f, 0.0f,
-
-		-1.0f, 1.0f, 0.0f,		0.0f, 0.0f, 1.0f,  0.0f,  1.0f,
-		1.0f, -1.0f, 0.0f,		0.0f, 0.0f, 1.0f,  1.0f,  0.0f,
-		1.0f, 1.0f, 0.0f,		0.0f, 0.0f, 1.0f,  1.0f, 1.0f
-	};
-
-	// Setup cube VAO
-	GLuint planeVAO, planeVBO;
-	glGenVertexArrays(1, &planeVAO);
-	glGenBuffers(1, &planeVBO);
-	glBindVertexArray(planeVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-	glBindVertexArray(0);
-
+	unsigned int wood_diffuseMap = loadTexture(FileSystem::getPath("content/images/wood.png").c_str());
+	unsigned int wood_depthMap = loadTexture(FileSystem::getPath("content/images/toy_box_disp.png").c_str());
+	unsigned int wood_normalMap = loadTexture(FileSystem::getPath("content/images/toy_box_normal.png").c_str());
 
 	// Shader configuration
 	// --------------------
@@ -177,8 +154,6 @@ int main()
 	// -----------
 	while (!glfwWindowShouldClose(window))
 	{
-		glPolygonMode(GL_FRONT_AND_BACK, (wireframe) ? GL_LINE : GL_FILL);
-
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
 
@@ -208,6 +183,10 @@ int main()
 		shader.setVec3("viewPos", camera.Position);
 		shader.setVec3("lightPos", lightPos);
 		shader.setFloat("height_scale", heightScale);
+		shader.setBool("parallaxEnabled", parallaxEnabled);
+		shader.setBool("normalMappingEnabled", normalMappingEnabled);
+		shader.setBool("showNormals", showNormals);
+		shader.setInt("parallaxMethod", parallaxMethod);
 
 		if (texture == 1) {
 			glActiveTexture(GL_TEXTURE0);
@@ -229,23 +208,6 @@ int main()
 
 		drawPlane();
 
-		// render light source (simply re-renders a smaller plane at the light's position for debugging/visualization)
-		model = glm::mat4(1.0);
-		
-		model = glm::translate(model, lightPos);
-		model = glm::scale(model, glm::vec3(0.1f));
-		shader.setMat4("model", model);
-		drawPlane();
-		
-		// Floor 
-		/*glBindVertexArray(planeVAO);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, diffuseMap);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, normalMap);
-		glDrawArrays(GL_TRIANGLES, 0, 6);*/
-
-
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
 		sample_help::render();
@@ -255,8 +217,13 @@ int main()
 
 	// optional: de-allocate all resources once they've outlived their purpose:
 	// ------------------------------------------------------------------------
-	glDeleteVertexArrays(1, &planeVAO);
-	glDeleteBuffers(1, &planeVBO);;
+	glDeleteVertexArrays(1, &quadVAO);
+	glDeleteBuffers(1, &quadVBO);
+	unsigned int textures[] = {
+		bricks_diffuseMap, bricks_depthMap, bricks_normalMap,
+		wood_diffuseMap, wood_depthMap, wood_normalMap
+	};
+	glDeleteTextures(6, textures);
 	
 	// glfw: terminate, clearing all previously allocated GLFW resources.
 	// ------------------------------------------------------------------
@@ -267,8 +234,6 @@ int main()
 
 // renders a 1x1 quad in NDC with manually calculated tangent vectors
 // ------------------------------------------------------------------
-unsigned int quadVAO = 0;
-unsigned int quadVBO;
 void drawPlane() {
 	if (quadVAO == 0) {
 		// positions
@@ -314,11 +279,11 @@ void drawPlane() {
 
 		// triangle 2
 		// ----------
-		// calculating first triangle's edges and delta UV coordinates.
+		// Calculate the basis for the second triangle.
 		edge1 = pos3 - pos1;
-        edge2 = pos4 - pos1;
-        deltaUV1 = uv3 - uv1;
-        deltaUV2 = uv4 - uv1;
+		edge2 = pos4 - pos1;
+		deltaUV1 = uv3 - uv1;
+		deltaUV2 = uv4 - uv1;
 
 		// calculating tangents and bitangents
 		//pre-calculate fractional part of the equation
@@ -373,19 +338,8 @@ void drawPlane() {
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {	
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-		Wpressed = true;
-	}
-
-	if (Wpressed && glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) {
-		Wpressed = false;
-		wireframe = !wireframe;
-	}
-
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
-
-	float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
 
 	if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
 	{
@@ -393,21 +347,46 @@ void processInput(GLFWwindow *window)
 		glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
 	}
 
-	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-		if (heightScale > 0.0f) {
-			heightScale -= 0.0005f;
-		}
-		else {
-			heightScale = 0.0f;
-		}
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !parallaxKeyPressed) {
+		parallaxEnabled = !parallaxEnabled;
+		parallaxKeyPressed = true;
 	}
-	else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-		if (heightScale < 1.0f) {
-			heightScale += 0.0005f;
-		} else {
-			heightScale = 1.0f;
-		}
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE)
+		parallaxKeyPressed = false;
+
+	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !normalMappingKeyPressed) {
+		normalMappingEnabled = !normalMappingEnabled;
+		normalMappingKeyPressed = true;
 	}
+	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE)
+		normalMappingKeyPressed = false;
+
+	if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS && !showNormalsKeyPressed) {
+		showNormals = !showNormals;
+		showNormalsKeyPressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_V) == GLFW_RELEASE)
+		showNormalsKeyPressed = false;
+
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS && !textureKeyPressed) {
+		texture = 1 - texture;
+		textureKeyPressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
+		textureKeyPressed = false;
+
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+		parallaxMethod = 1;
+	else if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+		parallaxMethod = 2;
+	else if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+		parallaxMethod = 3;
+
+	const float heightChange = 0.1f * deltaTime;
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+		heightScale = glm::max(0.0f, heightScale - heightChange);
+	else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+		heightScale = glm::min(0.2f, heightScale + heightChange);
 }
 
 // glfw: whenever the mouse moves, this callback is called
@@ -519,11 +498,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 // utility function for loading a 2D texture from file
 // ---------------------------------------------------
-unsigned int loadTexture(char const *path, bool gammaCorrection)
+unsigned int loadTexture(char const *path)
 {
-	/*
-	 * Specular and normal maps usually contain linear data. Loading them as sRGB corrupts the lighting calculations.
-	 */
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
 
@@ -536,21 +512,22 @@ unsigned int loadTexture(char const *path, bool gammaCorrection)
 		if (nrComponents == 1) {
 			internalFormat = dataFormat = GL_RED;
 		}
+		else if (nrComponents == 2) {
+			internalFormat = dataFormat = GL_RG;
+		}
 		else if (nrComponents == 3) {
-			internalFormat = (gammaCorrection) ? GL_SRGB : GL_RGB;	// GL_SRGB => OpenGL will correct image to linear color space
-			dataFormat = GL_RGB;
+			internalFormat = dataFormat = GL_RGB;
 		}
 		else if (nrComponents == 4) {
-			internalFormat = (gammaCorrection) ? GL_SRGB_ALPHA : GL_RGBA; // GL_SRGB_ALPHA => OpenGL will correct image to linear color space
-			dataFormat = GL_RGBA;
+			internalFormat = dataFormat = GL_RGBA;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, textureID);
 		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (internalFormat == GL_RGBA || internalFormat == GL_SRGB_ALPHA) ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, internalFormat == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, internalFormat == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -560,6 +537,8 @@ unsigned int loadTexture(char const *path, bool gammaCorrection)
 	{
 		std::cout << "Texture failed to load at path: " << path << std::endl;
 		stbi_image_free(data);
+		glDeleteTextures(1, &textureID);
+		return 0;
 	}
 
 	return textureID;
