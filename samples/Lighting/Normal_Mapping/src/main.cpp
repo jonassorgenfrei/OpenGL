@@ -35,6 +35,10 @@ bool normalMappingEnabled = true;
 bool showNormals = false;
 bool normalMappingKeyPressed = false;
 bool showNormalsKeyPressed = false;
+bool blinn = true;
+bool blinnKeyPressed = false;
+bool gammaEnabled = false;
+bool gammaKeyPressed = false;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -101,7 +105,9 @@ int main()
 		{"Alt + RMB", "Dolly camera"},
 		{"Mouse wheel", "Zoom camera"},
 		{"N", "Toggle normal map / geometric normal"},
-		{"V", "Visualize the selected normal"}
+		{"V", "Visualize the selected normal"},
+		{"B", "Toggle Blinn-Phong / Phong"},
+		{"Space", "Toggle gamma correction"}
 	});
 
 	// configure global OpenGL state
@@ -163,6 +169,8 @@ int main()
 		shader.setVec3("lightPos", lightPos);
 		shader.setBool("normalMappingEnabled", normalMappingEnabled);
 		shader.setBool("showNormals", showNormals);
+		shader.setBool("blinn", blinn);
+		shader.setBool("gammaEnabled", gammaEnabled);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, diffuseMap);
@@ -326,6 +334,26 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_V) == GLFW_RELEASE)
 	{
 		showNormalsKeyPressed = false;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !blinnKeyPressed)
+	{
+		blinn = !blinn;
+		blinnKeyPressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE)
+	{
+		blinnKeyPressed = false;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !gammaKeyPressed)
+	{
+		gammaEnabled = !gammaEnabled;
+		gammaKeyPressed = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE)
+	{
+		gammaKeyPressed = false;
 	}
 }
 
