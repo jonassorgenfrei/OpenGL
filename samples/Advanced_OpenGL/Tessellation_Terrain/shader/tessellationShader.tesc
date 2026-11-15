@@ -43,7 +43,8 @@
     // Copy each input control point to the corresponding output control point.
 	// gl_InvocationID = contains the index of the current invocation
 	gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
-    /** built-in GLSL var
+
+    /* Built-in per-vertex input available to a tessellation control shader:
     in gl_PerVertex
     {
         vec4 gl_Position;
@@ -51,6 +52,7 @@
         float gl_ClipDistance[];
     } gl_in[gl_MaxPatchVertices];
     */
+
     tcs_out[gl_InvocationID].texCoords = tcs_in[gl_InvocationID].texCoords;
 
     // Tessellation levels are patch-wide, so only one invocation writes them.
@@ -84,24 +86,18 @@
     }
  }
 
-/* Domain-specific tessellation-level counts */
-
-
-// A triangle domain uses three outer levels and one inner level.
-/*	
+/*
+ * Domain-specific tessellation-level counts:
+ *
+ * Triangle domain: three outer levels and one inner level.
+ *
 	gl_TessLevelInner[0] = ...;
 	gl_TessLevelOuter[0] = ...;
 	gl_TessLevelOuter[1] = ...;
 	gl_TessLevelOuter[2] = ...;
-*/
-
-
-/*
-* A quad domain uses four outer and two inner tessellation levels.
-*/
-
-/*
-* An isoline domain uses two outer levels and no inner levels.
-*/
+ *
+ * Quad domain: four outer levels and two inner levels.
+ * Isoline domain: two outer levels and no inner levels.
+ */
 
 

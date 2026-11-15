@@ -20,7 +20,7 @@ void main() {
 	// Keep the position in model space; the TES performs the final projection.
 	vs_out.positionW = (model * vec4(aPos,1.0)).xyz;
 	vs_out.texCoords = aTexCoords;
-	vs_out.normal = (model * vec4(aNormal,1.0)).xyz;
+	vs_out.normal = normalize(transpose(inverse(mat3(model))) * aNormal);
 
 	// The tessellation evaluation shader writes the final gl_Position value.
 }
