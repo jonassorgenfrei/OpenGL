@@ -43,6 +43,14 @@
     return vec3(gl_TessCoord.x) * v0 + vec3(gl_TessCoord.y) * v1 + vec3(gl_TessCoord.z) * v2;
 } 
 
+ // Educational reference: gl_TessCoord contains the generated vertex's
+ // barycentric coordinates, so the same interpolation extends to vec4 values.
+ vec4 interpolate4D(vec4 v0, vec4 v1, vec4 v2) {
+	return gl_TessCoord.x * v0
+		+ gl_TessCoord.y * v1
+		+ gl_TessCoord.z * v2;
+ }
+
  void main() {
 	// Interpolate the attributes of the output vertex using the barycentric coordinates
 	tes_out.texCoords = interpolate2D(tes_in[0].texCoords, tes_in[1].texCoords, tes_in[2].texCoords);
@@ -56,4 +64,22 @@
 
 	gl_Position = projection * view * vec4(tes_out.positionW,1.0); // Project the displaced world-space position.
  }
+
+ /*
+  * Educational reference: alternative bilinear interpolation for a quad
+  * domain. A quad TES would read gl_TessCoord.xy, interpolate each opposite
+  * edge, and then interpolate between those two results.
+  *
+	void main() {
+		float u = gl_TessCoord.x;
+		float v = gl_TessCoord.y;
+
+		vec4 tmp1 = mix(gl_in[1].gl_Position, gl_in[0].gl_Position, u);
+		vec4 tmp2 = mix(gl_in[2].gl_Position, gl_in[3].gl_Position, u);
+		vec4 position = mix(tmp1, tmp2, v);
+
+		// Modify position here, for example by displacing it along a normal.
+		gl_Position = projection * view * model * position;
+	}
+  */
 
