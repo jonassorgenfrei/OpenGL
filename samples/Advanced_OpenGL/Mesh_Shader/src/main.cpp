@@ -38,6 +38,7 @@ const unsigned int SCR_HEIGHT = 720;
 float heightScale = 1.0;
 bool Wpressed = false;
 bool wireframe = false;
+int outputMode = 1;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -180,7 +181,10 @@ int main()
 		{"Alt + RMB", "Dolly camera"},
 		{"Mouse wheel", "Zoom camera"},
 		{"W", "Toggle wireframe"},
-		{"Q / E", "Adjust scale"}
+		{"Q / E", "Adjust scale"},
+		{"1", "Show per-vertex color"},
+		{"2", "Show per-primitive color"},
+		{"3", "Show primitive ID"}
 	});
 	
 	if (GLAD_GL_NV_mesh_shader) {
@@ -233,6 +237,7 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		shader.use();
+		shader.setInt("outputMode", outputMode);
 		// draw one work group with the starting index being 0. 
 		glDrawMeshTasksNV(0, 1);
 
@@ -278,6 +283,16 @@ void processInput(GLFWwindow *window)
 	if (Wpressed && glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) {
 		Wpressed = false;
 		wireframe = !wireframe;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+		outputMode = 0;
+	}
+	else if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
+		outputMode = 1;
+	}
+	else if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
+		outputMode = 2;
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
